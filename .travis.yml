@@ -1,0 +1,17 @@
+sudo: false
+language: fortran
+compiler:
+  - gfortran
+os:
+  - linux
+addons:
+  apt:
+    source:
+      - ubuntu-toolchain-r-test
+    packages:
+      - gfortran
+      - libnetcdf-dev
+script:
+  - sed -i "s|NCDF_PATH = /usr/local|NCDF_PATH = /usr|" makefile
+  - make test -j4
+  - make -j4
