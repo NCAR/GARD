@@ -47,6 +47,31 @@ ifeq ($(NODENAME), hydro-c1)
 	endif
 endif
 
+# on yellowstone:
+ifeq ($(LMOD_FAMILY_COMPILER),gnu)
+	F90=gfortran
+	NCDF_PATH=/glade/apps/opt/netcdf/4.3.0/gnu/4.8.2
+	# LIBNETCDF = $(LIB_NCAR) # when netcdf includes are setup by the yellowstone module system
+	# INCNETCDF = $(INC_NCAR)
+	# LIBNETCDF = -Wl,-rpath,$(NCDF_PATH)/lib -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf # if using a compiler for which netcdf includes are
+	# INCNETCDF = -I$(NCDF_PATH)/include # NOT setup correctly by the yellowstone module system
+endif
+ifeq ($(LMOD_FAMILY_COMPILER),intel)
+	F90=ifort
+	NCDF_PATH=/glade/apps/opt/netcdf/4.3.0/intel/default
+	# LIBNETCDF = $(LIB_NCAR) #-L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
+	# INCNETCDF = $(INC_NCAR) #-I$(NCDF_PATH)/include # netcdf includes are setup by the yellowstone module system
+endif
+ifeq ($(LMOD_FAMILY_COMPILER),pgi)
+	F90=pgf90
+	NCDF_PATH=/glade/apps/opt/netcdf/4.3.0/pgi/default
+	# LIBNETCDF = -rpath $(NCDF_PATH)/lib -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf # if using a compiler for which netcdf includes are
+	# INCNETCDF = -I$(NCDF_PATH)/include # NOT setup correctly by the yellowstone module system
+endif
+
+# get GIT version info
+GIT_VERSION := $(shell git describe --long --dirty --all --always | sed -e's/heads\///')
+
 ###################################################################
 ###################################################################
 #
@@ -55,7 +80,7 @@ endif
 ###################################################################
 ###################################################################
 ifeq ($(FC), gfortran)
-	COMP=-fopenmp -lgomp -O3 -ffree-line-length-none -ftree-vectorize -fimplicit-none -funroll-loops -march=native  -fno-protect-parens # -ffast-math #-flto #
+	COMP=-fopenmp -lgomp -O3 -ffree-line-length-none -ftree-vectorize -fimplicit-none -funroll-loops -march=native -fno-protect-parens -ffast-math #-flto #
 	LINK=-fopenmp -lgomp
 	PREPROC=-cpp
 	MODOUTPUT=-J $(BUILD)
