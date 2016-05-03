@@ -34,8 +34,12 @@ module time
         procedure, public  :: date_to_mjd => date_to_mjd
         procedure, public  :: as_string   => as_string
         
-        generic,   public  :: set         => set_from_string, set_from_date, set_from_mjd
-        procedure, private :: set_from_string, set_from_date, set_from_mjd
+        generic,   public  :: set         => set_from_string
+        generic,   public  :: set         => set_from_date
+        generic,   public  :: set         => set_from_mjd
+        procedure, private :: set_from_string
+        procedure, private :: set_from_date
+        procedure, private :: set_from_mjd
     end type Time_type
     
 contains
