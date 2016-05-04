@@ -30,7 +30,7 @@ program downscale
     options = config()
     
     call obs_data%init(options)
-    call gcm_data%init(options)
+    gcm_data = gcm(options)
     call current_data%init(options)
     
     print*, "options ",      trim(options%as_string())

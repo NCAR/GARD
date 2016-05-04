@@ -5,11 +5,6 @@ module gcm_mod
     
     implicit none
     
-    interface gcm
-        module procedure :: new_gcm
-    end interface gcm
-    private new_gcm
-    
     type, public :: gcm
         private
         character(len=MAXFILELENGTH) :: name
@@ -18,13 +13,17 @@ module gcm_mod
         procedure, public  :: as_string   => as_string
         procedure, public  :: set_name    => set_name
     end type gcm
+    interface gcm
+        module procedure new_gcm
+    end interface gcm
 
 contains
-    function new_gcm()
+    function new_gcm(options)
         implicit none
+        class(options_type), intent(in) :: options
         type(gcm) :: new_gcm
         
-        call new_gcm%set_name( "Test name" )
+        call new_gcm%init( options )
         
     end function new_gcm  
     
