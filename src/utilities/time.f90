@@ -21,10 +21,10 @@ module time
     type, public :: Time_type
         integer :: year_zero = 1800  ! starting year
         integer :: calendar
-        integer, dimension(13) :: month_start
         integer :: year, month, day, hour, minute, second
         
-        double precision :: current_date_time = 0
+        double precision, private :: current_date_time = 0
+        integer, private, dimension(13) :: month_start
 
       contains
         procedure, public  :: init        => time_init

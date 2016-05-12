@@ -253,14 +253,21 @@ OBJS =  \
 	$(BUILD)observations.o    \
 	$(BUILD)configuration.o   \
 	$(BUILD)main.o
-	# $(BUILD)ds_model.o       \
-	# $(BUILD)numerics.o     \
+	# $(BUILD)ds_model.o       	\
+	# $(BUILD)numerics.o     	\
 	# $(BUILD)coefficients.o    \
 	
 
-CAL_TEST_OBJS =    			\
-    $(BUILD)time.o 			\
+CAL_TEST_OBJS =    				\
+    $(BUILD)time.o 				\
 	$(BUILD)test_calendar.o
+	
+MASTERFILE_TEST_OBJS =    		\
+	$(BUILD)time.o		 		\
+	$(BUILD)string.o	 		\
+	$(BUILD)data_structures.o 	\
+	$(BUILD)master_file.o       \
+	$(BUILD)test_master_file.o
 
 # These are the primary user facing rules
 #
@@ -269,7 +276,7 @@ CAL_TEST_OBJS =    			\
 # "make" builds all
 all: downscale
 
-test: test_calendar
+test: test_calendar test_master_file
 
 install: downscale
 	cp downscale $(INSTALL_DIR)/
@@ -287,17 +294,28 @@ downscale: $(OBJS)
 test_calendar : $(CAL_TEST_OBJS)
 	$(FC) $(FCFLAGS) -o $@ $^ $(LDFLAGS)
 
+test_master_file : $(MASTERFILE_TEST_OBJS)
+	$(FC) $(FCFLAGS) -o $@ $^ $(LDFLAGS)
+
+
 # specify specific builds and dependencies. 
 $(BUILD)time.o: utilities/time.f90
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)test_calendar.o: tests/test_calendar.f90 $(BUILD)time.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
-	
+
+$(BUILD)test_master_file.o: tests/test_master_file.f90 $(BUILD)/master_file.o \
+							$(BUILD)string.o $(BUILD)time.o $(BUILD)data_structures.o
+	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
+
 $(BUILD)data_structures.o: objects/data_structures.f90 $(BUILD)time.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 	
 $(BUILD)string.o: utilities/string.f90
+	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
+
+$(BUILD)master_file.o: objects/master_file.f90 $(BUILD)string.o $(BUILD)time.o $(BUILD)data_structures.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)io_routines.o: io/io_routines.f90

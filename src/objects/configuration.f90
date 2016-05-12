@@ -7,16 +7,15 @@ module config_mod
     
     character(len=MAXFILELENGTH), parameter :: DEFAULT_OPTIONS_FILENAME = "downscale_options.txt"
     
-    interface config
-        module procedure new_config
-    end interface config
-    
     type, public, extends(options_type):: config
         private
         character(len=MAXFILELENGTH) :: options_filename
       contains
         procedure, public :: as_string  => as_string
     end type config
+    interface config
+        module procedure new_config
+    end interface config
     
 contains
     function new_config() result(options)
@@ -24,6 +23,7 @@ contains
         type(config) :: options
         character(len=MAXFILELENGTH) :: filename
         
+        ! read the commandline arguments if any.  For now only reads a filename
         CALL get_command_argument(1, filename)
         
         if (len_trim(filename) > 0) then

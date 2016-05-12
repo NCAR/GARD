@@ -11,6 +11,7 @@
 # Compiled Dynamic libraries
 *.so
 *.dylib
+*.dSYM
 *.dll
 
 # Fortran module files
@@ -27,4 +28,5 @@
 *.out
 *.app
 test_calendar
+test_master_file
 downscale

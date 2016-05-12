@@ -1,6 +1,6 @@
 !>------------------------------------------------------------
 !!  Various functions to convert a number to a string and a string
-!!  to a number
+!!  to a number. 
 !!
 !!  @author
 !!  Ethan Gutmann (gutmann@ucar.edu)
@@ -17,6 +17,43 @@ module string
     
     integer,parameter::MAXSTRINGLENGTH=100
 contains
+    
+    ! could this be done with index(name(start:),token)?
+    ! function find_token(name, start, token) result(i)
+    !     implicit none
+    !     character(len=*), intent(in) :: name
+    !     integer,          intent(in), optional :: start
+    !     character(len=1), intent(in), optional :: token
+    !     integer :: i
+    !     logical :: done
+    !     character(len=1) :: search
+    !     
+    !     if ( present(start) ) then
+    !         i = start
+    !     else
+    !         i = 1            
+    !     end if
+    !     
+    !     if ( present(token) ) then
+    !         search = token
+    !     else
+    !         search = "{"
+    !     end if
+    !     
+    !     done=.False.
+    !     if (name(i:i)/="{") then
+    !         
+    !         do while ( .not. done )
+    !             i=i+1
+    !             if (name(i:i)=="{") then
+    !                 done=.True.
+    !             endif
+    !         end do
+    !         
+    !     endif
+    ! 
+    ! end subroutine find_token
+    ! 
     function get_double(str_in)
         implicit none
         character(len=*), intent(in) :: str_in
@@ -66,17 +103,32 @@ contains
         output_string=adjustl(output_string)
     end function str_r
 
-    function str_i(value,fmt) result(output_string)
+    function str_i(value,fmt, length, pad) result(output_string)
         implicit none
         integer :: value
         character(len=*), optional :: fmt
         character(len=MAXSTRINGLENGTH) :: output_string
+        integer, intent(in), optional :: length
+        character(len=1), intent(in), optional :: pad
+        integer :: extra
+        character(len=MAXSTRINGLENGTH) :: temporary
+        
         if (present(fmt)) then
             write(output_string,fmt) value
         else
             write(output_string,*) value
         endif
         output_string=adjustl(output_string)
+        
+        if (present(length)) then
+            if (len_trim(output_string)/=length) then
+                extra = length - len_trim(output_string)
+                temporary(1:extra) = pad
+                temporary(extra:length) = trim(output_string)
+                output_string = temporary
+            endif
+        endif
+                
     end function str_i
 
 
