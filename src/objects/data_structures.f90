@@ -66,25 +66,16 @@ module data_structures
     ! generic interpolable type so geo interpolation routines will work on winds, domain, or boundary conditions. 
     ! ------------------------------------------------
     type interpolable_type
-        ! all interpolables must have position (lat, lon, z)
+        ! all interpolables must have position (lat, lon).  
         real, allocatable, dimension(:,:) :: lat,lon
-        real, allocatable, dimension(:,:,:) :: z
         
-        ! these are the look up tables that describe how to interpolate vertically (vert_lut) and horizontally (geolut)
-        type(vert_look_up_table)::vert_lut
+        ! this is the look up table that describe how to interpolate horizontally (geolut)
         type(geo_look_up_table)::geolut
             
         ! used to keep track of whether or not a particular error has been printed yet for this structure
         logical :: dx_errors_printed=.False.
         logical :: dy_errors_printed=.False.
     end type interpolable_type
-
-    type variable_type
-        character(len=MAXVARLENGTH)         :: name ! name of the variable
-        real, allocatable, dimension(:,:,:) :: data ! raw data
-        ! need to store transformation information (e.g. quantile mapping?) here?
-        ! or maybe other information (e.g. continuous? positive? zero-filled ala precip)
-    end type variable_type
 
     ! ------------------------------------------------
     ! type to contain external wind fields, only real addition is nfiles... maybe this could be folded in elsewhere?
