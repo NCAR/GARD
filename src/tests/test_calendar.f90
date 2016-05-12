@@ -32,7 +32,8 @@ contains
         max_mjd=365.0*2100.d0
         mjd_step=0.1
         
-        MJDLOOP: do mjd_input = min_mjd, max_mjd, mjd_step
+        mjd_input = min_mjd
+        MJDLOOP: do while(mjd_input<=max_mjd)
             ! test that input and output Modified Julian Days stay the same
             call datetime%set(mjd_input)
             call datetime%date(year, month, day, hour, minute, second)
@@ -86,6 +87,7 @@ contains
                 print*, " "
                 EXIT MJDLOOP
             endif
+            mjd_input = mjd_input + mjd_step
         end do MJDLOOP
         
     end function calendar_test
@@ -114,13 +116,15 @@ contains
         call datetime%set(max_mjd)
         print*, trim(datetime%as_string())
         
-        do mjd_input = min_mjd, max_mjd, mjd_step
+        mjd_input = min_mjd
+        do while(mjd_input <= max_mjd)
             ! test that input and output Modified Julian Days stay the same
             call datetime%set(mjd_input)
             call datetime%date(year, month, day, hour, minute, second)
             mjd_output = datetime%date_to_mjd(year, month, day, hour, minute, second)
             print*, mjd_input, mjd_output, mjd_output - mjd_input
             print*, trim(datetime%as_string())
+            mjd_input = mjd_input + mjd_step
         end do
         
         
