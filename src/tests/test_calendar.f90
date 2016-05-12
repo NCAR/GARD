@@ -141,7 +141,6 @@ program test_calendar
     
     integer :: current_calendar
     integer :: error
-    logical :: file_exists
     
     calendars_to_test=[character(len=STRING_LENGTH) :: "gregorian","standard","365-day","noleap","360-day"]
     options=""

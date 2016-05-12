@@ -107,7 +107,7 @@ contains
         class(Time_type), intent(in) :: this
         integer, intent(in) :: year, month, day, hour, minute, second
         double precision :: date_to_mjd
-        double precision :: d,m,y
+        double precision :: m,y
         integer :: a,b
 
         if (this%calendar==GREGORIAN) then

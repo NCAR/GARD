@@ -135,7 +135,7 @@ ifeq ($(MODE), debugslow)
 		LINK=
 	endif
 	ifeq ($(FC), gfortran)
-		COMP= -g -fbounds-check -fbacktrace -finit-real=nan -ffree-line-length-none
+		COMP= -g -Wall -fbounds-check -fbacktrace -finit-real=nan -ffree-line-length-none
 		LINK=
 	endif
 	ifeq ($(FC), pgf90)
@@ -305,7 +305,7 @@ $(BUILD)time.o: utilities/time.f90
 $(BUILD)test_calendar.o: tests/test_calendar.f90 $(BUILD)time.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
-$(BUILD)test_master_file.o: tests/test_master_file.f90 $(BUILD)/master_file.o \
+$(BUILD)test_master_file.o: tests/test_master_file.f90 $(BUILD)master_file.o \
 							$(BUILD)string.o $(BUILD)time.o $(BUILD)data_structures.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 

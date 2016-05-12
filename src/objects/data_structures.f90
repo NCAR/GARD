@@ -78,14 +78,6 @@ module data_structures
     end type interpolable_type
 
     ! ------------------------------------------------
-    ! type to contain external wind fields, only real addition is nfiles... maybe this could be folded in elsewhere?
-    ! ------------------------------------------------
-    type, extends(interpolable_type) :: atm_type
-        type(variable_type), allocatable, dimension(:) :: variables
-        integer :: n_variables
-    end type atm_type
-
-    ! ------------------------------------------------
     ! types for the options for each sub-component (since these are identical for now, could we just use one...)
     ! ------------------------------------------------
     type gcm_options
