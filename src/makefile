@@ -294,7 +294,7 @@ test_calendar : $(CAL_TEST_OBJS)
 $(BUILD)time.o: utilities/time.f90 $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
-$(BUILD)test_calendar.o: tests/test_calendar.f90 $(BUILD)time.o
+$(BUILD)test_calendar.o: tests/test_calendar.f90 $(BUILD)time.o $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 	
 $(BUILD)model_constants.o: objects/model_constants.f90

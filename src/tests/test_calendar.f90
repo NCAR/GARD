@@ -16,8 +16,8 @@ module calendar_test_module
     real, parameter :: MAX_ERROR = 1e-5 ! allow less than 1 second error (over a 2100 yr period)
 contains
     logical function calendar_test(calendar_name,error)
-        character(len=STRING_LENGTH), intent(in) :: calendar_name
-        character(len=STRING_LENGTH), intent(out) :: error
+        character(len=MAXSTRINGLENGTH), intent(in) :: calendar_name
+        character(len=MAXSTRINGLENGTH), intent(out) :: error
         
         double precision :: mjd_input, mjd_output
         double precision :: min_mjd, max_mjd, mjd_step
@@ -92,7 +92,7 @@ contains
     end function calendar_test
     
     subroutine detailed_tests(calendar_name)
-        character(len=STRING_LENGTH), intent(in) :: calendar_name
+        character(len=MAXSTRINGLENGTH), intent(in) :: calendar_name
         
         double precision :: mjd_input, mjd_output
         double precision :: min_mjd, max_mjd, mjd_step
@@ -132,15 +132,15 @@ end module calendar_test_module
 program test_calendar
     use calendar_test_module
     integer, parameter :: NCALENDARS=5
-    character(len=STRING_LENGTH),dimension(NCALENDARS) :: calendars_to_test
-    character(len=STRING_LENGTH) :: calendar_error
-    character(len=STRING_LENGTH) :: options
+    character(len=MAXSTRINGLENGTH),dimension(NCALENDARS) :: calendars_to_test
+    character(len=MAXSTRINGLENGTH) :: calendar_error
+    character(len=MAXSTRINGLENGTH) :: options
     
     integer :: current_calendar
     integer :: error
     logical :: file_exists
     
-    calendars_to_test=[character(len=STRING_LENGTH) :: "gregorian","standard","365-day","noleap","360-day"]
+    calendars_to_test=[character(len=MAXSTRINGLENGTH) :: "gregorian","standard","365-day","noleap","360-day"]
     options=""
     
     if (command_argument_count()>0) then
