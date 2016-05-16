@@ -7,39 +7,13 @@
 !!
 !!------------------------------------------------
 module data_structures
+    use model_constants
     use time
     implicit none
     
     ! private
     ! public, config, atm,  obs,  results
     
-! ------------------------------------------------
-! Model constants (string lengths)
-! ------------------------------------------------
-    integer,public,parameter :: MAXSTRINGLENGTH  = 1024  ! maximum random string length
-    integer,public,parameter :: MAXFILELENGTH    = 1024  ! maximum file name length
-    integer,public,parameter :: MAXVARLENGTH     = 1024  ! maximum variable name length
-    integer,public,parameter :: MAX_NUMBER_FILES = 50000 ! maximum number of permitted input files
-
-    ! ------------------------------------------------
-    ! Input Type Constants
-    ! ------------------------------------------------
-    integer,public,parameter :: kGCM_TYPE         = 1
-    integer,public,parameter :: kREANALYSIS_TYPE  = 2
-    integer,public,parameter :: kFORECAST_TYPE    = 3
-    
-! ------------------------------------------------
-! Physical Constants
-! ------------------------------------------------
-    ! real,public, parameter :: LH_vaporization=2260000.0 ! J/kg
-    ! ! could be calculated as 2.5E6 + (-2112.0)*temp_degC ?
-    ! real,public, parameter :: Rd  = 287.058   ! J/(kg K) specific gas constant for dry air
-    ! real,public, parameter :: Rw  = 461.5     ! J/(kg K) specific gas constant for moist air
-    ! real,public, parameter :: cp  = 1012.0    ! J/kg/K   specific heat capacity of moist STP air? 
-    ! real,public, parameter :: gravity= 9.81   ! m/s^2    gravity
-    ! real,public, parameter :: pi  = 3.1415927 ! pi
-    ! real,public, parameter :: stefan_boltzmann = 5.67e-8 ! the Stefan-Boltzmann constant
-    ! real,public, parameter :: karman = 0.41   ! the von Karman constant
     
 ! ------------------------------------------------
 !   various data structures for use in geographic interpolation routines

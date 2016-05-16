@@ -11,12 +11,11 @@
 !!
 !!------------------------------------------------------------
 module time
+    use model_constants, only : MAXSTRINGLENGTH
     implicit none
     private
 
     integer, parameter, public :: GREGORIAN=0, NOLEAP=1, THREESIXTY=2
-    
-    integer, parameter :: MAXSTRINGLENGTH = 1024
     
     type, public :: Time_type
         integer :: year_zero = 1800  ! starting year

@@ -1,6 +1,7 @@
 module gcm_mod
 
     use data_structures
+    use model_constants
     use string
     use io_routines
     ! use geo

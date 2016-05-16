@@ -9,6 +9,7 @@
 !!------------------------------------------------------------
 program downscale
     use data_structures
+    use model_constants
     use config_mod,     only : read_config
     use atm_mod,        only : read_atm
     use init_mod,       only : model_init

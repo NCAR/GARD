@@ -8,6 +8,7 @@
 !!------------------------------------------------------------
 module string
 
+    use model_constants
     implicit none
     interface str
         module procedure str_d
@@ -15,7 +16,6 @@ module string
         module procedure str_i
     end interface
     
-    integer,parameter::MAXSTRINGLENGTH=100
 contains
     function get_double(str_in)
         implicit none

@@ -9,6 +9,7 @@
 module config_mod
     
     use data_structures
+	use model_constants
     
     implicit none
     private

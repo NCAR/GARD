@@ -16,13 +16,12 @@
 !!------------------------------------------------------------
 module io_routines
     use netcdf
-
+    use model_constants
+    
     implicit none
     ! maximum number of dimensions for a netCDF file
     integer,parameter::io_maxDims=10
-    ! maximum length of a dimension name not this could be in data_structures, but that simply adds
-    ! one more dependency on data_structures and prevents this being compiled in parallel
-    integer,parameter::MAXDIMLENGTH=255
+
     !>------------------------------------------------------------
     !! Generic interface to the netcdf read routines
     !!------------------------------------------------------------

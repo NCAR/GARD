@@ -11,7 +11,8 @@
 !!------------------------------------------------------------
 module calendar_test_module
     use time
-    integer, parameter :: STRING_LENGTH = 255
+    use model_constants
+    
     real, parameter :: MAX_ERROR = 1e-5 ! allow less than 1 second error (over a 2100 yr period)
 contains
     logical function calendar_test(calendar_name,error)

@@ -1,5 +1,6 @@
 module atm_mod
     use data_structures
+    use model_constants
     
     use gcm_mod,         only : read_gcm
     ! use reanalysis_mod,  only : read_reanalysis

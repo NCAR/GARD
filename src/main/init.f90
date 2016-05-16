@@ -1,5 +1,6 @@
 module init_mod
     use data_structures
+    use model_constants
     use gcm_mod, only : init_gcm_io
     
     implicit none

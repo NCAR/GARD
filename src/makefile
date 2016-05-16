@@ -254,6 +254,7 @@ OBJS =  \
 	$(BUILD)configuration.o   \
 	$(BUILD)atmosphere_io.o	  \
 	$(BUILD)init.o			  \
+    $(BUILD)model_constants.o \
 	$(BUILD)main.o
 	# $(BUILD)ds_model.o       \
 	# $(BUILD)numerics.o     \
@@ -290,45 +291,49 @@ test_calendar : $(CAL_TEST_OBJS)
 	$(FC) $(FCFLAGS) -o $@ $^ $(LDFLAGS)
 
 # specify specific builds and dependencies. 
-$(BUILD)time.o: utilities/time.f90
+$(BUILD)time.o: utilities/time.f90 $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)test_calendar.o: tests/test_calendar.f90 $(BUILD)time.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 	
-$(BUILD)data_structures.o: objects/data_structures.f90 $(BUILD)time.o
+$(BUILD)model_constants.o: objects/model_constants.f90
+	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
+    
+$(BUILD)data_structures.o: objects/data_structures.f90 $(BUILD)time.o $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 	
-$(BUILD)string.o: utilities/string.f90
+$(BUILD)string.o: utilities/string.f90 $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
-$(BUILD)io_routines.o: io/io_routines.f90
+$(BUILD)io_routines.o: io/io_routines.f90 $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
-$(BUILD)configuration.o: objects/configuration.f90 $(BUILD)data_structures.o
+$(BUILD)configuration.o: objects/configuration.f90 $(BUILD)data_structures.o $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
-$(BUILD)geo_reader.o: utilities/geo_reader.f90 $(BUILD)data_structures.o
+$(BUILD)geo_reader.o: utilities/geo_reader.f90 $(BUILD)data_structures.o $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
-$(BUILD)init.o: main/init.f90 $(BUILD)data_structures.o $(BUILD)gcm_io.o
+$(BUILD)init.o: main/init.f90 $(BUILD)data_structures.o $(BUILD)gcm_io.o $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
-$(BUILD)gcm_io.o: io/gcm_io.f90 $(BUILD)data_structures.o $(BUILD)string.o
+$(BUILD)gcm_io.o: io/gcm_io.f90 $(BUILD)data_structures.o $(BUILD)string.o $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
-$(BUILD)observations.o: objects/observations.f90 $(BUILD)data_structures.o $(BUILD)geo_reader.o
+$(BUILD)observations.o: objects/observations.f90 $(BUILD)data_structures.o $(BUILD)geo_reader.o $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
-$(BUILD)reanalysis.o: objects/reanalysis.f90 $(BUILD)data_structures.o $(BUILD)geo_reader.o
+$(BUILD)reanalysis.o: objects/reanalysis.f90 $(BUILD)data_structures.o $(BUILD)geo_reader.o $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)atmosphere_io.o: io/atmosphere_io.f90 $(BUILD)data_structures.o $(BUILD)geo_reader.o \
-	$(BUILD)gcm_io.o $(BUILD)reanalysis.o
+	$(BUILD)gcm_io.o $(BUILD)reanalysis.o $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 
-$(BUILD)main.o: main/main.f90 $(BUILD)atmosphere_io.o $(BUILD)observations.o $(BUILD)configuration.o $(BUILD)init.o
+$(BUILD)main.o: main/main.f90 $(BUILD)atmosphere_io.o $(BUILD)observations.o $(BUILD)configuration.o \
+				$(BUILD)init.o $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 
