@@ -256,6 +256,7 @@ OBJS =  \
 	$(BUILD)init.o			  \
     $(BUILD)model_constants.o \
     $(BUILD)time_io.o         \
+    $(BUILD)basic_stats.o     \
 	$(BUILD)main.o
 	# $(BUILD)ds_model.o       \
 	# $(BUILD)numerics.o     \
@@ -323,7 +324,11 @@ $(BUILD)geo_reader.o: utilities/geo_reader.f90 $(BUILD)data_structures.o $(BUILD
 $(BUILD)init.o: main/init.f90 $(BUILD)data_structures.o $(BUILD)gcm_io.o $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
-$(BUILD)gcm_io.o: io/gcm_io.f90 $(BUILD)data_structures.o $(BUILD)string.o $(BUILD)model_constants.o $(BUILD)time_io.o
+$(BUILD)basic_stats.o: utilities/basic_stats.f90
+	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
+    
+$(BUILD)gcm_io.o: io/gcm_io.f90 $(BUILD)data_structures.o $(BUILD)string.o $(BUILD)model_constants.o \
+					$(BUILD)time_io.o $(BUILD)basic_stats.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)observations.o: objects/observations.f90 $(BUILD)data_structures.o $(BUILD)geo_reader.o $(BUILD)model_constants.o

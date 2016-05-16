@@ -2,6 +2,7 @@ module gcm_mod
 
     use data_structures
     use model_constants
+    use basic_stats_mod,only: time_mean, time_stddev
     use string,         only: str
     use io_routines,    only: io_read, io_getdims, io_maxDims
     use time_io,        only: read_times
@@ -25,6 +26,7 @@ contains
         type(atm) :: gcm_data
         
         integer :: var_idx, ntimesteps
+        integer :: nx,ny
         
         ! allocate space to store all of the variables to be read
         allocate( gcm_data%variables( options%n_variables ))
@@ -32,30 +34,50 @@ contains
         
         ! loop over variables reading them in
         do var_idx = 1, options%n_variables
-            
-            gcm_data%variables(var_idx) = read_gcm_variable( options%var_names(var_idx),        &
-                                                             options%file_names(:, var_idx))
-            
-            if (var_idx==1) then
-                ntimesteps = size(gcm_data%variables(var_idx)%data, 1)
-            else
-                if (ntimesteps /= size(gcm_data%variables(var_idx)%data, 1)) then
-                    write(*,*) "GCM 1st variable ntime:", trim(str( ntimesteps )),  &
-                               "current ntime:", trim(str( size( gcm_data%variables( var_idx )%data, 1) ))
-                    write(*,*) " For variable:",trim(options%var_names( var_idx ))
-                    stop "Error: Number of timesteps are not constant between variables"
+            associate(var => gcm_data%variables(var_idx))
+                
+                var = read_gcm_variable( options%var_names(var_idx),        &
+                                         options%file_names(:, var_idx))
+                
+                if (var_idx==1) then
+                    ntimesteps = size(var%data, 1)
+                else
+                    if (ntimesteps /= size(var%data, 1)) then
+                        write(*,*) "GCM 1st variable ntime:", trim(str( ntimesteps )),  &
+                                   "current ntime:", trim(str( size( var%data, 1) ))
+                        write(*,*) " For variable:",trim(options%var_names( var_idx ))
+                        stop "Error: Number of timesteps are not constant between variables"
+                    endif
                 endif
-            endif
-            ! then compute grid mean and stddev statistics for re-normalization
-            ! could also add a standard normal transformation?
-            ! gcm_data%variables(var_idx)%mean = compute_grid_stats( gcm_data%variables(var_idx)%data )
-            
+                ! then compute grid mean and stddev statistics for re-normalization
+                ! could also add a standard normal transformation?
+                call compute_grid_stats(var)
+            end associate
         enddo
         
         allocate(gcm_data%times(ntimesteps))
         call read_times(options, gcm_data%times)
         
     end function read_gcm
+    
+    subroutine compute_grid_stats(var)
+        implicit none
+        type(atm_variable_type), intent(inout) :: var
+        
+        integer :: nx, ny
+        
+        nx = size(var%data,2)
+        ny = size(var%data,3)
+        
+        if (allocated(var%mean))    deallocate(var%mean)
+        if (allocated(var%stddev))  deallocate(var%stddev)
+        allocate(var%mean(nx,ny))
+        allocate(var%stddev(nx,ny))
+        
+        call time_mean( var%data, var%mean )
+        call time_stddev( var%data, var%stddev, mean_in=var%mean )
+        
+    end subroutine compute_grid_stats
     
     function read_gcm_variable(varname, filenames) result(output)
         implicit none
