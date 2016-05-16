@@ -2,9 +2,9 @@ module gcm_mod
 
     use data_structures
     use model_constants
-    use string
-    use io_routines
-    ! use geo
+    use string,         only: str
+    use io_routines,    only: io_read, io_getdims, io_maxDims
+    use time_io,        only: read_times
     
     implicit none
     logical :: debug
@@ -24,7 +24,7 @@ contains
         class(input_config), intent(in) :: options
         type(atm) :: gcm_data
         
-        integer :: var_idx
+        integer :: var_idx, ntimesteps
         
         ! allocate space to store all of the variables to be read
         allocate( gcm_data%variables( options%n_variables ))
@@ -36,11 +36,24 @@ contains
             gcm_data%variables(var_idx) = read_gcm_variable( options%var_names(var_idx),        &
                                                              options%file_names(:, var_idx))
             
+            if (var_idx==1) then
+                ntimesteps = size(gcm_data%variables(var_idx)%data, 1)
+            else
+                if (ntimesteps /= size(gcm_data%variables(var_idx)%data, 1)) then
+                    write(*,*) "GCM 1st variable ntime:", trim(str( ntimesteps )),  &
+                               "current ntime:", trim(str( size( gcm_data%variables( var_idx )%data, 1) ))
+                    write(*,*) " For variable:",trim(options%var_names( var_idx ))
+                    stop "Error: Number of timesteps are not constant between variables"
+                endif
+            endif
             ! then compute grid mean and stddev statistics for re-normalization
             ! could also add a standard normal transformation?
             ! gcm_data%variables(var_idx)%mean = compute_grid_stats( gcm_data%variables(var_idx)%data )
             
         enddo
+        
+        allocate(gcm_data%times(ntimesteps))
+        call read_times(options, gcm_data%times)
         
     end function read_gcm
     

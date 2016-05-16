@@ -23,6 +23,7 @@ program downscale
     type(atm)           :: training_atm, predictions
     ! type(obs)          :: training_obs
     ! type(results)      :: output
+    character(len=MAXSTRINGLENGTH) :: name
     
     integer :: i
     

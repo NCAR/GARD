@@ -23,6 +23,14 @@ contains
         write(*,*) "   NCAR is supported by the National Science Foundation "
         write(*,*) " ------------------------------------------------------ "
         write(*,*) ""
+
+        if (options%debug) then
+            write(*,*) "Downscaling for the period : ", trim(options%first_time%as_string())
+            write(*,*) "                        to : ", trim(options%last_time%as_string())
+            write(*,*) "   Training for the period : ", trim(options%training_start%as_string())
+            write(*,*) "                        to : ", trim(options%training_stop%as_string())
+            write(*,*) ""
+        endif
         
     end subroutine print_model_init
     

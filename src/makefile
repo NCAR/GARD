@@ -255,6 +255,7 @@ OBJS =  \
 	$(BUILD)atmosphere_io.o	  \
 	$(BUILD)init.o			  \
     $(BUILD)model_constants.o \
+    $(BUILD)time_io.o         \
 	$(BUILD)main.o
 	# $(BUILD)ds_model.o       \
 	# $(BUILD)numerics.o     \
@@ -294,6 +295,10 @@ test_calendar : $(CAL_TEST_OBJS)
 $(BUILD)time.o: utilities/time.f90 $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
+$(BUILD)time_io.o: io/time_io.f90 $(BUILD)time.o $(BUILD)io_routines.o \
+					$(BUILD)model_constants.o $(BUILD)string.o $(BUILD)data_structures.o
+	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
+
 $(BUILD)test_calendar.o: tests/test_calendar.f90 $(BUILD)time.o $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 	
@@ -318,7 +323,7 @@ $(BUILD)geo_reader.o: utilities/geo_reader.f90 $(BUILD)data_structures.o $(BUILD
 $(BUILD)init.o: main/init.f90 $(BUILD)data_structures.o $(BUILD)gcm_io.o $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
-$(BUILD)gcm_io.o: io/gcm_io.f90 $(BUILD)data_structures.o $(BUILD)string.o $(BUILD)model_constants.o
+$(BUILD)gcm_io.o: io/gcm_io.f90 $(BUILD)data_structures.o $(BUILD)string.o $(BUILD)model_constants.o $(BUILD)time_io.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)observations.o: objects/observations.f90 $(BUILD)data_structures.o $(BUILD)geo_reader.o $(BUILD)model_constants.o

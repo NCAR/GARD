@@ -95,7 +95,8 @@ module data_structures
     ! ------------------------------------------------
     type, extends(interpolable_type) :: atm
         type(atm_variable_type), allocatable, dimension(:) :: variables
-        integer :: n_variables
+        type(Time_type), allocatable, dimension(:) :: times
+        integer :: n_variables, n_times
         character (len=MAXSTRINGLENGTH) :: name
     end type atm
     
@@ -113,10 +114,15 @@ module data_structures
     ! ------------------------------------------------
     type input_config
         character (len=MAXFILELENGTH), allocatable, dimension(:,:) :: file_names
-        type(Time_type),               allocatable, dimension(:,:) :: file_start, file_end
         character (len=MAXVARLENGTH),  allocatable, dimension(:)   :: var_names
         integer :: n_variables
+        
+        type(Time_type),               allocatable, dimension(:,:) :: file_start, file_end
+        character (len=MAXSTRINGLENGTH) :: calendar
+        integer :: calendar_start_year
+        
         integer :: data_type ! Type of data.  e.g. gcm, reanalysis, forecast
+        integer :: time_file
         character (len=MAXVARLENGTH) :: lat_name, lon_name, time_name
         character (len=MAXSTRINGLENGTH) :: name
         logical :: debug

@@ -44,6 +44,16 @@ contains
         options%debug = .True.
         
         options%training%name = "Training data"
+		
+		call options%first_time%init("gregorian")
+		call options%first_time%set("2000-01-01 00:00:00")
+		call options%last_time%init("gregorian")
+		call options%last_time%set("2001-01-01 00:00:00")
+		
+		call options%training_start%init("gregorian")
+		call options%training_start%set("1990-01-01 00:00:00")
+		call options%training_stop%init("gregorian")
+		call options%training_stop%set("1991-01-01 00:00:00")
         
         options%training = read_training_options(options)
         
@@ -57,7 +67,7 @@ contains
         integer :: nfiles, nvars
 
         nfiles = 1
-        nvars = 1
+        nvars = 2
         
         allocate(training_options%file_names(nfiles,nvars))
         allocate(training_options%var_names(nvars))
@@ -66,9 +76,15 @@ contains
         training_options%n_variables    = nvars
         training_options%file_names(1,1)= "ua_short.nc"
         training_options%var_names(1)   = "ua"
+		training_options%file_names(1,2)= "va_short.nc"
+        training_options%var_names(2)   = "va"
         training_options%data_type      = kGCM_TYPE
         training_options%debug          = options%debug
-        
+		training_options%calendar 	    = "noleap"
+		training_options%calendar_start_year = 1850
+        training_options%time_file		= 1 
+		training_options%time_name		= "time"
+		
         ! type(Time_type),               allocatable, dimension(:,:) :: file_start, file_end
         ! character (len=MAXVARLENGTH) :: lat_name, lon_name, time_name
     end function read_training_options

@@ -15,7 +15,7 @@ module time
     implicit none
     private
 
-    integer, parameter, public :: GREGORIAN=0, NOLEAP=1, THREESIXTY=2
+    integer, parameter, public :: GREGORIAN=0, NOLEAP=1, THREESIXTY=2, NOCALENDAR=-1
     
     type, public :: Time_type
         integer :: year_zero = 1800  ! starting year
@@ -53,8 +53,9 @@ contains
         
         ! zero based month_starts (will have 1 added below)
         this%month_start = [0,31,59,90,120,151,181,212,243,273,304,334,365]
+        this%calendar = NOCALENDAR
         
-        select case (calendar_name)
+        select case (trim(calendar_name))
             case("gregorian")
                 this%calendar = GREGORIAN
             case("standard")
@@ -66,12 +67,30 @@ contains
             case("360-day")
                 this%calendar = THREESIXTY
             case default
-                write(*,*) "Unknown Calendar: ", trim(calendar_name)
-                write(*,*) "Acceptable names = "
-                write(*,*) "  gregorian, standard, 365-day, noleap, 360-day"
-                write(*,*) " "
-                stop
+                this%calendar = NOCALENDAR
         end select
+        
+        if (this%calendar==NOCALENDAR) then
+            ! in case there are odd characters tacked on the end (as seems to happen with some netcdf files?)
+            select case (trim(calendar_name(1:5)))
+                case("grego")
+                    this%calendar = GREGORIAN
+                case("stand")
+                    this%calendar = GREGORIAN
+                case("365-d")
+                    this%calendar = NOLEAP
+                case("nolea")
+                    this%calendar = NOLEAP
+                case("360-d")
+                    this%calendar = THREESIXTY
+                case default
+                    write(*,*) "Unknown Calendar: '", trim(calendar_name),"'"
+                    write(*,*) "Acceptable names = "
+                    write(*,*) "  gregorian, standard, 365-day, noleap, 360-day"
+                    write(*,*) " "
+                    stop
+            end select
+        endif
         
         if (this%calendar == THREESIXTY) then
             do i=0,12
