@@ -8,46 +8,44 @@
 !!
 !!------------------------------------------------------------
 program downscale
-    use config_mod,     only : config
-    use gcm_mod,        only : gcm
-    use obs_mod,        only : observations
-    use reanalysis_mod, only : reanalysis
-    ! use results_mod,    only :: results_obj
-    ! use ds_model_mod,   only :: run_model
-    ! use output_mod,     only :: output_handler
+    use data_structures
+    use config_mod,     only : read_config
+    use atm_mod,        only : read_atm
+    use init_mod,       only : model_init
+    ! use obs_mod,        only : read_obs
+    ! use stats_mod,      only : sdown
+    ! use output_mod,     only : write_output
     
     implicit none
     
     type(config)        :: options
-    type(gcm)           :: gcm_data
-    type(observations)  :: obs_data
-    type(reanalysis)    :: current_data
-    ! type(output_handler):: output
-    ! type(results_obj)   :: results
+    type(atm)           :: training_atm, predictions
+    ! type(obs)          :: training_obs
+    ! type(results)      :: output
     
     integer :: i
     
-    options = config()
+    options = read_config()
     
-    call obs_data%init(options)
-    call gcm_data%init(options)
-    call current_data%init(options)
+    call model_init(options)
     
-    print*, "options ",      trim(options%as_string())
-    print*, "obs_data ",     trim(obs_data%as_string())
-    print*, "gcm_data ",     trim(gcm_data%as_string())
-    print*, "current_data ", trim(current_data%as_string())
-    ! output       = output_handler(options)
-
-    ! results      = results_obj(options)
+    ! read in the training atmospheric data (e.g. reanalysis or GEFS)
+    training_atm = read_atm(options%training)
+    ! read in the training surface data (e.g. Maurer et al. )
+    ! training_obs = read_obs(options%obs)
     
-    ! do i = options%first_point, options%last_point
-    !     
-    !     call run_model(i, gcm_data, obs_data, current_data, results, options)
-    !     call output%write(i, results)
-    !     
-    ! end do
-    ! 
-    ! call output%close()
-
+    ! read in the atmospheric predictor data (e.g. GCM or GEFS)
+    ! predictions  = read_atm(options%predictions)
+    
+    if (options%debug) then
+        ! print*, "options ",         trim(options%name)
+        ! print*, "obs ",             trim(training_obs%name)
+        print*, "atm:training ",    trim(training_atm%name)
+        ! print*, "atm:predictions ", trim(predictions%name)
+    endif
+    
+    ! output = sdown(training_atm, training_obs, predictions, options)
+    
+    ! call write_output(output, options)
+    
 end program downscale

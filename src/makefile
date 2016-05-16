@@ -248,10 +248,12 @@ OBJS =  \
 	$(BUILD)data_structures.o \
 	$(BUILD)geo_reader.o      \
 	$(BUILD)io_routines.o     \
-	$(BUILD)gcm.o    		  \
+	$(BUILD)gcm_io.o          \
 	$(BUILD)reanalysis.o      \
 	$(BUILD)observations.o    \
 	$(BUILD)configuration.o   \
+	$(BUILD)atmosphere_io.o	  \
+	$(BUILD)init.o			  \
 	$(BUILD)main.o
 	# $(BUILD)ds_model.o       \
 	# $(BUILD)numerics.o     \
@@ -309,7 +311,10 @@ $(BUILD)configuration.o: objects/configuration.f90 $(BUILD)data_structures.o
 $(BUILD)geo_reader.o: utilities/geo_reader.f90 $(BUILD)data_structures.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
-$(BUILD)gcm.o: objects/gcm.f90 $(BUILD)data_structures.o $(BUILD)geo_reader.o
+$(BUILD)init.o: main/init.f90 $(BUILD)data_structures.o $(BUILD)gcm_io.o
+	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
+
+$(BUILD)gcm_io.o: io/gcm_io.f90 $(BUILD)data_structures.o $(BUILD)string.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)observations.o: objects/observations.f90 $(BUILD)data_structures.o $(BUILD)geo_reader.o
@@ -318,7 +323,12 @@ $(BUILD)observations.o: objects/observations.f90 $(BUILD)data_structures.o $(BUI
 $(BUILD)reanalysis.o: objects/reanalysis.f90 $(BUILD)data_structures.o $(BUILD)geo_reader.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
-$(BUILD)main.o: main/main.f90 $(BUILD)gcm.o $(BUILD)reanalysis.o $(BUILD)observations.o $(BUILD)configuration.o
+$(BUILD)atmosphere_io.o: io/atmosphere_io.f90 $(BUILD)data_structures.o $(BUILD)geo_reader.o \
+	$(BUILD)gcm_io.o $(BUILD)reanalysis.o
+	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
+
+
+$(BUILD)main.o: main/main.f90 $(BUILD)atmosphere_io.o $(BUILD)observations.o $(BUILD)configuration.o $(BUILD)init.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 

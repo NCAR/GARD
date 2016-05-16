@@ -9,27 +9,37 @@
 module data_structures
     use time
     implicit none
-
+    
+    ! private
+    ! public, config, atm,  obs,  results
+    
 ! ------------------------------------------------
 ! Model constants (string lengths)
 ! ------------------------------------------------
-    integer,parameter::MAXSTRINGLENGTH  = 1024  ! maximum random string length
-    integer,parameter::MAXFILELENGTH    = 1024  ! maximum file name length
-    integer,parameter::MAXVARLENGTH     = 1024  ! maximum variable name length
-    integer,parameter::MAX_NUMBER_FILES = 50000 ! maximum number of permitted input files (probably a bit extreme)
+    integer,public,parameter :: MAXSTRINGLENGTH  = 1024  ! maximum random string length
+    integer,public,parameter :: MAXFILELENGTH    = 1024  ! maximum file name length
+    integer,public,parameter :: MAXVARLENGTH     = 1024  ! maximum variable name length
+    integer,public,parameter :: MAX_NUMBER_FILES = 50000 ! maximum number of permitted input files
 
+    ! ------------------------------------------------
+    ! Input Type Constants
+    ! ------------------------------------------------
+    integer,public,parameter :: kGCM_TYPE         = 1
+    integer,public,parameter :: kREANALYSIS_TYPE  = 2
+    integer,public,parameter :: kFORECAST_TYPE    = 3
+    
 ! ------------------------------------------------
 ! Physical Constants
 ! ------------------------------------------------
-    real, parameter :: LH_vaporization=2260000.0 ! J/kg
-    ! could be calculated as 2.5E6 + (-2112.0)*temp_degC ?
-    real, parameter :: Rd  = 287.058   ! J/(kg K) specific gas constant for dry air
-    real, parameter :: Rw  = 461.5     ! J/(kg K) specific gas constant for moist air
-    real, parameter :: cp  = 1012.0    ! J/kg/K   specific heat capacity of moist STP air? 
-    real, parameter :: gravity= 9.81   ! m/s^2    gravity
-    real, parameter :: pi  = 3.1415927 ! pi
-    real, parameter :: stefan_boltzmann = 5.67e-8 ! the Stefan-Boltzmann constant
-    real, parameter :: karman = 0.41   ! the von Karman constant
+    ! real,public, parameter :: LH_vaporization=2260000.0 ! J/kg
+    ! ! could be calculated as 2.5E6 + (-2112.0)*temp_degC ?
+    ! real,public, parameter :: Rd  = 287.058   ! J/(kg K) specific gas constant for dry air
+    ! real,public, parameter :: Rw  = 461.5     ! J/(kg K) specific gas constant for moist air
+    ! real,public, parameter :: cp  = 1012.0    ! J/kg/K   specific heat capacity of moist STP air? 
+    ! real,public, parameter :: gravity= 9.81   ! m/s^2    gravity
+    ! real,public, parameter :: pi  = 3.1415927 ! pi
+    ! real,public, parameter :: stefan_boltzmann = 5.67e-8 ! the Stefan-Boltzmann constant
+    ! real,public, parameter :: karman = 0.41   ! the von Karman constant
     
 ! ------------------------------------------------
 !   various data structures for use in geographic interpolation routines
@@ -43,7 +53,9 @@ module data_structures
         integer::x(4),y(4)
     end type fourpos
     
+    ! ------------------------------------------------
     ! a geographic look up table for spatial interpolation, from x,y with weight w
+    ! ------------------------------------------------
     type geo_look_up_table
         ! x,y index positions, [n by m by 4] where there are 4 surrounding low-res points 
         ! for every high resolution point grid point to interpolate to
@@ -78,60 +90,88 @@ module data_structures
         logical :: dx_errors_printed=.False.
         logical :: dy_errors_printed=.False.
     end type interpolable_type
-
+    
+    ! ------------------------------------------------
+    ! type to store quantile mapping data
+    ! ------------------------------------------------
+    type qm_correction_type
+        integer, allocatable, dimension(:) :: start_idx, end_idx
+        real, allocatable, dimension(:) :: slope, offset
+    end type qm_correction_type
+    
+    ! ------------------------------------------------
+    ! type to contain a single variable (atm or obs)
+    ! ------------------------------------------------
     type variable_type
-        character(len=MAXVARLENGTH)         :: name ! name of the variable
-        real, allocatable, dimension(:,:,:) :: data ! raw data
-        ! need to store transformation information (e.g. quantile mapping?) here?
-        ! or maybe other information (e.g. continuous? positive? zero-filled ala precip)
+        character(len=MAXVARLENGTH)         :: name      ! name of the variable
+        real, allocatable, dimension(:,:,:) :: data      ! raw data
+        integer                             :: data_type ! Type of data.  e.g. precip, temperature, or other. 
     end type variable_type
+    
+    ! ------------------------------------------------
+    ! adds a quantile mapping capability to atmospheric input
+    ! ------------------------------------------------
+    type, extends(variable_type) :: atm_variable_type
+        type(qm_correction_type), allocatable, dimension(:,:,:) :: qm ! per gridpoint (per month? or DOY?) QM
+        real, allocatable, dimension(:,:) :: mean, stddev ! per gridpoint mean and standard deviation (for normalization)
+    end type atm_variable_type
 
     ! ------------------------------------------------
-    ! type to contain external wind fields, only real addition is nfiles... maybe this could be folded in elsewhere?
+    ! type to contain atmospheric fields
     ! ------------------------------------------------
-    type, extends(interpolable_type) :: atm_type
+    type, extends(interpolable_type) :: atm
+        type(atm_variable_type), allocatable, dimension(:) :: variables
+        integer :: n_variables
+        character (len=MAXSTRINGLENGTH) :: name
+    end type atm
+    
+    ! ------------------------------------------------
+    ! type to contain observation data
+    ! ------------------------------------------------
+    type, extends(interpolable_type) :: obs
         type(variable_type), allocatable, dimension(:) :: variables
         integer :: n_variables
-    end type atm_type
+    end type obs
+    
 
     ! ------------------------------------------------
     ! types for the options for each sub-component (since these are identical for now, could we just use one...)
     ! ------------------------------------------------
-    type gcm_options
-        character (len=MAXFILELENGTH), allocatable, dimension(:)   :: file_names
+    type input_config
+        character (len=MAXFILELENGTH), allocatable, dimension(:,:) :: file_names
         type(Time_type),               allocatable, dimension(:,:) :: file_start, file_end
         character (len=MAXVARLENGTH),  allocatable, dimension(:)   :: var_names
-        character (len=MAXVARLENGTH) :: lat_name, lon_name, time_name, name
-    end type gcm_options
-
-    type obs_options
-        character (len=MAXFILELENGTH), allocatable, dimension(:)   :: file_names
-        type(Time_type),               allocatable, dimension(:,:) :: file_start, file_end
-        character (len=MAXVARLENGTH),  allocatable, dimension(:)   :: var_names
-        character (len=MAXVARLENGTH) :: lat_name, lon_name, time_name, name
-    end type obs_options
+        integer :: n_variables
+        integer :: data_type ! Type of data.  e.g. gcm, reanalysis, forecast
+        character (len=MAXVARLENGTH) :: lat_name, lon_name, time_name
+        character (len=MAXSTRINGLENGTH) :: name
+        logical :: debug
+    end type input_config
     
-    type training_options
-        character (len=MAXFILELENGTH), allocatable, dimension(:)   :: file_names
-        type(Time_type),               allocatable, dimension(:,:) :: file_start, file_end
-        character (len=MAXVARLENGTH),  allocatable, dimension(:)   :: var_names
-        character (len=MAXVARLENGTH) :: lat_name, lon_name, time_name, name
-    end type training_options
-
-
+    type, extends(input_config) :: prediction_config
+    end type prediction_config
+    
+    type, extends(input_config) :: obs_config
+    end type obs_config
+    
+    type, extends(input_config) :: training_config
+    end type training_config
+    
     ! ------------------------------------------------
     ! store all model options
     ! ------------------------------------------------
-    type options_type
-        character (len=MAXVARLENGTH) :: version,comment
+    type config
+        character (len=MAXSTRINGLENGTH) :: version, comment
 
+        character (len=MAXFILELENGTH) :: options_filename
+        character (len=MAXFILELENGTH) :: name
         ! file names
         character (len=MAXFILELENGTH) :: output_file
         
         ! options for each sub-component
-        type(gcm_options)       :: gcm
-        type(obs_options)       :: obs
-        type(training_options)  :: training
+        type(training_config)      :: training
+        type(obs_config)           :: obs
+        type(prediction_config)    :: prediction
         
         ! date/time parameters
         type(Time_type) :: training_start, training_stop  ! define the period over which the model should be trained
@@ -139,6 +179,7 @@ module data_structures
         
         integer :: first_point, last_point ! start and end positions to run the model for
         
+        logical :: debug
         integer :: warning_level        ! level of warnings to issue when checking options settings 0-10.  
                                         ! 0  = Don't print anything
                                         ! 1  = print serious warnings
@@ -148,5 +189,5 @@ module data_structures
                                         ! 6-8... nothing specified equivalent to 5
                                         ! 9  = stop on serious warnings only
                                         ! 10 = stop on all warnings
-    end type options_type
+    end type config
 end module data_structures  
