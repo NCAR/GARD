@@ -1,3 +1,14 @@
+!>------------------------------------------------
+!! Model Initialization
+!! 
+!! model_init is called after the configuration file has been read
+!! This provides a place to print basic model information before running
+!! This is also used to call initializers for any other modules that need it. 
+!!
+!!  @author
+!!  Ethan Gutmann (gutmann@ucar.edu)
+!!
+!!------------------------------------------------
 module init_mod
     use data_structures
     use model_constants
@@ -8,6 +19,13 @@ module init_mod
     public :: model_init
 contains
     
+    !>------------------------------------------------
+    !! Prints model configuration info before running
+    !!
+    !! Prints a welcome and version string as well. 
+    !! Only prints configuration info if debug == true
+    !!
+    !!------------------------------------------------
     subroutine print_model_init(options)
         implicit none
         type(config), intent(in) :: options
@@ -35,6 +53,12 @@ contains
     end subroutine print_model_init
     
     
+    !>------------------------------------------------
+    !! Initialize the model
+    !!
+    !! Calls routines to print startup message and call module initializers
+    !!
+    !!------------------------------------------------
     subroutine model_init(options)
         implicit none
         type(config), intent(in) :: options

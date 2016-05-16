@@ -1,3 +1,13 @@
+!>------------------------------------------------
+!! Handle all IO for GCM data
+!! 
+!! Loops through GCM variables reading data and computing basic statistics
+!! Reads time and lat/lon variables from the GCM files as well. 
+!!
+!!  @author
+!!  Ethan Gutmann (gutmann@ucar.edu)
+!!
+!!------------------------------------------------
 module gcm_mod
 
     use data_structures
@@ -12,6 +22,10 @@ module gcm_mod
     
 contains
     
+    !>------------------------------------------------
+    !! Initialize the GCM module
+    !!
+    !!------------------------------------------------
     subroutine init_gcm_io(options)
         implicit none
         type(config), intent(in) :: options
@@ -20,6 +34,14 @@ contains
         
     end subroutine init_gcm_io
     
+    !>------------------------------------------------
+    !! Read in the GCM data
+    !!
+    !! Uses variable names and filenames defined in the options data structure
+    !!
+    !! Loops through all input variables, then reads lat, lon, and time variables
+    !!
+    !!------------------------------------------------
     function read_gcm(options) result(gcm_data)
         implicit none
         class(input_config), intent(in) :: options
@@ -58,6 +80,10 @@ contains
         allocate(gcm_data%times(ntimesteps))
         call read_times(options, gcm_data%times)
         
+        call io_read(options%file_names(1, 1), options%lat_name, gcm_data%lat)
+        call io_read(options%file_names(1, 1), options%lon_name, gcm_data%lon)
+        ! note, if these are 1D variables, they need to be converted to 2D. 
+        ! also, convert longitudes?
     end function read_gcm
     
     subroutine compute_grid_stats(var)

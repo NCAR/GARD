@@ -60,6 +60,10 @@ contains
     end function read_config
 
 
+	!>------------------------------------------------
+	!! Read the training configuration
+	!!
+	!!------------------------------------------------
     function read_training_options(options) result(training_options)
         implicit none
         type(config), intent(in) :: options
@@ -78,6 +82,8 @@ contains
         training_options%var_names(1)   = "ua"
 		training_options%file_names(1,2)= "va_short.nc"
         training_options%var_names(2)   = "va"
+		training_options%lat_name		= "lat"
+		training_options%lon_name		= "lon"
         training_options%data_type      = kGCM_TYPE
         training_options%debug          = options%debug
 		training_options%calendar 	    = "noleap"
@@ -85,8 +91,6 @@ contains
         training_options%time_file		= 1 
 		training_options%time_name		= "time"
 		
-        ! type(Time_type),               allocatable, dimension(:,:) :: file_start, file_end
-        ! character (len=MAXVARLENGTH) :: lat_name, lon_name, time_name
     end function read_training_options
     
 end module config_mod

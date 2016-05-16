@@ -198,6 +198,7 @@ contains
         endif
 
         ! Read the dimension lengths
+        diminfo = 1
         call io_getdims(filename,varname,diminfo)
         allocate(data_in(diminfo(2),diminfo(3),diminfo(4),diminfo(5),diminfo(6),diminfo(7)))
         ! Open the file. NF90_NOWRITE tells netCDF we want read-only access to the file.
@@ -256,6 +257,7 @@ contains
         endif
 
         ! Read the dimension lengths
+        diminfo = 1
         call io_getdims(filename,varname,diminfo)
         allocate(data_in(diminfo(2),diminfo(3),diminfo(4),diminfo(5)))
         ! Open the file. NF90_NOWRITE tells netCDF we want read-only access to
@@ -315,6 +317,7 @@ contains
         endif
 
         ! Read the dimension lengths
+        diminfo = 1
         call io_getdims(filename,varname,diminfo)
         allocate(data_in(diminfo(2),diminfo(3),diminfo(4)))
         ! Open the file. NF90_NOWRITE tells netCDF we want read-only access to
@@ -374,6 +377,7 @@ contains
         endif
 
         ! Read the dimension lengths
+        diminfo = 1
         call io_getdims(filename,varname,diminfo)
         allocate(data_in(diminfo(2),diminfo(3)))
         ! Open the file. NF90_NOWRITE tells netCDF we want read-only access to
@@ -433,6 +437,7 @@ contains
         endif
 
         ! Read the dimension lengths
+        diminfo = 1
         call io_getdims(filename,varname,diminfo)
         allocate(data_in(diminfo(2),diminfo(3)))
         ! Open the file. NF90_NOWRITE tells netCDF we want read-only access to
@@ -492,6 +497,7 @@ contains
         endif
 
         ! Read the dimension lengths
+        diminfo = 1
         call io_getdims(filename,varname,diminfo)
         allocate(data_in(diminfo(2)))
         ! Open the file. NF90_NOWRITE tells netCDF we want read-only access to
@@ -551,6 +557,7 @@ contains
         endif
 
         ! Read the dimension lengths
+        diminfo = 1
         call io_getdims(filename,varname,diminfo)
         allocate(data_in(diminfo(2)))
         ! Open the file. NF90_NOWRITE tells netCDF we want read-only access to
