@@ -1169,7 +1169,7 @@ contains
             print *, trim(nf90_strerror(status))
             if(present(extra)) then
                 ! print any optionally provided context
-                print*, trim(extra)
+                write(*,*), trim(extra)
             endif
             ! STOP the program execute
             stop "Stopped"

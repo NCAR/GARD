@@ -57,7 +57,6 @@ contains
             calendar_gain = time_gain_from_units(units)
             temp_times = temp_times * calendar_gain
             
-            print*, trim(units(12:15))
             if (error==0) then
                 start_year = get_integer(units(12:15))
             else
@@ -68,7 +67,6 @@ contains
                 
                 call times(cur_time)%init(calendar, start_year)
                 call times(cur_time)%set(temp_times(time_idx))
-                print*, trim(times(cur_time)%as_string())
                 
                 cur_time = cur_time + 1
             end do
