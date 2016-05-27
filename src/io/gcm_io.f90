@@ -124,6 +124,7 @@ contains
         
     end function read_gcm_variable
     
+    !! requires all filenames to have the same number of time steps... no good for monthly files...
     function get_dims(varname, filenames) result(dims)
         implicit none
         character(len=MAXVARLENGTH),    intent(in)               :: varname
@@ -172,6 +173,16 @@ contains
         dims(3) = ny
     end function get_dims
     
+    !>------------------------------------------------------------
+    !!  Read in data from a given filename and variable into a pre-allocated output array
+    !! 
+    !!  Handles 2d, 3d, and 4d file data
+    !!    2D data are converted to a 1 x nx x ny
+    !!    3D data have the third dimension (time) moved to the front
+    !!    4D data have the last dimension (time) moved to the front, 
+    !!      and the 3rd dim subset to the first element for now
+    !!
+    !!------------------------------------------------------------
     subroutine load_data(varname, filenames, output)
         implicit none
         character(len=MAXVARLENGTH),  intent(in)                    :: varname
@@ -194,7 +205,10 @@ contains
             
             ! find the dimensions of the current file
             call io_getdims(filenames(file_idx), varname, dims)
-            ! read in 2D + time data
+            
+            !---------------------------
+            ! read in 3D + time data, subset 3rd dim
+            !---------------------------
             if (dims(1)==4) then
                 call io_read(filenames(file_idx), varname, data_4d)
                 ! assign all timesteps to output data array
@@ -204,6 +218,9 @@ contains
                 end do
                 ! deallocate input array because it is allocated in the read routine... bad form? 
                 deallocate(data_4d)
+            !---------------------------
+            ! read in 2D + time data move time to first dim
+            !---------------------------
             else if (dims(1)==3) then
                 call io_read(filenames(file_idx), varname, data_3d)
                 ! assign all timesteps to output data array
@@ -213,6 +230,9 @@ contains
                 end do
                 ! deallocate input array because it is allocated in the read routine... bad form? 
                 deallocate(data_3d)
+            !---------------------------
+            ! read in 2D data, add a new (1 element) time dim
+            !---------------------------
             else if (dims(1)==2) then
                 ! read in 2d (no time) data
                 call io_read(filenames(file_idx), varname, data_2d)

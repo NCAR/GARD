@@ -413,11 +413,13 @@ contains
         
     end subroutine geo_LUT
     
+    
     !>------------------------------------------------------------
-    !!  Interpolate boundaries of fieldout to fieldin using geolut
+    !!  Interpolate fieldout to fieldin using geolut.  
+    !!  loops over y,z,x but geolut is only defined over x,y (for now)
     !!
     !!------------------------------------------------------------
-    subroutine boundary_interpolate(fieldout, fieldin, geolut)
+    subroutine geo_interp(fieldout,fieldin,geolut)
         implicit none
         real,intent(inout)::fieldout(:,:,:)
         real,intent(in)::fieldin(:,:,:)
@@ -429,10 +431,11 @@ contains
         nx=size(fieldout,1)
         nz=size(fieldout,2)
         ny=size(fieldout,3)
+        
         ! use the geographic lookup table generated earlier to
         ! compute a bilinear interpolation from lo to hi
-        ! first loop over all x elements on the y ends
-        do k=1,ny,ny-1
+        ! if we are doing the interior too, just iterate over all x and y
+        do k=1,ny
             do j=1,nz
                 do i=1,nx
                     fieldout(i,j,k)=0
@@ -445,65 +448,7 @@ contains
                 enddo
             enddo
         enddo
-        ! then loop over all y elements on the x ends
-        do k=1,ny
-            do j=1,nz
-                do i=1,nx,nx-1
-                    fieldout(i,j,k)=0
-                    do l=1,4
-                        localx=geolut%x(l,i,k)
-                        localy=geolut%y(l,i,k)
-                        localw=geolut%w(l,i,k)
-                        fieldout(i,j,k)=fieldout(i,j,k)+fieldin(localx,j,localy)*localw
-                    enddo
-                enddo
-            enddo
-        enddo
-
-    end subroutine boundary_interpolate
-    
-    !>------------------------------------------------------------
-    !!  Interpolate fieldout to fieldin using geolut.  
-    !!  if boundary_only is true, call boundary_interpolate instead
-    !!  loops over y,z,x but geolut is only defined over x,y (for now)
-    !!
-    !!------------------------------------------------------------
-    subroutine geo_interp(fieldout,fieldin,geolut,boundary_only)
-        implicit none
-        real,intent(inout)::fieldout(:,:,:)
-        real,intent(in)::fieldin(:,:,:)
-        type(geo_look_up_table),intent(in)::geolut
-        logical,intent(in)::boundary_only
-        integer::nx,nz,ny
-        integer:: i,j,k,l,localx,localy
-        real::localw
         
-        nx=size(fieldout,1)
-        nz=size(fieldout,2)
-        ny=size(fieldout,3)
-        
-        ! if we are only processing the boundary, then make x and y increments be the size of the array
-        ! so we only hit the edges of the array
-        if (boundary_only) then
-            call boundary_interpolate(fieldout, fieldin, geolut)
-        else
-        ! use the geographic lookup table generated earlier to
-        ! compute a bilinear interpolation from lo to hi
-        ! if we are doing the interior too, just iterate over all x and y
-            do k=1,ny
-                do j=1,nz
-                    do i=1,nx
-                        fieldout(i,j,k)=0
-                        do l=1,4
-                            localx=geolut%x(l,i,k)
-                            localy=geolut%y(l,i,k)
-                            localw=geolut%w(l,i,k)
-                            fieldout(i,j,k)=fieldout(i,j,k)+fieldin(localx,j,localy)*localw
-                        enddo
-                    enddo
-                enddo
-            enddo
-        endif
     end subroutine geo_interp
     
     !>------------------------------------------------------------
