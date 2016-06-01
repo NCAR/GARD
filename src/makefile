@@ -253,7 +253,7 @@ OBJS =  \
 	$(BUILD)io_routines.o     \
 	$(BUILD)gcm_io.o          \
 	$(BUILD)reanalysis.o      \
-	$(BUILD)observations.o    \
+	$(BUILD)obs_io.o    \
 	$(BUILD)configuration.o   \
 	$(BUILD)atmosphere_io.o	  \
 	$(BUILD)init.o			  \
@@ -372,7 +372,7 @@ $(BUILD)gcm_io.o: io/gcm_io.f90 $(BUILD)data_structures.o $(BUILD)string.o $(BUI
 					$(BUILD)time_io.o $(BUILD)basic_stats.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
-$(BUILD)observations.o: objects/observations.f90 $(BUILD)data_structures.o $(BUILD)geo_reader.o $(BUILD)model_constants.o
+$(BUILD)obs_io.o: io/obs_io.f90 $(BUILD)data_structures.o $(BUILD)geo_reader.o $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)reanalysis.o: objects/reanalysis.f90 $(BUILD)data_structures.o $(BUILD)geo_reader.o $(BUILD)model_constants.o
@@ -383,7 +383,7 @@ $(BUILD)atmosphere_io.o: io/atmosphere_io.f90 $(BUILD)data_structures.o $(BUILD)
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 
-$(BUILD)main.o: main/main.f90 $(BUILD)atmosphere_io.o $(BUILD)observations.o $(BUILD)configuration.o \
+$(BUILD)main.o: main/main.f90 $(BUILD)atmosphere_io.o $(BUILD)obs_io.o $(BUILD)configuration.o \
 				$(BUILD)init.o $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 

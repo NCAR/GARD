@@ -18,6 +18,7 @@ module model_constants
     integer,public,parameter :: kGCM_TYPE         = 1
     integer,public,parameter :: kREANALYSIS_TYPE  = 2
     integer,public,parameter :: kFORECAST_TYPE    = 3
+    integer,public,parameter :: kOBS_TYPE         = 4
     
     ! ------------------------------------------------
     ! Physical Constants

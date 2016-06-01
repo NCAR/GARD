@@ -89,6 +89,14 @@ module data_structures
         type(qm_correction_type), allocatable, dimension(:,:,:) :: qm ! per gridpoint (per month? or DOY?) QM
         real, allocatable, dimension(:,:) :: mean, stddev ! per gridpoint mean and standard deviation (for normalization)
     end type atm_variable_type
+    
+    ! ------------------------------------------------
+    ! adds mean and stddev statistics
+    ! ------------------------------------------------
+    type, extends(variable_type) :: obs_variable_type
+        real, allocatable, dimension(:,:) :: mean, stddev ! per gridpoint mean and standard deviation (for normalization?)
+        integer :: transformation                         ! type of transformation applied to data (e.g. sqrt, log, ???)
+    end type obs_variable_type
 
     ! ------------------------------------------------
     ! type to contain atmospheric fields
@@ -104,8 +112,10 @@ module data_structures
     ! type to contain observation data
     ! ------------------------------------------------
     type, extends(interpolable_type) :: obs
-        type(variable_type), allocatable, dimension(:) :: variables
-        integer :: n_variables
+        type(obs_variable_type), allocatable, dimension(:) :: variables
+        type(Time_type), allocatable, dimension(:) :: times
+        integer :: n_variables, n_times
+        character (len=MAXSTRINGLENGTH) :: name
     end type obs
     
 
