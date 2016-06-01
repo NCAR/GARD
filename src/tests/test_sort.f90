@@ -1,62 +1,97 @@
+!>----------------------------------------
+!! Simple program to test and time sorting routines
+!!
+!! Generates n random numbers, uses heap_sort to sort them,
+!!  Then tests that the sort succeeded and prints timing info
+!!
+!! Next this is repeated for quick_sort. 
+!!
+!! Initial data show that this implementation of quick_sort is ~2x faster than 
+!!  the (somewhat naive) implementation of heap_sort
+!!
+!!----------------------------------------
 program test_sort
     use sort_mod
     
     implicit none
 
     real, parameter :: valid_error = 1e-5
-    integer, parameter :: n = 10
+    integer*8, parameter :: n = 1000000
     
-    real, allocatable, dimension(:) :: to_sort, sorted, correct
-    integer :: i
-    real :: maxerr
+    real, allocatable, dimension(:) :: to_sort, sorted
+    integer :: i, start_time, end_time, COUNT_RATE, COUNT_MAX
     
     allocate(to_sort(n))
     allocate(sorted(n))
-    allocate(correct(n))
     
-    to_sort = [3.14159, 4., 2., 2., 40., 9., 1., 1.1, 9., -1.0]
-    correct = [-1.0, 1.0, 1.1, 2.0, 2.0, 3.14159, 4.0, 9.0, 9.0, 40.]
+    !-------------------------------
+    ! SETUP sorting
+    !-------------------------------
+    call random_number(to_sort)
+    sorted=0
+    ! test heap_sort (system_clock is used to time how long it takes)
     
-    print*, "---------------------------"
-    do i=1,n
-        print*, to_sort(i)
-    end do
-    print*, "---------------------------"
+    call system_clock(start_time)
+    !-------------------------------
+    ! HEAP SORT
+    !-------------------------------
+    call heap_sort(to_sort, sorted)
     
-    to_sort = [3.14159, 4., 2., 2., 40., 9., 1., 1.1, 9., -1.0]
-    call sort(to_sort, sorted)
-    
-    print*, "---------------------------"
-    maxerr = 0
-    do i=1,n
-        maxerr = max(maxerr, abs(correct(i) - sorted(i)))
-        ! print*, correct(i), sorted(i)
-    end do
-    print*, "HEAPSORT: "
-    if ( maxerr < valid_error ) then
-        print*, "  PASSED"
-    else
-        print*, "  FAILED"
-    endif
-    print*, "---------------------------"
+    call system_clock(end_time, COUNT_RATE, COUNT_MAX)
+    if (start_time>end_time) end_time=end_time+COUNT_MAX
 
-    to_sort = [3.14159, 4., 2., 2., 40., 9., 1., 1.1, 9., -1.0]
+    call show_results(sorted, "HEAP_SORT", (end_time-start_time) / real(COUNT_RATE))
+    
+
+    !-------------------------------
+    ! SETUP sorting
+    !-------------------------------
+    ! now test quick_sort 
+    call random_number(to_sort)
     sorted = 0
+    
+    call system_clock(start_time)
+    !-------------------------------
+    ! QUICK SORT
+    !-------------------------------
     call quick_sort(to_sort, sorted)
     
-    print*, "---------------------------"
-    maxerr = 0
-    do i=1,n
-        maxerr = max(maxerr, abs(correct(i) - sorted(i)))
-        print*, correct(i), sorted(i)
-    end do
-    print*, "Quicksort: "
-    if ( maxerr < valid_error ) then
-        print*, "  PASSED"
-    else
-        print*, "  FAILED"
-    endif
-    print*, "---------------------------"
+    call system_clock(end_time, COUNT_RATE, COUNT_MAX)
+    if (start_time>end_time) end_time=end_time+COUNT_MAX
 
+    call show_results(sorted, "QUICK_SORT", (end_time-start_time) / real(COUNT_RATE))
+    
+contains
+    !>--------------------------
+    !! Print out results from a given sort test
+    !!
+    !!--------------------------
+    subroutine show_results(data, name, time)
+        implicit none
+        real, dimension(:), intent(in) :: data
+        character(len=*),   intent(in) :: name
+        real,               intent(in) :: time
+        
+        integer :: i, n, err
+        
+        n = size(data)
+        
+        print*, "---------------------------"
+        err = 0
+        do i=1,n-1
+            if (sorted(i+1)<sorted(i)) then
+                err = 1
+            endif
+        end do
+        print*, trim(name)
+        if ( err < valid_error ) then
+            print*, "  PASSED"
+        else
+            print*, "  FAILED:", err
+        endif
+        print*, "---------------------------"
+        print*, "   Elapsed time = ", time
+        
+    end subroutine show_results
 
 end program test_sort

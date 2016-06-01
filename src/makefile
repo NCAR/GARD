@@ -94,7 +94,8 @@ GIT_VERSION := $(shell git describe --long --dirty --all --always | sed -e's/hea
 ###################################################################
 ###################################################################
 ifeq ($(FC), gfortran)
-	COMP=-fopenmp -lgomp -O3 -ffree-line-length-none -ftree-vectorize -fimplicit-none -funroll-loops -march=native -fno-protect-parens -ffast-math #-flto #
+	COMP=-fopenmp -lgomp -O3 -ffree-line-length-none -ftree-vectorize -fimplicit-none -funroll-loops -march=native \
+		-fno-protect-parens -ffast-math #-flto #
 	LINK=-fopenmp -lgomp
 	PREPROC=-cpp
 	MODOUTPUT=-J $(BUILD)
@@ -192,7 +193,8 @@ ifeq ($(MODE), debugompslow)
 endif
 ifeq ($(MODE), debugomp)
 	ifeq ($(FC), ifort)
-		COMP= -qopenmp -liomp5 -debug -O3 -u -traceback -fpe0 -ftz -fast-transcendentals  -xHost #-check all -check noarg_temp_created -fpe0 -fast-transcendentals -xhost
+		COMP= -qopenmp -liomp5 -debug -O3 -u -traceback -fpe0 -ftz -fast-transcendentals  -xHost 
+		#-check all -check noarg_temp_created -fpe0 -fast-transcendentals -xhost
 		LINK= -qopenmp -liomp5
 	endif
 	ifeq ($(FC), gfortran)
@@ -215,7 +217,8 @@ PROF=
 ifeq ($(MODE), profile)
 	ifeq ($(FC), ifort)
 		PROF=-pg -debug inline-debug-info -shared-intel
-		COMP= -u -qopenmp -liomp5 -O3 -no-prec-div -xHost -ftz #because -fast includes -static # not available in ifort <13 -align array64byte
+		COMP= -u -qopenmp -liomp5 -O3 -no-prec-div -xHost -ftz #because -fast includes -static 
+		# not available in ifort <13 -align array64byte
 	endif
 	ifeq ($(FC), gfortran)
 		PROF=-g
@@ -266,6 +269,11 @@ OBJS =  \
 CAL_TEST_OBJS =    			\
     $(BUILD)time.o 			\
 	$(BUILD)test_calendar.o
+	
+SORT_TEST_OBJS = 			\
+	$(BUILD)sorting.o		\
+	$(BUILD)test_sort.o
+	
 
 # These are the primary user facing rules
 #
@@ -283,13 +291,16 @@ clean:
 	$(RM) $(BUILD)* 2>/dev/null ||:
 
 allclean:clean
-	$(RM) downscale test_calendar 2>/dev/null ||:
+	$(RM) downscale test_calendar test_sort 2>/dev/null ||:
 
 # higher level rules
 downscale: $(OBJS)
 	$(FC) $(FCFLAGS) -o $@ $^ $(LDFLAGS)
 
 test_calendar : $(CAL_TEST_OBJS)
+	$(FC) $(FCFLAGS) -o $@ $^ $(LDFLAGS)
+
+test_sort : $(SORT_TEST_OBJS)
 	$(FC) $(FCFLAGS) -o $@ $^ $(LDFLAGS)
 
 # specify specific builds and dependencies. 
@@ -301,6 +312,12 @@ $(BUILD)time_io.o: io/time_io.f90 $(BUILD)time.o $(BUILD)io_routines.o \
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)test_calendar.o: tests/test_calendar.f90 $(BUILD)time.o $(BUILD)model_constants.o
+	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
+
+$(BUILD)sorting.o: utilities/sorting.f90 utilities/qsort_inline.inc
+	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
+
+$(BUILD)test_sort.o: tests/test_sort.f90 $(BUILD)sorting.o $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 	
 $(BUILD)model_constants.o: objects/model_constants.f90

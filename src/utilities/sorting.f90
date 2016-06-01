@@ -1,8 +1,17 @@
 module  sort_mod
     private
     
-    public :: sort, quick_sort
+    public :: sort, quick_sort, heap_sort
 contains
+    
+    subroutine sort(input, output)
+        implicit none
+        real, intent(in),  dimension(:) :: input
+        real, intent(out), dimension(:), allocatable :: output
+        
+        call quick_sort(input, output)
+        
+    end subroutine sort
 
         
     ! re-heapify a minheap ("a")
@@ -36,7 +45,7 @@ contains
     end subroutine siftdown
     
     ! adds items one by one to a min-heap to sort them
-    subroutine sort(input, output)
+    subroutine heap_sort(input, output)
         implicit none
         real, intent(in),  dimension(:) :: input
         real, intent(out), dimension(:), allocatable :: output
@@ -72,7 +81,7 @@ contains
             call siftdown(heap,0,n)
         end do
         
-    end subroutine sort
+    end subroutine heap_sort
 
     subroutine quick_sort(input, output)
         implicit none
@@ -90,24 +99,23 @@ contains
                 allocate(output(n))
             endif
         endif
-        
-        output = qsort_reals(output)
+        output = input
+        call qsort_DATA(output)
         
     end subroutine quick_sort
     
     ! Quicksort implementation from FLIBS see license at end of file
-    recursive function qsort_reals( data ) result( sorted )
-        real, dimension(:), intent(in) :: data
-        real, dimension(1:size(data))  :: sorted
-
-        if ( size(data) > 1 ) then
-            sorted = (/ qsort_reals( pack( data(2:), data(2:) > data(1) ) ), &
-                        data(1),                                             &
-                        qsort_reals( pack( data(2:), data(2:) <= data(1) ) ) /)
-        else
-            sorted = data
-        endif
-    end function
+    subroutine QSORT_DATA(array)
+      implicit none
+      real :: hold, array(:)
+      integer, parameter :: QSORT_THRESHOLD = 96
+      include "qsort_inline.inc"
+    contains
+      logical function QSORT_COMPARE(a,b)
+        integer :: a, b
+        QSORT_COMPARE = ( array(a) < array(b) )
+      end function QSORT_COMPARE
+    end subroutine QSORT_DATA
     ! end flibs quicksort 
 
     
