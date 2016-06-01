@@ -66,16 +66,22 @@ contains
         
     end subroutine time_stddev
     
-    function stddev(input)
+    function stddev(input, mean_in)
         implicit none
         real, dimension(:) :: input
+        real, intent(in), optional :: mean_in
         real :: stddev
         
         real :: mean
         integer :: x, n
         
         n = size(input)
-        mean = sum(input) / n
+        
+        if (present(mean_in)) then
+            mean = mean_in
+        else
+            mean = sum(input) / n
+        endif
         
         stddev = sqrt( sum( (input - mean)**2 ) / (n-1) )
         

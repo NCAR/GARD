@@ -80,22 +80,32 @@ contains
         type(qm_correction_type), intent(in) :: qm
         
         real :: output
-        integer :: i
+        integer :: i, n, step
         logical :: found
         
         found=.False.
-        i=1
+        n = size(qm%start_idx)
+        i = n/2
+        step = n/4+1
         
         ! search for the first point in start_idx with start > input
-        ! if none then apply the last 
+        ! Uses a log(n) binary search because we "know" the qm data are sorted. 
         do while (.not.found)
+            i = max(1,min(n,i))
             if (qm%start_idx(i) > input) then
+                if (qm%start_idx(max(1,i-1)) <= input) then
+                    found=.True.
+                else if (i==1) then
+                    found=.True.
+                else
+                    i = i-step
+                    step = ceiling(step/2.0)
+                endif
+            else if (i==n) then
                 found=.True.
             else
-                i = i+1
-            endif
-            if (i>size(qm%start_idx,1)) then
-                found=.True.
+                i = i+step
+                step = ceiling(step/2.0)
             endif
         end do
         if (i>1) then
@@ -115,9 +125,14 @@ contains
         integer :: i, n
         
         n = size(input)
+        ! $omp parallel default(shared) &
+        ! $omp firstprivate(i,n)
+        ! $omp do
         do i = 1, n
             output(i) = qm_value(input(i), qm)
         end do
+        ! $omp end do
+        ! $omp end parallel
         
     end subroutine apply_qm
 

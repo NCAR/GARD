@@ -241,9 +241,9 @@ endif
 # export LD_RUN_PATH=$LD_RUN_PATH:/path/to/netcdf/libraries/lib:/path/to/fftw/libraries/lib
 
 # flags forall
-FCFLAGS = $(COMP) -I$(NCDF_PATH)/include -I$(BUILD)
+FCFLAGS = $(COMP) -I$(NCDF_PATH)/include -I$(BUILD) $(INC_NCAR)
 # libraries needed for linking
-LDFLAGS = $(LINK) -L$(NCDF_PATH)/lib -lnetcdf -lnetcdff
+LDFLAGS = $(LINK) -L$(NCDF_PATH)/lib -lnetcdf -lnetcdff $(LIB_NCAR)
 
 OBJS =  \
 	$(BUILD)time.o            \
