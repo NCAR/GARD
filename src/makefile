@@ -273,6 +273,13 @@ CAL_TEST_OBJS =    			\
 SORT_TEST_OBJS = 			\
 	$(BUILD)sorting.o		\
 	$(BUILD)test_sort.o
+
+QM_TEST_OBJS = 					\
+	$(BUILD)data_structures.o	\
+	$(BUILD)basic_stats.o		\
+	$(BUILD)quantile_mapping.o	\
+	$(BUILD)sorting.o			\
+	$(BUILD)test_qm.o
 	
 
 # These are the primary user facing rules
@@ -284,7 +291,7 @@ model: downscale
 	
 all: downscale test
 
-test: test_calendar test_sort
+test: test_calendar test_sort test_qm
 
 install: downscale
 	cp downscale $(INSTALL_DIR)/
@@ -302,10 +309,25 @@ downscale: $(OBJS)
 test_calendar : $(CAL_TEST_OBJS)
 	$(FC) $(FCFLAGS) -o $@ $^ $(LDFLAGS)
 
+test_qm : $(QM_TEST_OBJS)
+	$(FC) $(FCFLAGS) -o $@ $^ $(LDFLAGS)
+
 test_sort : $(SORT_TEST_OBJS)
 	$(FC) $(FCFLAGS) -o $@ $^ $(LDFLAGS)
 
 # specify specific builds and dependencies. 
+
+# unit tests
+$(BUILD)test_calendar.o: tests/test_calendar.f90 $(BUILD)time.o $(BUILD)model_constants.o
+	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
+
+$(BUILD)test_sort.o: tests/test_sort.f90 $(BUILD)sorting.o
+	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
+
+$(BUILD)test_qm.o: tests/test_qm.f90 $(BUILD)data_structures.o $(BUILD)quantile_mapping.o $(BUILD)basic_stats.o
+	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
+
+# Date and time relevant objects	
 $(BUILD)time.o: utilities/time.f90 $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
@@ -313,24 +335,27 @@ $(BUILD)time_io.o: io/time_io.f90 $(BUILD)time.o $(BUILD)io_routines.o \
 					$(BUILD)model_constants.o $(BUILD)string.o $(BUILD)data_structures.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
-$(BUILD)test_calendar.o: tests/test_calendar.f90 $(BUILD)time.o $(BUILD)model_constants.o
+# other utilities
+$(BUILD)quantile_mapping.o: utilities/quantile_map.f90 $(BUILD)data_structures.o $(BUILD)sorting.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)sorting.o: utilities/sorting.f90 utilities/qsort_inline.inc
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
-$(BUILD)test_sort.o: tests/test_sort.f90 $(BUILD)sorting.o $(BUILD)model_constants.o
+$(BUILD)basic_stats.o: utilities/basic_stats.f90
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
-	
+
+$(BUILD)string.o: utilities/string.f90 $(BUILD)model_constants.o
+	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
+
+# constants and data structures    
 $(BUILD)model_constants.o: objects/model_constants.f90
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
     
 $(BUILD)data_structures.o: objects/data_structures.f90 $(BUILD)time.o $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 	
-$(BUILD)string.o: utilities/string.f90 $(BUILD)model_constants.o
-	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
-
+# Input, output / configuration routines
 $(BUILD)io_routines.o: io/io_routines.f90 $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
@@ -343,9 +368,6 @@ $(BUILD)geo_reader.o: utilities/geo_reader.f90 $(BUILD)data_structures.o $(BUILD
 $(BUILD)init.o: main/init.f90 $(BUILD)data_structures.o $(BUILD)gcm_io.o $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
-$(BUILD)basic_stats.o: utilities/basic_stats.f90
-	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
-    
 $(BUILD)gcm_io.o: io/gcm_io.f90 $(BUILD)data_structures.o $(BUILD)string.o $(BUILD)model_constants.o \
 					$(BUILD)time_io.o $(BUILD)basic_stats.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@

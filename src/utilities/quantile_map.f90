@@ -8,7 +8,9 @@
 !!
 !!------------------------------------------------
 module quantile_mapping
-
+    use sort_mod, only : sort
+    use data_structures
+    
     implicit none
     private
     public :: develop_qm
@@ -17,18 +19,15 @@ module quantile_mapping
     integer, parameter :: DEFAULT_QM_SEGMENTS = 100
 
 contains
-    ! type qm_correction_type
-    !     integer, allocatable, dimension(:) :: start_idx, end_idx
-    !     real, allocatable, dimension(:) :: slope, offset
-    ! end type qm_correction_type
 
-    function develop_qm(input_data, data_to_match, n_segments) result(qm)
+    subroutine develop_qm(input_data, data_to_match, qm, n_segments)
         implicit none
         real, intent(in), dimension(:) :: input_data, data_to_match
         integer, intent(in), optional :: n_segments
-        type(qm_correction_type) :: qm
+        type(qm_correction_type), intent(out) :: qm
         
         integer :: ni, nm, nseg
+        integer :: i, input_i, input_step, match_i, match_step
         real, dimension(:), allocatable :: input_data_sorted, data_to_match_sorted
         
         if ( present(n_segments) ) then
@@ -51,8 +50,11 @@ contains
         match_step = nm/nseg
 
         input_i = 1
-        match_i = 0
+        match_i = 1
 
+        if (allocated(qm%start_idx)) then 
+            deallocate(qm%start_idx,qm%end_idx,qm%slope,qm%offset)
+        endif
         allocate(qm%start_idx(nseg))
         allocate(qm%end_idx(nseg))
         allocate(qm%slope(nseg))
@@ -60,16 +62,19 @@ contains
         
         do i=1,nseg
             qm%start_idx(i) = input_data_sorted( input_i )
-            qm%end_idx(i)   = input_data_sorted( input_i + input_step)
+            qm%end_idx(i)   = input_data_sorted( min(ni, input_i + input_step))
             qm%offset(i)    = data_to_match_sorted( match_i )
-            qm%slope(i)     = (data_to_match_sorted( match_i + match_step) - qm%offset(i)) &
-                            / (qm%end_idx(i) - qm%end_idx(i))
+            qm%slope(i)     = (data_to_match_sorted( min(nm, match_i + match_step)) - qm%offset(i)) &
+                            / (qm%end_idx(i) - qm%start_idx(i))
+            
+            input_i = input_i + input_step
+            match_i = match_i + match_step
         end do
         
-    end function develop_qm
+    end subroutine develop_qm
     
     ! apply a quantile mapping scheme to a given input value
-    function apply_qm(input, qm) result(output)
+    function qm_value(input, qm) result(output)
         implicit none
         real, intent(in) :: input
         type(qm_correction_type), intent(in) :: qm
@@ -79,12 +84,12 @@ contains
         logical :: found
         
         found=.False.
-        i=0
+        i=1
         
         ! search for the first point in start_idx with start > input
         ! if none then apply the last 
         do while (.not.found)
-            if (qm%start_idx(i) <= input) then
+            if (qm%start_idx(i) > input) then
                 found=.True.
             else
                 i = i+1
@@ -93,10 +98,27 @@ contains
                 found=.True.
             endif
         end do
-        i=i-1
+        if (i>1) then
+            i=i-1
+        endif
         
         output = qm%offset(i) + qm%slope(i) * (input - qm%start_idx(i))
         
-    end function apply_qm
+    end function qm_value
+    
+    subroutine apply_qm(input, output, qm)
+        implicit none
+        real, intent(in),  dimension(:) :: input
+        real, intent(out), dimension(:) :: output
+        type(qm_correction_type), intent(in) :: qm
+        
+        integer :: i, n
+        
+        n = size(input)
+        do i = 1, n
+            output(i) = qm_value(input(i), qm)
+        end do
+        
+    end subroutine apply_qm
 
 end module quantile_mapping

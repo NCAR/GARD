@@ -65,6 +65,21 @@ contains
         end do
         
     end subroutine time_stddev
+    
+    function stddev(input)
+        implicit none
+        real, dimension(:) :: input
+        real :: stddev
+        
+        real :: mean
+        integer :: x, n
+        
+        n = size(input)
+        mean = sum(input) / n
+        
+        stddev = sqrt( sum( (input - mean)**2 ) / (n-1) )
+        
+    end function stddev
 
 
 end module basic_stats_mod

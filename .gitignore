@@ -28,4 +28,5 @@
 *.app
 test_sort
 test_calendar
+test_qm
 downscale
