@@ -280,9 +280,11 @@ SORT_TEST_OBJS = 			\
 # make [all, test, install, clean, allclean]
 #
 # "make" builds all
-all: downscale
+model: downscale
+	
+all: downscale test
 
-test: test_calendar
+test: test_calendar test_sort
 
 install: downscale
 	cp downscale $(INSTALL_DIR)/

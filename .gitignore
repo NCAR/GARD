@@ -26,5 +26,6 @@
 *.exe
 *.out
 *.app
+test_sort
 test_calendar
 downscale

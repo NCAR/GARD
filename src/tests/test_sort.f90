@@ -61,6 +61,23 @@ program test_sort
 
     call show_results(sorted, "QUICK_SORT", (end_time-start_time) / real(COUNT_RATE))
     
+    !-------------------------------
+    ! SETUP sorting
+    !-------------------------------
+    ! now test quick_sort 
+    call random_number(to_sort)
+    
+    call system_clock(start_time)
+    !-------------------------------
+    ! QUICK SORT in place
+    !-------------------------------
+    call sort(to_sort)
+    
+    call system_clock(end_time, COUNT_RATE, COUNT_MAX)
+    if (start_time>end_time) end_time=end_time+COUNT_MAX
+
+    call show_results(to_sort, "QUICK_SORT (in place)", (end_time-start_time) / real(COUNT_RATE))
+
 contains
     !>--------------------------
     !! Print out results from a given sort test

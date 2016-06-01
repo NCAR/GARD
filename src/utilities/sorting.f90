@@ -2,18 +2,12 @@ module  sort_mod
     private
     
     public :: sort, quick_sort, heap_sort
+    interface sort
+        module procedure quick_sort  ! sort from array 1 into array 2
+        module procedure QSORT_DATA  ! in place sort
+    end interface
 contains
     
-    subroutine sort(input, output)
-        implicit none
-        real, intent(in),  dimension(:) :: input
-        real, intent(out), dimension(:), allocatable :: output
-        
-        call quick_sort(input, output)
-        
-    end subroutine sort
-
-        
     ! re-heapify a minheap ("a")
     subroutine siftdown(a, start, bottom)
       implicit none
@@ -100,7 +94,7 @@ contains
             endif
         endif
         output = input
-        call qsort_DATA(output)
+        call QSORT_DATA(output)
         
     end subroutine quick_sort
     
