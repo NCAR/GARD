@@ -58,6 +58,13 @@ contains
             mean = mean_in
         endif
         
+        ! note, for nt==1, stddev is undefined.  Here return the 10x the mean just to show it is BIG
+        if (nt<=1) then
+            stddev = abs(mean) * 10
+            write(*,*) "WARNING: attempting to compute a standard deviation of one value!", shape(input)
+            return
+        endif
+        
         do y=1,ny
             do x=1,nx
                 stddev(x,y) = sqrt( sum( (input(:,x,y) - mean(x,y))**2 ) / (nt-1) )

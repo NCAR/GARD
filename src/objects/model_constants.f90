@@ -5,19 +5,20 @@ module model_constants
     ! ------------------------------------------------
     ! Model constants (string lengths)
     ! ------------------------------------------------
-    integer,public,parameter :: MAXSTRINGLENGTH  = 1024  ! maximum random string length
-    integer,public,parameter :: SM_STRING_LENGTH = 255   ! well defined small strings (unused at present)
-    integer,public,parameter :: MAXFILELENGTH    = 1024  ! maximum file name length
-    integer,public,parameter :: MAXVARLENGTH     = 1024  ! maximum variable name length
-    integer,public,parameter :: MAXDIMLENGTH     = 1024  ! maximum variable name length
-    integer,public,parameter :: MAX_NUMBER_FILES = 50000 ! maximum number of permitted input files
+    integer,public,parameter :: MAXSTRINGLENGTH  = 1024     ! maximum random string length
+    integer,public,parameter :: SM_STRING_LENGTH = 255      ! well defined small strings (unused at present)
+    integer,public,parameter :: MAXFILELENGTH    = 1024     ! maximum file name length
+    integer,public,parameter :: MAXVARLENGTH     = 1024     ! maximum variable name length
+    integer,public,parameter :: MAXDIMLENGTH     = 1024     ! maximum variable name length
+    integer,public,parameter :: MAX_NUMBER_FILES = 100000   ! maximum number of permitted input files 
+                                                            ! 100000 = 1 file/day for ~274 years
 
     ! ------------------------------------------------
     ! Input Type Constants
     ! ------------------------------------------------
     integer,public,parameter :: kGCM_TYPE         = 1
     integer,public,parameter :: kREANALYSIS_TYPE  = 2
-    integer,public,parameter :: kFORECAST_TYPE    = 3
+    integer,public,parameter :: kGEFS_TYPE        = 3
     integer,public,parameter :: kOBS_TYPE         = 4
     
     ! ------------------------------------------------

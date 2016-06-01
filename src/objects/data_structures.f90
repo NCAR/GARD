@@ -136,15 +136,22 @@ module data_structures
         character (len=MAXVARLENGTH) :: lat_name, lon_name, time_name
         character (len=MAXSTRINGLENGTH) :: name
         logical :: debug
+        double precision :: time_gain      = 1  ! to convert file "time" data into days (from e.g. seconds)
+        integer :: selected_time   = -1         ! to just use a single time from each file (for e.g. GEFS forecast)
     end type input_config
     
-    type, extends(input_config) :: prediction_config
+    type, extends(input_config) :: atm_config
+        integer, dimension(:), allocatable :: selected_level ! to just use a specific vertical level from each file (e.g. a pressure level)
+                                                             ! the array is to provide one level for each variable
+    end type atm_config
+    
+    type, extends(atm_config) :: prediction_config
     end type prediction_config
     
     type, extends(input_config) :: obs_config
     end type obs_config
     
-    type, extends(input_config) :: training_config
+    type, extends(atm_config) :: training_config
     end type training_config
     
     ! ------------------------------------------------
@@ -164,10 +171,12 @@ module data_structures
         type(prediction_config)    :: prediction
         
         ! date/time parameters
-        type(Time_type) :: training_start, training_stop  ! define the period over which the model should be trained
-        type(Time_type) :: first_time,     last_time      ! define the period over which the model should be applied
-        
-        integer :: first_point, last_point ! start and end positions to run the model for
+        type(Time_type) :: training_start, training_stop    ! define the period over which the model should be trained
+        type(Time_type) :: first_time,     last_time        ! define the period over which the model should be applied
+        type(Time_type) :: transform_start, transform_stop  ! define the period over which any transformations should be developed
+                                                            ! e.g. to Quantile map GCM data into training atm data space
+
+        integer :: first_point, last_point ! start and end positions to run the model for(?)
         
         logical :: debug
         integer :: warning_level        ! level of warnings to issue when checking options settings 0-10.  

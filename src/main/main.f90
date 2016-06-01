@@ -11,7 +11,7 @@ program downscale
     use data_structures
     use model_constants
     use config_mod,     only : read_config
-    ! use atm_mod,        only : read_atm
+    use atm_mod,        only : read_atm
     use init_mod,       only : model_init
     use obs_mod,        only : read_obs
     ! use stats_mod,      only : sdown
@@ -20,8 +20,8 @@ program downscale
     implicit none
     
     type(config)        :: options
-    ! type(atm)           :: training_atm, predictions
-    type(obs)          :: training_obs
+    type(atm)           :: training_atm, predictions
+    type(obs)           :: training_obs
     ! type(results)      :: output
     character(len=MAXSTRINGLENGTH) :: name
     
@@ -32,18 +32,20 @@ program downscale
     call model_init(options)
     
     ! read in the training atmospheric data (e.g. reanalysis or GEFS)
-    ! training_atm = read_atm(options%training)
-    ! read in the training surface data (e.g. Maurer et al. )
+    training_atm = read_atm(options%training)
+    ! read in the training surface data (e.g. Maurer et al., Newman et al., Livneh et al., DAYMET )
     training_obs = read_obs(options%obs)
     
     ! read in the atmospheric predictor data (e.g. GCM or GEFS)
-    ! predictions  = read_atm(options%predictions)
+    predictions  = read_atm(options%prediction)
     
     if (options%debug) then
-        ! print*, "options ",         trim(options%name)
-        print*, "obs ",             trim(training_obs%name)
-        ! print*, "atm:training ",    trim(training_atm%name)
-        ! print*, "atm:predictions ", trim(predictions%name)
+        print*, "=========================================="
+        print*, "options         ", trim(options%name)
+        print*, "obs             ", trim(training_obs%name)
+        print*, "atm:training    ", trim(training_atm%name)
+        print*, "atm:predictions ", trim(predictions%name)
+        print*, "=========================================="
     endif
     
     ! output = sdown(training_atm, training_obs, predictions, options)

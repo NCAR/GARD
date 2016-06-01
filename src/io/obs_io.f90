@@ -100,6 +100,8 @@ contains
         if (allocated(var%stddev))  deallocate(var%stddev)
         allocate(var%mean(nx,ny))
         allocate(var%stddev(nx,ny))
+
+        where(var%data>1e10) var%data=0
         
         call time_mean( var%data, var%mean )
         call time_stddev( var%data, var%stddev, mean_in=var%mean )

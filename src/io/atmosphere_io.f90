@@ -3,6 +3,7 @@ module atm_mod
     use model_constants
     
     use gcm_mod,         only : read_gcm
+    use gefs_mod,         only : read_gefs
     ! use reanalysis_mod,  only : read_reanalysis
     ! use forecast_mod,    only : read_forecast
     
@@ -23,8 +24,8 @@ contains
                 atm_data = read_gcm(options)
             ! case (kREANALYSIS_TYPE)
             !     atm_data = read_reanalysis(options)
-            ! case (kFORECAST_TYPE)
-            !     atm_data = read_forecast(options)
+            case (kGEFS_TYPE)
+                atm_data = read_gefs(options)
         end select
         
     end function read_atm

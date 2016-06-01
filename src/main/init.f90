@@ -12,7 +12,9 @@
 module init_mod
     use data_structures
     use model_constants
+    use gefs_mod, only : init_gefs_io
     use gcm_mod, only : init_gcm_io
+    use obs_mod, only : init_obs_io
     
     implicit none
     private
@@ -65,7 +67,9 @@ contains
         
         call print_model_init(options)
         
+        call init_gefs_io(options)
         call init_gcm_io(options)
+        call init_obs_io(options)
         
     end subroutine model_init
 
