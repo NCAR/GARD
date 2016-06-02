@@ -309,7 +309,8 @@ clean:
 	$(RM) $(BUILD)* 2>/dev/null ||:
 
 allclean:clean
-	$(RM) downscale test_calendar test_sort 2>/dev/null ||:
+	$(RM) downscale test_calendar test_sort test_qm test_config 2>/dev/null ||:
+	$(RM) -r *.dSYM 2>/dev/null ||:
 
 # higher level rules
 downscale: $(OBJS)

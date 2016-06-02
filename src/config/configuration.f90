@@ -265,7 +265,7 @@ contains
     end subroutine check_prediction_options
 
     !>------------------------------------------------
-    !! Read the training configuration
+    !! Read the obs configuration
     !!
     !!------------------------------------------------
     function read_obs_options(filename, debug) result(obs_options)
@@ -273,32 +273,91 @@ contains
         character(len=*), intent(in) :: filename
         logical, intent(in)          :: debug
         type(obs_config) :: obs_options
-        integer :: nfiles, nvars
-
-        nfiles = 2
-        nvars = 2
         
+        integer :: name_unit, i
+
+        ! namelist variables to be read
+        integer :: nfiles, nvars, calendar_start_year
+        character(len=MAXSTRINGLENGTH)  :: name, data_type, calendar
+        character(len=MAXVARLENGTH)     :: lat_name, lon_name, time_name
+        character(len=MAXFILELENGTH), dimension(:), allocatable :: file_list
+        character(len=MAXVARLENGTH),  dimension(:), allocatable :: var_names
+
+        ! setup the namelist
+        namelist /obs_parameters/ nfiles, nvars, name, data_type,   &
+                                         lat_name, lon_name, time_name,    &
+                                         file_list, var_names
+        !defaults :
+        nfiles      = -1
+        nvars       = -1
+        name        = ""
+        data_type   = ""
+        lat_name    = ""
+        lon_name    = ""
+        time_name   = ""
+        file_list   = ""
+        var_names   = ""
+        calendar    = ""
+        calendar_start_year = 1900
+        
+        ! read namelists
+        open(io_newunit(name_unit), file=filename)
+        read(name_unit,nml=obs_parameters)
+        close(name_unit)
+        
+        if (nfiles <= 0) stop "Number of obs files (nfiles) is not valid. "
+        if (nvars  <= 0) stop "Number of obs variables (nvars) is not valid. "
+        
+        ! allocate necessary arrays
         allocate(obs_options%file_names(nfiles,nvars))
         allocate(obs_options%var_names(nvars))
         
-        obs_options%name           = "OBS test"
+        ! finally, store the data into the config structure
+        obs_options%name           = name
         obs_options%n_variables    = nvars
-        obs_options%file_names(1,1)= "/d2/gutmann/usbr/stat_data/DAILY/obs/maurer.125/pr/nldas_met_update.obs.daily.pr.1979.nc"
-        obs_options%file_names(2,1)= "/d2/gutmann/usbr/stat_data/DAILY/obs/maurer.125/pr/nldas_met_update.obs.daily.pr.1980.nc"
-        obs_options%var_names(1)   = "pr"
-        obs_options%file_names(1,2)= "/d2/gutmann/usbr/stat_data/DAILY/obs/maurer.125/tasmax/nldas_met_update.obs.daily.tasmax.1979.nc"
-        obs_options%file_names(2,2)= "/d2/gutmann/usbr/stat_data/DAILY/obs/maurer.125/tasmax/nldas_met_update.obs.daily.tasmax.1980.nc"
-        obs_options%var_names(2)   = "tasmax"
-        obs_options%lat_name       = "lat"
-        obs_options%lon_name       = "lon"
-        obs_options%data_type      = kOBS_TYPE
-        obs_options%debug          = debug
-        obs_options%calendar       = "standard"
-        obs_options%calendar_start_year = 1940
+        obs_options%nfiles         = nfiles
+        ! obs_options%file_names(1,1)= "/d2/gutmann/usbr/stat_data/DAILY/obs/maurer.125/pr/nldas_met_update.obs.daily.pr.1980.nc"
+        ! obs_options%var_names(1)   = "pr"
+        do i=1,nvars
+            obs_options%var_names(i)    = var_names(i)
+            nfiles = read_files_list(file_list(i), obs_options%file_names(:,i))
+            if (nfiles/=obs_options%nfiles) stop "Error reading the correct number of obs input files"
+        end do
+        obs_options%lat_name       = lat_name
+        obs_options%lon_name       = lon_name
+        obs_options%time_name      = time_name
+        obs_options%calendar       = calendar
+        obs_options%calendar_start_year = calendar_start_year
         obs_options%time_file      = 1 
-        obs_options%time_name      = "time"
+        obs_options%data_type      = read_data_type(data_type)
+        obs_options%debug          = debug
         
+        call check_obs_options(obs_options)
     end function read_obs_options
+    
+    !>------------------------------------------------
+    !!Verify the options read from the obs options namelist
+    !!
+    !!------------------------------------------------
+    subroutine check_obs_options(opt)
+        implicit none
+        type(obs_config) :: opt
+        integer :: i,j
+        
+        if (trim(opt%lat_name) == "")  stop "Error : lat_name not supplied in obs options. "
+        if (trim(opt%lon_name) == "")  stop "Error : lon_name not supplied in obs options. "
+        if (trim(opt%calendar) == "")  stop "Error : Calendar not supplied in obs options. "
+        if (trim(opt%time_name) == "") stop "Error : time_name not supplied in obs options. "
+        
+        do i = 1, opt%n_variables
+            if (trim(opt%var_names(i)) == "") stop "Invalid or not enough variable names specified in obs options. "
+            do j = 1, opt%nfiles
+                if (trim(opt%file_names(j,i)) == "") stop "Invalid or not enough file names specified in obs options. "
+            enddo
+        end do
+
+    end subroutine check_obs_options
+
     
     !>-----------------------------------------------
     !! Convert a data type string into its corresponding constant integer expression

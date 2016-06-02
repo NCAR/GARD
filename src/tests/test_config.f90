@@ -8,6 +8,7 @@ program test_config
     character(len=MAXFILELENGTH) :: opt_file
     character(len=MAXFILELENGTH), dimension(MAX_NUMBER_FILES,3) :: file_list
     
+    character(len=MAXFILELENGTH) :: filename
     integer, parameter :: correct_nfiles = 23
     character(len=MAXFILELENGTH), dimension(correct_nfiles) :: correct_file_list
     
@@ -40,37 +41,53 @@ program test_config
                             "utilities/time.f90"            &
     ]
     
-    opt_file = get_options_file()
-    write(*,*) "--------------------------"
-    write(*,*) "Read commandline/default options file to be : '", trim(opt_file), "'"
-    write(*,*) "--------------------------"
-    
+
+    passing = .True.
     write(*,*) "--------------------------"
     write(*,*) "Testing read_file_list:"
-    passing = .True.
-    nfiles = read_files_list("../test_data/file_list.txt", file_list(:,2))
-    if (nfiles /= correct_nfiles) passing = .False.
-    do i = 1, nfiles
-        if (trim(file_list(i,2)) /= trim(correct_file_list(i))) passing = .False.
-    end do
+    filename = "../test_data/file_list.txt"
+    inquire(file=trim(filename), exist=passing)
     if (passing) then
-        write(*,*) "  PASSED"
+        nfiles = read_files_list(filename, file_list(:,2))
+        if (nfiles /= correct_nfiles) passing = .False.
+        do i = 1, nfiles
+            if (trim(file_list(i,2)) /= trim(correct_file_list(i))) passing = .False.
+        end do
     else
-        write(*,*) "  FAILED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+        write(*,*) "Unable to test because the test file does not exist: '", trim(filename),"'"
     endif
+    call check_passing(passing)
     write(*,*) "--------------------------"
     
+
     passing = .True.
     write(*,*) "--------------------------"
     write(*,*) "Testing read_data_type:"
     if (read_data_type("GEFS") /= kGEFS_TYPE) passing=.False. 
     if (read_data_type("GCM") /= kGCM_TYPE)   passing=.False. 
     if (read_data_type("obs") /= kobs_TYPE)   passing=.False. 
-    if (passing) then
-        write(*,*) "  PASSED"
-    else
-        write(*,*) "  FAILED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-    endif
+    call check_passing(passing)
     write(*,*) "--------------------------"
 
+    write(*,*) "--------------------------"
+    write(*,*) " Please specify a valid filename (for a file that exists) e.g. 'makefile' on the commandline"
+    opt_file = get_options_file()
+    write(*,*) " Read commandline options file to be : '", trim(opt_file), "'"
+    write(*,*) " If this is what you specified on the commandline, then the test passed. "
+    write(*,*) "--------------------------"
+    
+contains
+    subroutine check_passing(passing)
+        implicit none
+        logical :: passing
+        
+        if (passing) then
+            write(*,*) "  PASSED"
+        else
+            write(*,*) "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+            write(*,*) "                              FAILED"
+            write(*,*) "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+        endif
+    end subroutine check_passing
+    
 end program test_config
