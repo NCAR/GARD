@@ -13,6 +13,9 @@
 *.dylib
 *.dll
 
+# Debug Symbols
+*.dSYM
+
 # Fortran module files
 *.mod
 
@@ -29,4 +32,5 @@
 test_sort
 test_calendar
 test_qm
+test_config
 downscale

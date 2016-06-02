@@ -125,7 +125,7 @@ module data_structures
     type input_config
         character (len=MAXFILELENGTH), allocatable, dimension(:,:) :: file_names
         character (len=MAXVARLENGTH),  allocatable, dimension(:)   :: var_names
-        integer :: n_variables
+        integer :: n_variables, nfiles
         
         type(Time_type),               allocatable, dimension(:,:) :: file_start, file_end
         character (len=MAXSTRINGLENGTH) :: calendar

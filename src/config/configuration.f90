@@ -20,6 +20,7 @@ module config_mod
     character(len=MAXFILELENGTH), parameter :: VERSION_STRING = "0.1"
     
     public :: read_config
+    public :: read_files_list, read_data_type, get_options_file ! only need to be public for test_config
 contains
     
     !>------------------------------------------------
@@ -82,61 +83,93 @@ contains
         character(len=*), intent(in) :: filename
         logical, intent(in)          :: debug
         type(training_config) :: training_options
-        integer :: nfiles, nvars
-
-        nfiles = 1
-        nvars = 3
         
+        integer :: name_unit, i
+
+        ! namelist variables to be read
+        integer :: nfiles, nvars, calendar_start_year
+        character(len=MAXSTRINGLENGTH)  :: name, data_type, calendar
+        character(len=MAXVARLENGTH)     :: lat_name, lon_name, time_name
+        character(len=MAXFILELENGTH), dimension(:), allocatable :: file_list
+        character(len=MAXVARLENGTH),  dimension(:), allocatable :: var_names
+
+        ! setup the namelist
+        namelist /training_parameters/ nfiles, nvars, name, data_type,   &
+                                         lat_name, lon_name, time_name,    &
+                                         file_list, var_names
+        !defaults :
+        nfiles      = -1
+        nvars       = -1
+        name        = ""
+        data_type   = ""
+        lat_name    = ""
+        lon_name    = ""
+        time_name   = ""
+        file_list   = ""
+        var_names   = ""
+        calendar    = ""
+        calendar_start_year = 1900
+        
+        ! read namelists
+        open(io_newunit(name_unit), file=filename)
+        read(name_unit,nml=training_parameters)
+        close(name_unit)
+        
+        if (nfiles <= 0) stop "Number of training files (nfiles) is not valid. "
+        if (nvars  <= 0) stop "Number of training variables (nvars) is not valid. "
+        
+        ! allocate necessary arrays
         allocate(training_options%file_names(nfiles,nvars))
         allocate(training_options%var_names(nvars))
         
-        training_options%name           = "GEFS test"
+        ! finally, store the data into the config structure
+        training_options%name           = name
         training_options%n_variables    = nvars
-        training_options%file_names(1,1)= "/d5/gefs/all/2010/20101127/spfh_2m_2010112700_mean.nc"
-        training_options%var_names(1)   = "SPFH_2maboveground"
-        training_options%file_names(1,2)= "/d5/gefs/all/2010/20101127/ugrd_80m_2010112700_mean.nc"
-        training_options%var_names(2)   = "UGRD_80maboveground"
-        training_options%file_names(1,3)= "/d5/gefs/all/2010/20101127/vgrd_80m_2010112700_mean.nc"
-        training_options%var_names(3)   = "VGRD_80maboveground"
-        training_options%lat_name       = "latitude"
-        training_options%lon_name       = "longitude"
-        training_options%data_type      = kGEFS_TYPE
-        training_options%debug          = debug
-        training_options%calendar       = "standard"
-        training_options%time_gain      = 1/86400.0D0
-        training_options%calendar_start_year = 1970
+        training_options%nfiles         = nfiles
+        ! training_options%file_names(1,1)= "/d5/gefs/all/2010/20101127/spfh_2m_2010112700_mean.nc"
+        ! training_options%var_names(1)   = "SPFH_2maboveground"
+        do i=1,nvars
+            training_options%var_names(i)    = var_names(i)
+            nfiles = read_files_list(file_list(i), training_options%file_names(:,i))
+            if (nfiles /= training_options%nfiles) stop "Error reading the correct number of training input files"
+        end do
+        training_options%lat_name       = lat_name
+        training_options%lon_name       = lon_name
+        training_options%time_name      = time_name
+        training_options%calendar       = calendar
+        training_options%calendar_start_year = calendar_start_year
         training_options%time_file      = 1 
-        training_options%time_name      = "time"
-        training_options%selected_time  = 1
+        training_options%data_type      = read_data_type(data_type)
+        training_options%debug          = debug
+        
+        call check_training_options(training_options)
         
     end function read_training_options
-
-
-    function get_options_file() result(options_file)
-        implicit none
-        character(len=MAXFILELENGTH) ::options_file
-        integer :: error
-        logical :: file_exists
     
-        if (command_argument_count()>0) then
-            call get_command_argument(1,options_file, status=error)
-            if (error>0) then
-                options_file = DEFAULT_OPTIONS_FILENAME
-            elseif (error==-1) then
-                write(*,*) "Options filename = ", trim(options_file), " ...<cutoff>"
-                write(*,*) "Maximum filename length = ", MAXFILELENGTH
-                stop "ERROR: options filename too long"
-            endif
-        else
-            options_file = DEFAULT_OPTIONS_FILENAME
-        endif
-        INQUIRE(file=trim(options_file), exist=file_exists)
-        if (.not.file_exists) then
-            write(*,*) "Using options file = ", trim(options_file)
-            stop "Options file does not exist. "
-        endif
-    end function
+    !>------------------------------------------------
+    !!Verify the options read from the training options namelist
+    !!
+    !!------------------------------------------------
+    subroutine check_training_options(opt)
+        implicit none
+        type(training_config) :: opt
+        integer :: i, j
+        
+        if (trim(opt%lat_name) == "")  stop "Error : lat_name not supplied in training options. "
+        if (trim(opt%lon_name) == "")  stop "Error : lon_name not supplied in training options. "
+        if (trim(opt%calendar) == "")  stop "Error : Calendar not supplied in training options. "
+        if (trim(opt%time_name) == "") stop "Error : time_name not supplied in training options. "
+        
+        do i = 1, opt%n_variables
+            if (trim(opt%var_names(i)) == "") stop "Invalid or not enough variable names specified in training options. "
+            do j = 1, opt%nfiles
+                if (trim(opt%file_names(j,i)) == "") stop "Invalid or not enough file names specified in training options. "
+            enddo
+        end do
 
+    end subroutine check_training_options
+
+    
     !>------------------------------------------------
     !! Read the prediction configuration
     !!
@@ -158,8 +191,8 @@ contains
 
         ! setup the namelist
         namelist /prediction_parameters/ nfiles, nvars, name, data_type,   &
-                                      lat_name, lon_name, time_name,    &
-                                      file_list, var_names
+                                         lat_name, lon_name, time_name,    &
+                                         file_list, var_names
         !defaults :
         nfiles      = -1
         nvars       = -1
@@ -178,6 +211,9 @@ contains
         read(name_unit,nml=prediction_parameters)
         close(name_unit)
         
+        if (nfiles <= 0) stop "Number of prediction files (nfiles) is not valid. "
+        if (nvars  <= 0) stop "Number of prediction variables (nvars) is not valid. "
+        
         ! allocate necessary arrays
         allocate(prediction_options%file_names(nfiles,nvars))
         allocate(prediction_options%var_names(nvars))
@@ -185,10 +221,12 @@ contains
         ! finally, store the data into the config structure
         prediction_options%name           = name
         prediction_options%n_variables    = nvars
+        prediction_options%nfiles         = nfiles
         ! prediction_options%file_names(1,1)= "/d4/gutmann/cmip/daily/ccsm/subset/hus_day_CCSM4_historical_r6i1p1_19750101-19791231.nc"
         do i=1,nvars
             prediction_options%var_names(i)    = var_names(i)
-            prediction_options%file_names(:,i) = read_files_list(file_list(i))
+            nfiles = read_files_list(file_list(i), prediction_options%file_names(:,i))
+            if (nfiles/=prediction_options%nfiles) stop "Error reading the correct number of prediction input files"
         end do
         prediction_options%lat_name       = lat_name
         prediction_options%lon_name       = lon_name
@@ -199,7 +237,32 @@ contains
         prediction_options%data_type      = read_data_type(data_type)
         prediction_options%debug          = debug
         
+        call check_prediction_options(prediction_options)
+        
     end function read_prediction_options
+    
+    !>------------------------------------------------
+    !!Verify the options read from the prediction options namelist
+    !!
+    !!------------------------------------------------
+    subroutine check_prediction_options(opt)
+        implicit none
+        type(prediction_config) :: opt
+        integer :: i,j
+        
+        if (trim(opt%lat_name) == "")  stop "Error : lat_name not supplied in prediction options. "
+        if (trim(opt%lon_name) == "")  stop "Error : lon_name not supplied in prediction options. "
+        if (trim(opt%calendar) == "")  stop "Error : Calendar not supplied in prediction options. "
+        if (trim(opt%time_name) == "") stop "Error : time_name not supplied in prediction options. "
+        
+        do i = 1, opt%n_variables
+            if (trim(opt%var_names(i)) == "") stop "Invalid or not enough variable names specified in prediction options. "
+            do j = 1, opt%nfiles
+                if (trim(opt%file_names(j,i)) == "") stop "Invalid or not enough file names specified in prediction options. "
+            enddo
+        end do
+
+    end subroutine check_prediction_options
 
     !>------------------------------------------------
     !! Read the training configuration
@@ -237,6 +300,13 @@ contains
         
     end function read_obs_options
     
+    !>-----------------------------------------------
+    !! Convert a data type string into its corresponding constant integer expression
+    !!
+    !!  @param  type_name   [in]    character string describing a data type
+    !!  @retval data_type   [out]   integer constant corresponding to the input string
+    !!
+    !!------------------------------------------------
     function read_data_type(type_name) result(data_type)
         implicit none
         character(len=*) :: type_name
@@ -257,13 +327,22 @@ contains
         
     end function read_data_type
 
-    function read_files_list(filename) result(file_list)
+    !>-----------------------------------------------
+    !! Read a long list of files (one per line) from an input file (filename)
+    !!
+    !!  @param  filename    [in]    character string containing the name of the file to read
+    !!  @param  file_list   [out]   allocatable array of filenames read from the input file
+    !!  @retval nfiles      [out]   number of files read in
+    !!
+    !!------------------------------------------------
+    function read_files_list(filename, file_list) result(nfiles)
         implicit none
-        character(len=*) :: filename
+        character(len=*), intent(in) :: filename
+        character(len=MAXFILELENGTH), dimension(:), intent(inout) :: file_list
         
-        character(len=MAXFILELENGTH), dimension(MAX_NUMBER_FILES) :: forcing_files
-        character(len=MAXFILELENGTH), dimension(:), allocatable   :: file_list
         integer :: nfiles
+        
+        character(len=MAXFILELENGTH), dimension(MAX_NUMBER_FILES)            :: forcing_files
         integer :: file_unit
         integer :: i, error
         character(len=MAXFILELENGTH) :: temporary_file
@@ -273,20 +352,24 @@ contains
         error=0
         do while (error==0)
             read(file_unit, *, iostat=error) temporary_file
+            
             if (error==0) then
-                if ((i+1) > MAX_NUMBER_FILES) then
+                i=i+1
+                
+                if (i > MAX_NUMBER_FILES) then
                     write(*,*) "ERROR reading: "//trim(filename)
                     stop "Too many files to read"
                 endif
-                i=i+1
+                
                 forcing_files(i) = temporary_file
             endif
+            
         enddo
         close(file_unit)
         
         nfiles = i
         ! print out a summary
-        write(*,*) "Boundary conditions files to be used:"
+        write(*,*) "Files to be used:"
         if (nfiles>10) then
             write(*,*) "  nfiles=", trim(str(nfiles)), ", too many to print."
             write(*,*) "  First file:", trim(forcing_files(1))
@@ -297,9 +380,48 @@ contains
             enddo
         endif
         
-        allocate(file_list(nfiles))
         file_list(1:nfiles) = forcing_files(1:nfiles)
 
     end function read_files_list
+
+    !>------------------------------------------
+    !! Get the first commandline option if one exists, otherwise return a default filename
+    !!
+    !!  @retval options_file    [out]   Filename to read the configuration options from
+    !!
+    !!------------------------------------------
+    function get_options_file() result(options_file)
+        implicit none
+        character(len=MAXFILELENGTH) ::options_file
+        integer :: error
+        logical :: file_exists
+    
+        ! if a commandline argument was given
+        if (command_argument_count()>0) then
+            ! read the commandline argument
+            call get_command_argument(1,options_file, status=error)
+            
+            ! if there was an error, return the default filename
+            if (error>0) then
+                options_file = DEFAULT_OPTIONS_FILENAME
+            ! if the error was -1, then the filename supplied was just too long
+            elseif (error==-1) then
+                write(*,*) "Options filename = ", trim(options_file), " ...<cutoff>"
+                write(*,*) "Maximum filename length = ", MAXFILELENGTH
+                stop "ERROR: options filename too long"
+            endif
+        else
+            ! if not commandline options were given, assume a default filename
+            options_file = DEFAULT_OPTIONS_FILENAME
+        endif
+        
+        ! check to see if the expected filename even exists on disk
+        INQUIRE(file=trim(options_file), exist=file_exists)
+        ! if it does not exist, print an error and stop
+        if (.not.file_exists) then
+            write(*,*) "Using options file = ", trim(options_file)
+            stop "Options file does not exist. "
+        endif
+    end function get_options_file
     
 end module config_mod

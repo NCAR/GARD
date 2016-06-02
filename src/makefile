@@ -246,26 +246,34 @@ FCFLAGS = $(COMP) -I$(NCDF_PATH)/include -I$(BUILD) $(INC_NCAR)
 LDFLAGS = $(LINK) -L$(NCDF_PATH)/lib -lnetcdf -lnetcdff $(LIB_NCAR)
 
 OBJS =  \
-	$(BUILD)time.o            \
-	$(BUILD)string.o          \
-	$(BUILD)data_structures.o \
-	$(BUILD)geo_reader.o      \
-	$(BUILD)io_routines.o     \
-	$(BUILD)gcm_io.o          \
-	$(BUILD)gefs_io.o          \
-	$(BUILD)reanalysis.o      \
-	$(BUILD)obs_io.o    \
-	$(BUILD)configuration.o   \
-	$(BUILD)atmosphere_io.o	  \
-	$(BUILD)init.o			  \
-    $(BUILD)model_constants.o \
-    $(BUILD)time_io.o         \
-    $(BUILD)basic_stats.o     \
+	$(BUILD)time.o            	\
+	$(BUILD)string.o          	\
+	$(BUILD)data_structures.o 	\
+	$(BUILD)geo_reader.o      	\
+	$(BUILD)io_routines.o     	\
+	$(BUILD)gcm_io.o          	\
+	$(BUILD)gefs_io.o          	\
+	$(BUILD)reanalysis.o    	\
+	$(BUILD)obs_io.o    		\
+	$(BUILD)configuration.o   	\
+	$(BUILD)atmosphere_io.o	  	\
+	$(BUILD)init.o			  	\
+    $(BUILD)model_constants.o 	\
+    $(BUILD)time_io.o         	\
+    $(BUILD)basic_stats.o     	\
 	$(BUILD)main.o
-	# $(BUILD)ds_model.o       \
-	# $(BUILD)numerics.o     \
+	# $(BUILD)ds_model.o       	\
 	# $(BUILD)coefficients.o    \
 	
+
+CONFIG_TEST_OBJS =    			\
+    $(BUILD)configuration.o  	\
+	$(BUILD)data_structures.o	\
+	$(BUILD)model_constants.o	\
+	$(BUILD)io_routines.o     	\
+	$(BUILD)string.o     		\
+	$(BUILD)time.o				\
+	$(BUILD)test_config.o
 
 CAL_TEST_OBJS =    			\
     $(BUILD)time.o 			\
@@ -292,7 +300,7 @@ model: downscale
 	
 all: downscale test
 
-test: test_calendar test_sort test_qm
+test: test_calendar test_sort test_qm test_config
 
 install: downscale
 	cp downscale $(INSTALL_DIR)/
@@ -316,6 +324,9 @@ test_qm : $(QM_TEST_OBJS)
 test_sort : $(SORT_TEST_OBJS)
 	$(FC) $(FCFLAGS) -o $@ $^ $(LDFLAGS)
 
+test_config : $(CONFIG_TEST_OBJS)
+	$(FC) $(FCFLAGS) -o $@ $^ $(LDFLAGS)
+
 # specify specific builds and dependencies. 
 
 # unit tests
@@ -327,6 +338,10 @@ $(BUILD)test_sort.o: tests/test_sort.f90 $(BUILD)sorting.o
 
 $(BUILD)test_qm.o: tests/test_qm.f90 $(BUILD)data_structures.o $(BUILD)quantile_mapping.o $(BUILD)basic_stats.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
+
+$(BUILD)test_config.o: tests/test_config.f90 $(BUILD)data_structures.o $(BUILD)model_constants.o $(BUILD)configuration.o
+	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
+
 
 # Date and time relevant objects	
 $(BUILD)time.o: utilities/time.f90 $(BUILD)model_constants.o
@@ -360,8 +375,8 @@ $(BUILD)data_structures.o: objects/data_structures.f90 $(BUILD)time.o $(BUILD)mo
 $(BUILD)io_routines.o: io/io_routines.f90 $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
-$(BUILD)configuration.o: objects/configuration.f90 $(BUILD)data_structures.o $(BUILD)model_constants.o \
-						 $(BUILD)string.o $(BUILD)io_routines.o
+$(BUILD)configuration.o: config/configuration.f90 $(BUILD)data_structures.o $(BUILD)model_constants.o \
+						 $(BUILD)string.o $(BUILD)io_routines.o $(BUILD)time.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)geo_reader.o: utilities/geo_reader.f90 $(BUILD)data_structures.o $(BUILD)model_constants.o
