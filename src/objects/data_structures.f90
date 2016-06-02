@@ -161,6 +161,10 @@ module data_structures
         character (len=MAXSTRINGLENGTH) :: version, comment
 
         character (len=MAXFILELENGTH) :: options_filename
+        character (len=MAXFILELENGTH) :: training_file
+        character (len=MAXFILELENGTH) :: prediction_file
+        character (len=MAXFILELENGTH) :: observation_file
+        
         character (len=MAXFILELENGTH) :: name
         ! file names
         character (len=MAXFILELENGTH) :: output_file

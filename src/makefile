@@ -360,7 +360,8 @@ $(BUILD)data_structures.o: objects/data_structures.f90 $(BUILD)time.o $(BUILD)mo
 $(BUILD)io_routines.o: io/io_routines.f90 $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
-$(BUILD)configuration.o: objects/configuration.f90 $(BUILD)data_structures.o $(BUILD)model_constants.o
+$(BUILD)configuration.o: objects/configuration.f90 $(BUILD)data_structures.o $(BUILD)model_constants.o \
+						 $(BUILD)string.o $(BUILD)io_routines.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)geo_reader.o: utilities/geo_reader.f90 $(BUILD)data_structures.o $(BUILD)model_constants.o
