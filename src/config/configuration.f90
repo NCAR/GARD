@@ -34,8 +34,8 @@ contains
         
         call read_base_options(options)
         
-        options%training    = read_training_options( options%training_file,      options%debug)
         options%prediction  = read_prediction_options( options%prediction_file,  options%debug)
+        options%training    = read_training_options( options%training_file,      options%debug)
         options%obs         = read_obs_options( options%observation_file,        options%debug)
         
     end function read_config
@@ -90,13 +90,14 @@ contains
         integer :: nfiles, nvars, calendar_start_year
         character(len=MAXSTRINGLENGTH)  :: name, data_type, calendar
         character(len=MAXVARLENGTH)     :: lat_name, lon_name, time_name
-        character(len=MAXFILELENGTH), dimension(:), allocatable :: file_list
-        character(len=MAXVARLENGTH),  dimension(:), allocatable :: var_names
+        character(len=MAXFILELENGTH), dimension(MAX_NUMBER_VARS) :: file_list
+        character(len=MAXVARLENGTH),  dimension(MAX_NUMBER_VARS) :: var_names
 
         ! setup the namelist
         namelist /training_parameters/ nfiles, nvars, name, data_type,   &
                                          lat_name, lon_name, time_name,    &
-                                         file_list, var_names
+                                         file_list, var_names,             &
+                                         calendar, calendar_start_year
         !defaults :
         nfiles      = -1
         nvars       = -1
@@ -126,12 +127,13 @@ contains
         training_options%name           = name
         training_options%n_variables    = nvars
         training_options%nfiles         = nfiles
-        ! training_options%file_names(1,1)= "/d5/gefs/all/2010/20101127/spfh_2m_2010112700_mean.nc"
-        ! training_options%var_names(1)   = "SPFH_2maboveground"
         do i=1,nvars
             training_options%var_names(i)    = var_names(i)
             nfiles = read_files_list(file_list(i), training_options%file_names(:,i))
-            if (nfiles /= training_options%nfiles) stop "Error reading the correct number of training input files"
+            if (nfiles /= training_options%nfiles) then
+                write(*,*) nfiles, training_options%nfiles
+                stop "Error reading the correct number of training input files"
+            endif
         end do
         training_options%lat_name       = lat_name
         training_options%lon_name       = lon_name
@@ -143,6 +145,7 @@ contains
         training_options%debug          = debug
         
         call check_training_options(training_options)
+        
         
     end function read_training_options
     
@@ -180,19 +183,20 @@ contains
         logical, intent(in)          :: debug
         type(prediction_config) :: prediction_options
         
-        integer :: name_unit, i
+        integer :: name_unit, i, j
 
         ! namelist variables to be read
         integer :: nfiles, nvars, calendar_start_year
         character(len=MAXSTRINGLENGTH)  :: name, data_type, calendar
         character(len=MAXVARLENGTH)     :: lat_name, lon_name, time_name
-        character(len=MAXFILELENGTH), dimension(:), allocatable :: file_list
-        character(len=MAXVARLENGTH),  dimension(:), allocatable :: var_names
+        character(len=MAXFILELENGTH), dimension(MAX_NUMBER_VARS) :: file_list
+        character(len=MAXVARLENGTH),  dimension(MAX_NUMBER_VARS) :: var_names
 
         ! setup the namelist
-        namelist /prediction_parameters/ nfiles, nvars, name, data_type,   &
-                                         lat_name, lon_name, time_name,    &
-                                         file_list, var_names
+        namelist /prediction_parameters/ nfiles, nvars, name, data_type,    &
+                                         lat_name, lon_name, time_name,     &
+                                         file_list, var_names,              &
+                                         calendar, calendar_start_year
         !defaults :
         nfiles      = -1
         nvars       = -1
@@ -222,11 +226,13 @@ contains
         prediction_options%name           = name
         prediction_options%n_variables    = nvars
         prediction_options%nfiles         = nfiles
-        ! prediction_options%file_names(1,1)= "/d4/gutmann/cmip/daily/ccsm/subset/hus_day_CCSM4_historical_r6i1p1_19750101-19791231.nc"
         do i=1,nvars
             prediction_options%var_names(i)    = var_names(i)
             nfiles = read_files_list(file_list(i), prediction_options%file_names(:,i))
-            if (nfiles/=prediction_options%nfiles) stop "Error reading the correct number of prediction input files"
+            if (nfiles/=prediction_options%nfiles) then
+                write(*,*) nfiles, prediction_options%nfiles
+                stop "Error reading the correct number of prediction input files"
+            endif
         end do
         prediction_options%lat_name       = lat_name
         prediction_options%lon_name       = lon_name
@@ -280,13 +286,14 @@ contains
         integer :: nfiles, nvars, calendar_start_year
         character(len=MAXSTRINGLENGTH)  :: name, data_type, calendar
         character(len=MAXVARLENGTH)     :: lat_name, lon_name, time_name
-        character(len=MAXFILELENGTH), dimension(:), allocatable :: file_list
-        character(len=MAXVARLENGTH),  dimension(:), allocatable :: var_names
+        character(len=MAXFILELENGTH), dimension(MAX_NUMBER_VARS) :: file_list
+        character(len=MAXVARLENGTH),  dimension(MAX_NUMBER_VARS) :: var_names
 
         ! setup the namelist
-        namelist /obs_parameters/ nfiles, nvars, name, data_type,   &
-                                         lat_name, lon_name, time_name,    &
-                                         file_list, var_names
+        namelist /obs_parameters/ nfiles, nvars, name, data_type,           &
+                                         lat_name, lon_name, time_name,     &
+                                         file_list, var_names,              &
+                                         calendar, calendar_start_year
         !defaults :
         nfiles      = -1
         nvars       = -1
@@ -316,12 +323,13 @@ contains
         obs_options%name           = name
         obs_options%n_variables    = nvars
         obs_options%nfiles         = nfiles
-        ! obs_options%file_names(1,1)= "/d2/gutmann/usbr/stat_data/DAILY/obs/maurer.125/pr/nldas_met_update.obs.daily.pr.1980.nc"
-        ! obs_options%var_names(1)   = "pr"
         do i=1,nvars
             obs_options%var_names(i)    = var_names(i)
             nfiles = read_files_list(file_list(i), obs_options%file_names(:,i))
-            if (nfiles/=obs_options%nfiles) stop "Error reading the correct number of obs input files"
+            if (nfiles/=obs_options%nfiles) then
+                write(*,*) nfiles, obs_options%nfiles
+                stop "Error reading the correct number of obs input files"
+            endif
         end do
         obs_options%lat_name       = lat_name
         obs_options%lon_name       = lon_name
@@ -379,8 +387,8 @@ contains
         case("obs")
             data_type = kOBS_TYPE
         case default
-            print*, "ERROR: unknown data type: "//trim(type_name)
-            print*, "Must be one of: GEFS, GCM, obs"
+            write(*,*) "ERROR: unknown data type: "//trim(type_name)
+            write(*,*) "Must be one of: GEFS, GCM, obs"
             stop
         end select
         
@@ -409,9 +417,9 @@ contains
         open(unit=io_newunit(file_unit), file=filename)
         i=0
         error=0
+        temporary_file = ""
         do while (error==0)
             read(file_unit, *, iostat=error) temporary_file
-            
             if (error==0) then
                 i=i+1
                 
@@ -424,20 +432,10 @@ contains
             endif
             
         enddo
+        
         close(file_unit)
         
         nfiles = i
-        ! print out a summary
-        write(*,*) "Files to be used:"
-        if (nfiles>10) then
-            write(*,*) "  nfiles=", trim(str(nfiles)), ", too many to print."
-            write(*,*) "  First file:", trim(forcing_files(1))
-            write(*,*) "  Last file: ", trim(forcing_files(nfiles))
-        else
-            do i=1,nfiles
-                write(*,*) "    ",trim(forcing_files(i))
-            enddo
-        endif
         
         file_list(1:nfiles) = forcing_files(1:nfiles)
 

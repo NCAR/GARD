@@ -32,11 +32,14 @@ program downscale
     call model_init(options)
     
     ! read in the training atmospheric data (e.g. reanalysis or GEFS)
+    print*, "Reading training"
     training_atm = read_atm(options%training)
     ! read in the training surface data (e.g. Maurer et al., Newman et al., Livneh et al., DAYMET )
+    print*, "Reading obs"
     training_obs = read_obs(options%obs)
     
     ! read in the atmospheric predictor data (e.g. GCM or GEFS)
+    print*, "Reading predictor"
     predictions  = read_atm(options%prediction)
     
     if (options%debug) then
