@@ -14,6 +14,7 @@ program downscale
     use atm_mod,        only : read_atm
     use init_mod,       only : model_init
     use obs_mod,        only : read_obs
+    use geo,            only : geo_LUT
     ! use stats_mod,      only : sdown
     ! use output_mod,     only : write_output
     
@@ -42,14 +43,17 @@ program downscale
     print*, "Reading predictor"
     predictions  = read_atm(options%prediction)
     
-    if (options%debug) then
-        print*, "=========================================="
-        print*, "options         ", trim(options%name)
-        print*, "obs             ", trim(training_obs%name)
-        print*, "atm:training    ", trim(training_atm%name)
-        print*, "atm:predictions ", trim(predictions%name)
-        print*, "=========================================="
-    endif
+    print*, "=========================================="
+    print*, "options         ", trim(options%name)
+    print*, "obs             ", trim(training_obs%name)
+    print*, "atm:training    ", trim(training_atm%name)
+    print*, "atm:predictions ", trim(predictions%name)
+    print*, "=========================================="
+    print*, ""
+    print*, "Developing geographic interpolation..."
+    
+    call geo_LUT(training_obs, training_atm)
+    call geo_LUT(training_obs, predictions)
     
     ! output = sdown(training_atm, training_obs, predictions, options)
     

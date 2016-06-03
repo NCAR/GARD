@@ -16,6 +16,7 @@ module obs_mod
     use string,         only: str
     use io_routines,    only: io_read, io_getdims, io_maxDims
     use time_io,        only: read_times
+    use geo,            only: standardize_coordinates
     
     implicit none
     logical :: debug
@@ -83,8 +84,7 @@ contains
         
         call io_read(options%file_names(1, 1), options%lat_name, obs_data%lat)
         call io_read(options%file_names(1, 1), options%lon_name, obs_data%lon)
-        ! note, if these are 1D variables, they need to be converted to 2D. 
-        ! also, convert longitudes?
+        call standardize_coordinates(obs_data)
     end function read_obs
     
     subroutine compute_grid_stats(var)

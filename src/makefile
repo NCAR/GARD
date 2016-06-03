@@ -387,15 +387,15 @@ $(BUILD)init.o: main/init.f90 $(BUILD)data_structures.o $(BUILD)gcm_io.o $(BUILD
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)gefs_io.o: io/gefs_io.f90 $(BUILD)data_structures.o $(BUILD)string.o $(BUILD)model_constants.o \
-						$(BUILD)time_io.o $(BUILD)basic_stats.o
+						$(BUILD)time_io.o $(BUILD)basic_stats.o $(BUILD)geo_reader.o
 		$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)gcm_io.o: io/gcm_io.f90 $(BUILD)data_structures.o $(BUILD)string.o $(BUILD)model_constants.o \
-					$(BUILD)time_io.o $(BUILD)basic_stats.o
+					$(BUILD)time_io.o $(BUILD)basic_stats.o $(BUILD)geo_reader.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)obs_io.o: io/obs_io.f90 $(BUILD)data_structures.o $(BUILD)string.o $(BUILD)model_constants.o \
-					$(BUILD)time_io.o $(BUILD)basic_stats.o
+					$(BUILD)time_io.o $(BUILD)basic_stats.o $(BUILD)geo_reader.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)reanalysis.o: objects/reanalysis.f90 $(BUILD)data_structures.o $(BUILD)geo_reader.o $(BUILD)model_constants.o

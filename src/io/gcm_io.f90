@@ -16,6 +16,7 @@ module gcm_mod
     use string,         only: str
     use io_routines,    only: io_read, io_getdims, io_maxDims
     use time_io,        only: read_times
+    use geo,            only: standardize_coordinates
     
     implicit none
     logical :: debug
@@ -82,8 +83,7 @@ contains
         
         call io_read(options%file_names(1, 1), options%lat_name, gcm_data%lat)
         call io_read(options%file_names(1, 1), options%lon_name, gcm_data%lon)
-        ! note, if these are 1D variables, they need to be converted to 2D. 
-        ! also, convert longitudes?
+        call standardize_coordinates(gcm_data)
     end function read_gcm
     
     subroutine compute_grid_stats(var)

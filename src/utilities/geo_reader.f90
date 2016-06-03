@@ -25,6 +25,7 @@ module geo
     public::geo_LUT      ! Create a geographic Look up table
     public::geo_interp   ! apply geoLUT to interpolate in 2d for a 3d grid
     public::geo_interp2d ! apply geoLUT to interpolate in 2d for a 2d grid
+    public::standardize_coordinates
     
 contains
     
@@ -481,5 +482,37 @@ contains
         
     end subroutine  geo_interp2d
 
+    
+    subroutine standardize_coordinates(domain)
+        implicit none
+        class(interpolable_type), intent(inout) :: domain
+        
+        real, dimension(:,:), allocatable :: temporary_geo_data
+        integer :: nx, ny, i
+        
+        ! if the lat, lon data were given as 1D variables, we need to make them 2D for interpolability
+        if (size(domain%lat,2)==1) then
+            nx = size(domain%lon,1)
+            ny = size(domain%lat,1)
+            allocate(temporary_geo_data(nx,ny))
+            do i = 1, ny
+                temporary_geo_data(:,i) = domain%lon(:,1)
+            end do
+            deallocate(domain%lon)
+            allocate(domain%lon(nx,ny))
+            domain%lon = temporary_geo_data
+            
+            do i = 1, nx
+                temporary_geo_data(i,:) = domain%lat(:,1)
+            end do
+            deallocate(domain%lat)
+            allocate(domain%lat(nx,ny))
+            domain%lat = temporary_geo_data
+        endif
+        
+        ! also convert from a -180 to 180 coordinate system into a 0-360 coordinate system if necessary
+        where(domain%lon<0) domain%lon = 360+domain%lon
+        
+    end subroutine standardize_coordinates
     
 end module geo
