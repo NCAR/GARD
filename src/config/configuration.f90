@@ -87,7 +87,7 @@ contains
         integer :: name_unit, i
 
         ! namelist variables to be read
-        integer :: nfiles, nvars, calendar_start_year
+        integer :: nfiles, nvars, calendar_start_year, selected_time
         character(len=MAXSTRINGLENGTH)  :: name, data_type, calendar
         character(len=MAXVARLENGTH)     :: lat_name, lon_name, time_name
         character(len=MAXFILELENGTH), dimension(MAX_NUMBER_VARS) :: file_list
@@ -97,7 +97,8 @@ contains
         namelist /training_parameters/ nfiles, nvars, name, data_type,   &
                                          lat_name, lon_name, time_name,    &
                                          file_list, var_names,             &
-                                         calendar, calendar_start_year
+                                         calendar, calendar_start_year,    &
+                                         selected_time
         !defaults :
         nfiles      = -1
         nvars       = -1
@@ -110,6 +111,7 @@ contains
         var_names   = ""
         calendar    = ""
         calendar_start_year = 1900
+        selected_time = -1
         
         ! read namelists
         open(io_newunit(name_unit), file=filename)
@@ -140,7 +142,8 @@ contains
         training_options%time_name      = time_name
         training_options%calendar       = calendar
         training_options%calendar_start_year = calendar_start_year
-        training_options%time_file      = 1 
+        training_options%time_file      = 1
+        training_options%selected_time  = selected_time
         training_options%data_type      = read_data_type(data_type)
         training_options%debug          = debug
         
@@ -186,7 +189,7 @@ contains
         integer :: name_unit, i, j
 
         ! namelist variables to be read
-        integer :: nfiles, nvars, calendar_start_year
+        integer :: nfiles, nvars, calendar_start_year, selected_time
         character(len=MAXSTRINGLENGTH)  :: name, data_type, calendar
         character(len=MAXVARLENGTH)     :: lat_name, lon_name, time_name
         character(len=MAXFILELENGTH), dimension(MAX_NUMBER_VARS) :: file_list
@@ -196,7 +199,9 @@ contains
         namelist /prediction_parameters/ nfiles, nvars, name, data_type,    &
                                          lat_name, lon_name, time_name,     &
                                          file_list, var_names,              &
-                                         calendar, calendar_start_year
+                                         calendar, calendar_start_year,     &
+                                         selected_time
+
         !defaults :
         nfiles      = -1
         nvars       = -1
@@ -209,6 +214,7 @@ contains
         var_names   = ""
         calendar    = ""
         calendar_start_year = 1900
+        selected_time = -1
         
         ! read namelists
         open(io_newunit(name_unit), file=filename)
@@ -239,6 +245,7 @@ contains
         prediction_options%time_name      = time_name
         prediction_options%calendar       = calendar
         prediction_options%calendar_start_year = calendar_start_year
+        prediction_options%selected_time  = selected_time
         prediction_options%time_file      = 1 
         prediction_options%data_type      = read_data_type(data_type)
         prediction_options%debug          = debug

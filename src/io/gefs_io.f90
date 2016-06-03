@@ -134,7 +134,7 @@ contains
         implicit none
         character(len=MAXVARLENGTH),    intent(in)               :: varname
         character(len=MAXFILELENGTH),   intent(in), dimension(:) :: filenames
-        integer,                        intent(in)              :: timestep 
+        integer,                        intent(in)               :: timestep 
         
         integer :: file_idx, ntimesteps, nx, ny
         integer, dimension(io_maxDims) :: dims
@@ -151,7 +151,7 @@ contains
                 ! this should probably be checked somewhere
                 ntimesteps = ntimesteps + 1
             else
-                ! the last dimension is assumed to be time (+1 because ndims takes a slot)
+                ! the last dimension is assumed to be time (+1 because dims(1)=ndims takes a slot)
                 if (timestep==-1) then
                     ntimesteps = ntimesteps + dims( dims(1)+1 )
                 else
