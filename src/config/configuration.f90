@@ -70,6 +70,7 @@ contains
         end_train        = ""
         start_transform  = ""
         end_transform    = ""
+        output_file      = "downscaled_output.nc"
         
         options%name = options%options_filename
         options%debug = .True.
@@ -100,6 +101,7 @@ contains
         options%training_file    = training_file
         options%prediction_file  = prediction_file
         options%observation_file = observation_file
+        options%output_file      = output_file
         
     end subroutine read_base_options
 

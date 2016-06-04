@@ -26,9 +26,15 @@ contains
             do i = 1, n_variables
                 associate(var => output%variables(i))
                     
+                print*, shape(training_atm%variables(1)%data)
+                print*, minval(training_atm%variables(1)%data(:,35,15)), maxval(training_atm%variables(1)%data(:,35,15))
                 allocate(var%data(ntimes, nx, ny))
                 var%data(:,1,1) = predictors%variables(1)%data(:,1,1)
-                call develop_qm(predictors%variables(1)%data(:,1,1), training_atm%variables(1)%data(:,1,1), qm)
+                call develop_qm(predictors%variables(1)%data(:,1,1), training_atm%variables(1)%data(:,35,15), qm)
+                print*, minval(qm%start_idx), maxval(qm%start_idx)
+                print*, minval(qm%end_idx), maxval(qm%end_idx)
+                print*, minval(qm%offset), maxval(qm%offset)
+                print*, minval(qm%slope), maxval(qm%slope)
                 call apply_qm(predictors%variables(1)%data(:,1,1), var%data(:,2,1), qm)
                 
                 end associate
