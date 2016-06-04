@@ -15,6 +15,7 @@ program downscale
     use init_mod,       only : model_init
     use obs_mod,        only : read_obs
     use geo,            only : geo_LUT
+    use io_routines,    only : io_write
     ! use stats_mod,      only : sdown
     ! use output_mod,     only : write_output
     
@@ -54,6 +55,10 @@ program downscale
     
     call geo_LUT(training_obs, training_atm)
     call geo_LUT(training_obs, predictions)
+    
+    call io_write("obs.nc","data",training_obs%variables(1)%data)
+    call io_write("training.nc","data",training_atm%variables(1)%data)
+    call io_write("predictor.nc","data",predictions%variables(1)%data)
     
     ! output = sdown(training_atm, training_obs, predictions, options)
     

@@ -407,7 +407,7 @@ $(BUILD)atmosphere_io.o: io/atmosphere_io.f90 $(BUILD)data_structures.o $(BUILD)
 
 
 $(BUILD)main.o: main/main.f90 $(BUILD)atmosphere_io.o $(BUILD)obs_io.o $(BUILD)configuration.o \
-				$(BUILD)init.o $(BUILD)model_constants.o
+				$(BUILD)init.o $(BUILD)model_constants.o $(BUILD)io_routines.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 

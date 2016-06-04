@@ -10,6 +10,7 @@ module model_constants
     integer,public,parameter :: MAXFILELENGTH    = 1024     ! maximum file name length
     integer,public,parameter :: MAXVARLENGTH     = 1024     ! maximum variable name length
     integer,public,parameter :: MAXDIMLENGTH     = 1024     ! maximum variable name length
+    integer,public,parameter :: MAX_NUMBER_TIMES = 48       ! maximum number of time steps to integrate from an input source
     integer,public,parameter :: MAX_NUMBER_VARS  = 255      ! maximum number of permitted variables to process 
     integer,public,parameter :: MAX_NUMBER_FILES = 100000   ! maximum number of permitted input files 
                                                             ! 100000 = 1 file/day for ~274 years

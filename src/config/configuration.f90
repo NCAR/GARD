@@ -16,8 +16,8 @@ module config_mod
     implicit none
     private
     
-    character(len=MAXFILELENGTH), parameter :: DEFAULT_OPTIONS_FILENAME = "downscale_options.txt"
-    character(len=MAXFILELENGTH), parameter :: VERSION_STRING = "0.1"
+    character(len=MAXFILELENGTH), parameter :: kDEFAULT_OPTIONS_FILENAME = "downscale_options.txt"
+    character(len=MAXFILELENGTH), parameter :: kVERSION_STRING = "0.1"
     
     public :: read_config
     public :: read_files_list, read_data_type, get_options_file ! only need to be public for test_config
@@ -40,36 +40,66 @@ contains
         
     end function read_config
 
+
     subroutine read_base_options(options)
         implicit none
-        type(config), intent(inout) :: options
+        type(config), intent(inout)     :: options
         
-        options%version = VERSION_STRING
+        integer :: name_unit
+        character(len=MAXSTRINGLENGTH)  :: name, start_date, end_date, start_train, end_train
+        character(len=MAXSTRINGLENGTH)  :: start_transform, end_transform
+        character(len=MAXFILELENGTH)    :: training_file, prediction_file, observation_file, output_file
+        
+        ! setup the namelist
+        namelist /parameters/   name,                                               &
+                                training_file, prediction_file, observation_file,   &
+                                output_file,                                        &
+                                start_date, end_date, start_train, end_train,       &
+                                start_transform, end_transform
+
+        options%version = kVERSION_STRING
         options%options_filename = get_options_file()
+        
+        ! defaults
+        training_file    = options%options_filename
+        prediction_file  = options%options_filename
+        observation_file = options%options_filename
+        start_date       = ""
+        end_date         = ""
+        start_train      = ""
+        end_train        = ""
+        start_transform  = ""
+        end_transform    = ""
         
         options%name = options%options_filename
         options%debug = .True.
         
+        ! read namelists
+        open(io_newunit(name_unit), file=trim(options%options_filename))
+        read(name_unit,nml=parameters)
+        close(name_unit)
+        
         ! this is the time to make predictions over
         call options%first_time%init("gregorian")
-        call options%first_time%set("2000-01-01 00:00:00")
+        call options%first_time%set(start_date)
         call options%last_time%init("gregorian")
-        call options%last_time%set("2001-01-01 00:00:00")
+        call options%last_time%set(end_date)
         
         ! this it the time period to use for calibration of the regression variables
         call options%training_start%init("gregorian")
-        call options%training_start%set("1990-01-01 00:00:00")
+        call options%training_start%set(start_train)
         call options%training_stop%init("gregorian")
-        call options%training_stop%set("1991-01-01 00:00:00")
+        call options%training_stop%set(end_train)
 
+        ! this is the time period to use when calculating e.g. quantile mapping transformations
         call options%transform_start%init("gregorian")
-        call options%transform_start%set("1990-01-01 00:00:00")
+        call options%transform_start%set(start_transform)
         call options%transform_stop%init("gregorian")
-        call options%transform_stop%set("1991-01-01 00:00:00")
+        call options%transform_stop%set(end_transform)
         
-        options%training_file    = options%options_filename
-        options%prediction_file  = options%options_filename
-        options%observation_file = options%options_filename
+        options%training_file    = training_file
+        options%prediction_file  = prediction_file
+        options%observation_file = observation_file
         
     end subroutine read_base_options
 
@@ -88,8 +118,9 @@ contains
 
         ! namelist variables to be read
         integer :: nfiles, nvars, calendar_start_year, selected_time
-        character(len=MAXSTRINGLENGTH)  :: name, data_type, calendar
-        character(len=MAXVARLENGTH)     :: lat_name, lon_name, time_name
+        integer, dimension(MAX_NUMBER_TIMES) :: time_indicies
+        character(len=MAXSTRINGLENGTH)       :: name, data_type, calendar
+        character(len=MAXVARLENGTH)          :: lat_name, lon_name, time_name
         character(len=MAXFILELENGTH), dimension(MAX_NUMBER_VARS) :: file_list
         character(len=MAXVARLENGTH),  dimension(MAX_NUMBER_VARS) :: var_names
 
@@ -98,7 +129,7 @@ contains
                                          lat_name, lon_name, time_name,    &
                                          file_list, var_names,             &
                                          calendar, calendar_start_year,    &
-                                         selected_time
+                                         selected_time, time_indicies
         !defaults :
         nfiles      = -1
         nvars       = -1
@@ -112,6 +143,7 @@ contains
         calendar    = ""
         calendar_start_year = 1900
         selected_time = -1
+        time_indicies = -1
         
         ! read namelists
         open(io_newunit(name_unit), file=filename)
@@ -144,13 +176,43 @@ contains
         training_options%calendar_start_year = calendar_start_year
         training_options%time_file      = 1
         training_options%selected_time  = selected_time
+        call copy_array_i(time_indicies, training_options%time_indicies)
         training_options%data_type      = read_data_type(data_type)
         training_options%debug          = debug
         
         call check_training_options(training_options)
-        
-        
     end function read_training_options
+    
+    subroutine copy_array_i(input, output, invalid)
+        implicit none
+        integer, dimension(:), intent(in)   :: input
+        integer, dimension(:), allocatable, intent(inout):: output
+        integer, optional :: invalid
+        integer :: i,n, invalid_test
+        
+        if (present(invalid)) then
+            invalid_test = invalid
+        else
+            invalid_test = -1
+        endif
+        
+        !  first find the number of valid entries in the input
+        n = 0
+        do i = 1, size(input)
+            if (input(i) /= invalid_test) n = n+1
+        end do
+        
+        if (allocated(output)) then
+            if (size(output)/=n) then
+                deallocate(output)
+                allocate(output(n))
+            endif
+        else
+            allocate(output(n))
+        endif
+        
+        output(:n)  = input(:n)
+    end subroutine copy_array_i
     
     !>------------------------------------------------
     !!Verify the options read from the training options namelist
@@ -467,7 +529,7 @@ contains
             
             ! if there was an error, return the default filename
             if (error>0) then
-                options_file = DEFAULT_OPTIONS_FILENAME
+                options_file = kDEFAULT_OPTIONS_FILENAME
             ! if the error was -1, then the filename supplied was just too long
             elseif (error==-1) then
                 write(*,*) "Options filename = ", trim(options_file), " ...<cutoff>"
@@ -476,7 +538,7 @@ contains
             endif
         else
             ! if not commandline options were given, assume a default filename
-            options_file = DEFAULT_OPTIONS_FILENAME
+            options_file = kDEFAULT_OPTIONS_FILENAME
         endif
         
         ! check to see if the expected filename even exists on disk
