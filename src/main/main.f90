@@ -60,8 +60,14 @@ program stat_down
     ! call io_write("training.nc","data",training_atm%variables(1)%data)
     ! call io_write("predictor.nc","data",predictions%variables(1)%data)
     
+    print*, "=========================================="
+    print*, ""
+    print*, "Running Downscaling Code"
     output = downscale(training_atm, training_obs, predictions, options)
     
+    print*, "=========================================="
+    print*, ""
+    print*, "Writing output"
     call write_output(output, options)
     
 end program stat_down
