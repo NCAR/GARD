@@ -14,4 +14,4 @@ addons:
 script:
   - sed -i "s|NCDF_PATH = /usr/local|NCDF_PATH = /usr|" src/makefile
   - make -C src -j4 test
-  - make -C src -j4
+  # - make -C src -j4
