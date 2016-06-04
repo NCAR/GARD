@@ -248,19 +248,21 @@ LDFLAGS = $(LINK) -L$(NCDF_PATH)/lib -lnetcdf -lnetcdff $(LIB_NCAR)
 OBJS =  \
 	$(BUILD)time.o            	\
 	$(BUILD)string.o          	\
+	$(BUILD)model_constants.o 	\
 	$(BUILD)data_structures.o 	\
-	$(BUILD)geo_reader.o      	\
+	$(BUILD)configuration.o   	\
+	$(BUILD)init.o			  	\
 	$(BUILD)io_routines.o     	\
+	$(BUILD)time_io.o         	\
+	$(BUILD)atmosphere_io.o	  	\
 	$(BUILD)gcm_io.o          	\
 	$(BUILD)gefs_io.o          	\
-	$(BUILD)reanalysis.o    	\
 	$(BUILD)obs_io.o    		\
-	$(BUILD)configuration.o   	\
-	$(BUILD)atmosphere_io.o	  	\
-	$(BUILD)init.o			  	\
-    $(BUILD)model_constants.o 	\
-    $(BUILD)time_io.o         	\
+	$(BUILD)reanalysis.o    	\
+	$(BUILD)geo_reader.o      	\
     $(BUILD)basic_stats.o     	\
+	$(BUILD)sorting.o			\
+	$(BUILD)quantile_mapping.o  \
 	$(BUILD)downscaling.o       \
 	$(BUILD)output.o    		\
 	$(BUILD)main.o
@@ -295,7 +297,7 @@ QM_TEST_OBJS = 					\
 #
 # make [all, test, install, clean, allclean]
 #
-# "make" builds all
+# "make" builds model
 model: downscale
 	
 all: downscale test

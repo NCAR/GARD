@@ -12,6 +12,7 @@ contains
             type(config), intent(in) :: options
             
             type(results) :: output
+            type(qm_correction_type) :: qm
             integer :: nx, ny, ntimes, n_variables
             integer :: i
             
@@ -27,7 +28,9 @@ contains
                     
                 allocate(var%data(ntimes, nx, ny))
                 var%data(:,1,1) = predictors%variables(1)%data(:,1,1)
-                var%data(:,2,1) = predictors%variables(1)%data(:,1,1)
+                call develop_qm(predictors%variables(1)%data(:,1,1), training_atm%variables(1)%data(:,1,1), qm)
+                call apply_qm(predictors%variables(1)%data(:,1,1), var%data(:,2,1), qm)
+                
                 end associate
             end do
             
