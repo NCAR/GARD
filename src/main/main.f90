@@ -7,7 +7,7 @@
 !!  Ethan Gutmann (gutmann@ucar.edu)
 !!
 !!------------------------------------------------------------
-program downscale
+program stat_down
     use data_structures
     use model_constants
     use config_mod,     only : read_config
@@ -16,15 +16,15 @@ program downscale
     use obs_mod,        only : read_obs
     use geo,            only : geo_LUT
     use io_routines,    only : io_write
-    ! use stats_mod,      only : sdown
-    ! use output_mod,     only : write_output
+    use downscaling_mod,only : downscale
+    use output_mod,     only : write_output
     
     implicit none
     
     type(config)        :: options
     type(atm)           :: training_atm, predictions
     type(obs)           :: training_obs
-    ! type(results)      :: output
+    type(results)       :: output
     character(len=MAXSTRINGLENGTH) :: name
     
     integer :: i
@@ -56,12 +56,12 @@ program downscale
     call geo_LUT(training_obs, training_atm)
     call geo_LUT(training_obs, predictions)
     
-    call io_write("obs.nc","data",training_obs%variables(1)%data)
-    call io_write("training.nc","data",training_atm%variables(1)%data)
-    call io_write("predictor.nc","data",predictions%variables(1)%data)
+    ! call io_write("obs.nc","data",training_obs%variables(1)%data)
+    ! call io_write("training.nc","data",training_atm%variables(1)%data)
+    ! call io_write("predictor.nc","data",predictions%variables(1)%data)
     
-    ! output = sdown(training_atm, training_obs, predictions, options)
+    output = downscale(training_atm, training_obs, predictions, options)
     
-    ! call write_output(output, options)
+    call write_output(output, options)
     
-end program downscale
+end program stat_down

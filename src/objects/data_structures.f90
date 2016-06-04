@@ -80,6 +80,8 @@ module data_structures
         character(len=MAXVARLENGTH)         :: name      ! name of the variable
         real, allocatable, dimension(:,:,:) :: data      ! raw data
         integer                             :: data_type ! Type of data.  e.g. precip, temperature, or other. 
+        character(len=MAXVARLENGTH), allocatable, dimension(:) :: attributes_names
+        character(len=MAXVARLENGTH), allocatable, dimension(:) :: attributes_values
     end type variable_type
     
     ! ------------------------------------------------
@@ -118,6 +120,9 @@ module data_structures
         character (len=MAXSTRINGLENGTH) :: name
     end type obs
     
+    type, extends(obs) :: results
+        
+    end type results
 
     ! ------------------------------------------------
     ! types for the options for each sub-component (since these are identical for now, could we just use one...)
