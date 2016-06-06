@@ -2,6 +2,7 @@ module downscaling_mod
 
     use data_structures
     use quantile_mapping,   only : develop_qm, apply_qm
+    use sort_mod,           only : sort
     implicit none
     
 contains
@@ -14,9 +15,9 @@ contains
             type(results) :: output
             type(qm_correction_type) :: qm
             integer :: nx, ny, ntimes, n_variables
-            integer :: i
+            integer :: i, j
             
-            nx = 2
+            nx = 3
             ny = 1
             ntimes = size(predictors%variables(1)%data,1)
             n_variables = size(training_obs%variables)
@@ -25,17 +26,16 @@ contains
             
             do i = 1, n_variables
                 associate(var => output%variables(i))
-                    
-                print*, shape(training_atm%variables(1)%data)
-                print*, minval(training_atm%variables(1)%data(:,35,15)), maxval(training_atm%variables(1)%data(:,35,15))
+                
                 allocate(var%data(ntimes, nx, ny))
                 var%data(:,1,1) = predictors%variables(1)%data(:,1,1)
-                call develop_qm(predictors%variables(1)%data(:,1,1), training_atm%variables(1)%data(:,35,15), qm)
-                print*, minval(qm%start_idx), maxval(qm%start_idx)
-                print*, minval(qm%end_idx), maxval(qm%end_idx)
-                print*, minval(qm%offset), maxval(qm%offset)
-                print*, minval(qm%slope), maxval(qm%slope)
+                
+                call develop_qm(predictors%variables(1)%data(:,1,1), training_atm%variables(1)%data(:,35,15), qm, n_segments = 3000)
+
                 call apply_qm(predictors%variables(1)%data(:,1,1), var%data(:,2,1), qm)
+                var%data(:size(training_atm%variables(1)%data,1),3,1) = training_atm%variables(1)%data(:,35,15)
+                
+                
                 
                 end associate
             end do

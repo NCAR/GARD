@@ -17,6 +17,7 @@ module quantile_mapping
     public :: apply_qm
     
     integer, parameter :: DEFAULT_QM_SEGMENTS = 100
+    real, parameter :: SMALL_VALUE = 1e-20
 
 contains
 
@@ -27,7 +28,9 @@ contains
         type(qm_correction_type), intent(out) :: qm
         
         integer :: ni, nm, nseg
-        integer :: i, input_i, input_step, match_i, match_step
+        integer :: i
+        real    :: input_i, input_step, match_i, match_step ! these are real to handle more bins than elements
+        real    :: denominator
         real, dimension(:), allocatable :: input_data_sorted, data_to_match_sorted
         
         if ( present(n_segments) ) then
@@ -46,8 +49,13 @@ contains
         allocate(data_to_match_sorted(nm))
         call sort(data_to_match, data_to_match_sorted)
         
-        input_step = ni/nseg
-        match_step = nm/nseg
+        if (nseg<10) then
+            print*, "Quantile mapping with <10 segments not recommended, using 10 segments. "
+            nseg=10
+        endif
+        input_step = ni/real(nseg)
+        match_step = nm/real(nseg)
+        print*, input_step, match_step
 
         input_i = 1
         match_i = 1
@@ -60,16 +68,28 @@ contains
         allocate(qm%slope(nseg))
         allocate(qm%offset(nseg))
         
-        do i=1,nseg
-            qm%start_idx(i) = input_data_sorted( input_i )
-            qm%end_idx(i)   = input_data_sorted( min(ni, input_i + input_step))
-            qm%offset(i)    = data_to_match_sorted( match_i )
-            qm%slope(i)     = (data_to_match_sorted( min(nm, match_i + match_step)) - qm%offset(i)) &
-                            / (qm%end_idx(i) - qm%start_idx(i))
+        do i=1,nseg-1
+            qm%start_idx(i) = input_data_sorted( int(input_i) )
+            qm%end_idx(i)   = input_data_sorted( int(input_i + input_step) )
+            qm%offset(i)    = data_to_match_sorted( int(match_i) )
+            denominator     = max(SMALL_VALUE, qm%end_idx(i) - qm%start_idx(i))
+            qm%slope(i)     = (data_to_match_sorted( int(match_i + match_step) ) - qm%offset(i)) &
+                            / denominator
             
             input_i = input_i + input_step
             match_i = match_i + match_step
         end do
+        
+        ! For the last segment, make sure it finishes at the final value
+        ! this will not happen otherwise because nseg invariably will not divide nm and ni evenly
+        i = nseg
+        qm%start_idx(i) = input_data_sorted( input_i )
+        qm%end_idx(i)   = input_data_sorted( ni )
+        qm%offset(i)    = data_to_match_sorted( match_i )
+        denominator = max(SMALL_VALUE, qm%end_idx(i) - qm%start_idx(i))
+        qm%slope(i)     = (data_to_match_sorted( nm ) - qm%offset(i)) &
+                        / denominator
+        
         
     end subroutine develop_qm
     
@@ -109,7 +129,9 @@ contains
             endif
         end do
         if (i>1) then
-            i=i-1
+            if (qm%start_idx(i) > input) then
+                i=i-1
+            endif
         endif
         
         output = qm%offset(i) + qm%slope(i) * (input - qm%start_idx(i))
@@ -125,14 +147,14 @@ contains
         integer :: i, n
         
         n = size(input)
-        ! $omp parallel default(shared) &
-        ! $omp firstprivate(i,n)
-        ! $omp do
+        !$omp parallel default(shared) &
+        !$omp firstprivate(i,n)
+        !$omp do
         do i = 1, n
             output(i) = qm_value(input(i), qm)
         end do
-        ! $omp end do
-        ! $omp end parallel
+        !$omp end do
+        !$omp end parallel
         
     end subroutine apply_qm
 
