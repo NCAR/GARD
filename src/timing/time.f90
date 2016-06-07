@@ -49,6 +49,27 @@ module time
         procedure, private :: set_from_date
         procedure, private :: set_from_mjd
         procedure, private :: set_calendar
+        
+        ! operator overloading to permit comparison of time objects as (t1 < t2), (t1 == t2) etc.
+        procedure, private :: equal
+        generic,   public  :: operator(==)   => equal
+        generic,   public  :: operator(.eq.) => equal
+        procedure, private :: not_equal
+        generic,   public  :: operator(/=)   => not_equal
+        generic,   public  :: operator(.ne.) => not_equal
+        procedure, private :: greater_than
+        generic,   public  :: operator(>)    => greater_than
+        generic,   public  :: operator(.gt.) => greater_than
+        procedure, private :: greater_or_eq
+        generic,   public  :: operator(>=)   => greater_or_eq
+        generic,   public  :: operator(.ge.) => greater_or_eq
+        procedure, private :: less_than
+        generic,   public  :: operator(<)    => less_than
+        generic,   public  :: operator(.lt.) => less_than
+        procedure, private :: less_or_eq
+        generic,   public  :: operator(<=)   => less_or_eq
+        generic,   public  :: operator(.le.) => less_or_eq
+
     end type Time_type
     
 contains
@@ -215,7 +236,7 @@ contains
             if (this%year_zero == NON_VALID_YEAR) then
                 date_to_mjd = date_to_mjd - 2400000.5
                 !  - 2400000.5 converts from Julina day (days since January 1, 4713 BC in the Julian calendar)
-                ! to modified julian day
+                ! to modified julian day (days since Nov 17, 1858)
             else
                 date_to_mjd = date_to_mjd - gregorian_julian_day(this%year_zero, 1, 1, 0, 0, 0)
             endif
@@ -248,15 +269,19 @@ contains
         mjd = this%current_date_time+1d-5 ! add less than one second
         
         if (this%calendar==GREGORIAN) then
-            jday=nint(mjd+2400000.5)
-            f=jday+j+(((4*jday+B)/146097)*3)/4+C
-            e=r*f+v
-            g=mod(e,p)/r
-            h=u*g+w
-            day=mod(h,s)/u+1
-            month=mod(h/s+m,n)+1
-            year=e/p-y+(n+m-month)/n
-            
+            if (this%year_zero == NON_VALID_YEAR) then
+                jday = nint(mjd+2400000.5)
+            else
+                jday = nint(mjd + gregorian_julian_day(this%year_zero, 1, 1, 0, 0, 0))
+            endif
+            f = jday+j+(((4*jday+B)/146097)*3)/4+C
+            e = r*f+v
+            g = mod(e,p)/r
+            h = u*g+w
+            day   = mod(h,s)/u+1
+            month = mod(h/s+m,n)+1
+            year  = e/p-y+(n+m-month)/n
+                        
         else if (this%calendar==NOLEAP) then
             year=floor(mjd/365)
             day_fraction=mjd - year*365+1
@@ -382,6 +407,7 @@ contains
         integer :: year, month, day, hour, minute, second
         
         this%current_date_time = mjd
+        
         call this%date(year, month, day, hour, minute, second)
         this%year   = year
         this%month  = month
@@ -420,14 +446,14 @@ contains
         endif
         
         ! this and the format statement above are the important bits
-        write(pretty_string, format) year,'/',month,'/',day,'=',hour,':',minute,":",second
+        write(pretty_string, format) year,'/',month,'/',day,'_',hour,':',minute,":",second
         
         ! fill missing digits with '0'
         do i=1,len_trim(pretty_string)
             select case (pretty_string(i:i))
                 case (' ')
                     pretty_string(i:i) = '0'
-                case ('=')
+                case ('_')
                     pretty_string(i:i) = ' '
             end select
         end do
@@ -435,5 +461,141 @@ contains
         end associate
 
     end function as_string
+    
+    function greater_than(t1, t2)
+        implicit none
+        class(Time_type), intent(in) :: t1, t2
+        logical :: greater_than
+        
+        greater_than = .False.
+        
+        ! note if calendars are the same, can just return mjd delta...
+        if ((t1%calendar == t2%calendar).and.(t1%year_zero == t2%year_zero)) then
+            greater_than = (t1%current_date_time > t2%current_date_time)
+            return
+        endif
+        
+        if (t1%year > t2%year) then
+            greater_than = .True.
+        else if (t1%year == t2%year) then
+            if (t1%month > t2%month) then
+                greater_than = .True.
+            else if (t1%month == t2%month) then
+                if (t1%day > t2%day) then
+                    greater_than = .True.
+                else if (t1%day == t2%day) then
+                    if (t1%hour > t2%hour) then
+                        greater_than = .True.
+                    else if (t1%hour == t2%hour) then
+                        if (t1%minute > t2%minute) then
+                            greater_than = .True.
+                        else if (t1%minute == t2%minute) then
+                            if (t1%second > t2%second) then
+                                greater_than = .True.
+                            else if (t1%second == t2%second) then
+                                greater_than = .False.
+                            endif
+                        endif
+                    endif
+                endif
+            endif
+        endif
+        
+    end function greater_than
+
+    function greater_or_eq(t1, t2)
+        implicit none
+        class(Time_type), intent(in) :: t1, t2
+        logical :: greater_or_eq
+        
+        greater_or_eq = .False.
+        
+        ! note if calendars are the same, can just return mjd delta...
+        if ((t1%calendar == t2%calendar).and.(t1%year_zero == t2%year_zero)) then
+            greater_or_eq = (t1%current_date_time >= t2%current_date_time)
+            return
+        endif
+        
+        
+        ! print*, t1%year, t2%year
+        if (t1%year > t2%year) then
+            greater_or_eq = .True.
+        else if (t1%year == t2%year) then
+            ! print*, t1%month, t2%month
+            if (t1%month > t2%month) then
+                greater_or_eq = .True.
+            else if (t1%month == t2%month) then
+                ! print*, t1%day, t2%day
+                if (t1%day > t2%day) then
+                    greater_or_eq = .True.
+                else if (t1%day == t2%day) then
+                    if (t1%hour > t2%hour) then
+                        greater_or_eq = .True.
+                    else if (t1%hour == t2%hour) then
+                        if (t1%minute > t2%minute) then
+                            greater_or_eq = .True.
+                        else if (t1%minute == t2%minute) then
+                            if (t1%second > t2%second) then
+                                greater_or_eq = .True.
+                            else if (t1%second >= t2%second) then
+                                greater_or_eq = .True.
+                            endif
+                        endif
+                    endif
+                endif
+            endif
+        endif
+        
+    end function greater_or_eq
+
+
+    function equal(t1, t2)
+        implicit none
+        class(Time_type), intent(in) :: t1, t2
+        logical :: equal
+        
+        equal = .False.
+        
+        ! note if calendars are the same, can just return mjd delta...
+        if ((t1%calendar == t2%calendar).and.(t1%year_zero == t2%year_zero)) then
+            equal = (t1%current_date_time < t2%current_date_time)
+            return
+        endif
+        
+        if ((t1%year == t2%year).and.(t1%month == t2%month).and.(t1%day == t2%day)      &
+            .and.(t1%hour == t2%hour).and.(t1%minute == t2%minute).and.(t1%second == t2%second)) then
+            equal = .True.
+        endif
+        
+    end function equal
+
+    function not_equal(t1, t2)
+        implicit none
+        class(Time_type), intent(in) :: t1, t2
+        logical :: not_equal
+        
+        not_equal = .not.equal(t1,t2)
+        
+    end function not_equal
+
+
+    function less_or_eq(t1, t2)
+        implicit none
+        class(Time_type), intent(in) :: t1, t2
+        logical :: less_or_eq
+        
+        less_or_eq = .not.greater_than(t1,t2)
+        
+    end function less_or_eq
+
+    function less_than(t1, t2)
+        implicit none
+        class(Time_type), intent(in) :: t1, t2
+        logical :: less_than
+        
+        less_than = .not.greater_or_eq(t1,t2)
+        
+    end function less_than
+
     
 end module time

@@ -99,25 +99,28 @@ module data_structures
         real, allocatable, dimension(:,:) :: mean, stddev ! per gridpoint mean and standard deviation (for normalization?)
         integer :: transformation                         ! type of transformation applied to data (e.g. sqrt, log, ???)
     end type obs_variable_type
-
-    ! ------------------------------------------------
-    ! type to contain atmospheric fields
-    ! ------------------------------------------------
-    type, extends(interpolable_type) :: atm
-        type(atm_variable_type), allocatable, dimension(:) :: variables
+    
+    type, extends(interpolable_type) :: base_data_type
         type(Time_type), allocatable, dimension(:) :: times
         integer :: n_variables, n_times
         character (len=MAXSTRINGLENGTH) :: name
+        integer :: first_time, last_time
+        integer :: training_start, training_stop
+        integer :: transform_start, transform_stop
+    end type base_data_type
+    
+    ! ------------------------------------------------
+    ! type to contain atmospheric fields
+    ! ------------------------------------------------
+    type, extends(base_data_type) :: atm
+        type(atm_variable_type), allocatable, dimension(:) :: variables
     end type atm
     
     ! ------------------------------------------------
     ! type to contain observation data
     ! ------------------------------------------------
-    type, extends(interpolable_type) :: obs
+    type, extends(base_data_type) :: obs
         type(obs_variable_type), allocatable, dimension(:) :: variables
-        type(Time_type), allocatable, dimension(:) :: times
-        integer :: n_variables, n_times
-        character (len=MAXSTRINGLENGTH) :: name
     end type obs
     
     type, extends(obs) :: results
@@ -187,6 +190,7 @@ module data_structures
                                                             ! e.g. to Quantile map GCM data into training atm data space
 
         integer :: first_point, last_point ! start and end positions to run the model for(?)
+        integer :: n_analogs
         
         logical :: debug
         integer :: warning_level        ! level of warnings to issue when checking options settings 0-10.  

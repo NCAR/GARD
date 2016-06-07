@@ -45,7 +45,7 @@ contains
         implicit none
         type(config), intent(inout)     :: options
         
-        integer :: name_unit
+        integer :: name_unit, n_analogs
         character(len=MAXSTRINGLENGTH)  :: name, start_date, end_date, start_train, end_train
         character(len=MAXSTRINGLENGTH)  :: start_transform, end_transform
         character(len=MAXFILELENGTH)    :: training_file, prediction_file, observation_file, output_file
@@ -55,7 +55,8 @@ contains
                                 training_file, prediction_file, observation_file,   &
                                 output_file,                                        &
                                 start_date, end_date, start_train, end_train,       &
-                                start_transform, end_transform
+                                start_transform, end_transform,                     &
+                                n_analogs
 
         options%version = kVERSION_STRING
         options%options_filename = get_options_file()
@@ -71,6 +72,7 @@ contains
         start_transform  = ""
         end_transform    = ""
         output_file      = "downscaled_output.nc"
+        n_analogs        = -1
         
         options%name = options%options_filename
         options%debug = .True.
@@ -102,6 +104,7 @@ contains
         options%prediction_file  = prediction_file
         options%observation_file = observation_file
         options%output_file      = output_file
+        options%n_analogs        = n_analogs
         
     end subroutine read_base_options
 

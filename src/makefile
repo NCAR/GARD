@@ -51,8 +51,8 @@ ifeq ($(NODENAME), Nomad.local)
 endif
 
 ifeq ($(NODENAME), hydro-c1)
-	FC=ifort
-	# FC=gfortran
+	# FC=ifort
+	FC=gfortran
 	ifeq ($(FC), ifort)
 		NCDF_PATH = /opt/netcdf4-intel
 	endif
@@ -254,6 +254,7 @@ OBJS =  \
 	$(BUILD)init.o			  	\
 	$(BUILD)io_routines.o     	\
 	$(BUILD)time_io.o         	\
+	$(BUILD)time_utils.o       	\
 	$(BUILD)atmosphere_io.o	  	\
 	$(BUILD)gcm_io.o          	\
 	$(BUILD)gefs_io.o          	\
@@ -347,10 +348,13 @@ $(BUILD)test_config.o: tests/test_config.f90 $(BUILD)data_structures.o $(BUILD)m
 
 
 # Date and time relevant objects	
-$(BUILD)time.o: utilities/time.f90 $(BUILD)model_constants.o
+$(BUILD)time.o: timing/time.f90 $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
-$(BUILD)time_io.o: io/time_io.f90 $(BUILD)time.o $(BUILD)io_routines.o \
+$(BUILD)time_utils.o: timing/time_utils.f90 $(BUILD)time.o $(BUILD)data_structures.o
+	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
+
+$(BUILD)time_io.o: timing/time_io.f90 $(BUILD)time.o $(BUILD)io_routines.o \
 					$(BUILD)model_constants.o $(BUILD)string.o $(BUILD)data_structures.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 

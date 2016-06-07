@@ -138,6 +138,10 @@ contains
         
     end function qm_value
     
+    !>----------------------------------------------
+    !! Apply a previously developed quantile mapping to input and store the results in output
+    !!
+    !!----------------------------------------------
     subroutine apply_qm(input, output, qm)
         implicit none
         real, intent(in),  dimension(:) :: input
