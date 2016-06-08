@@ -139,6 +139,8 @@ program test_calendar
     integer :: current_calendar
     integer :: error
     logical :: file_exists
+    type(Time_type) :: time_data
+    logical :: test
     
     calendars_to_test=[character(len=MAXSTRINGLENGTH) :: "gregorian","standard","365-day","noleap","360-day"]
     options=""
@@ -166,6 +168,22 @@ program test_calendar
             print*, trim(calendar_error)
             call detailed_tests(calendars_to_test(current_calendar))
         endif
+        
     end do
+
+    call time_data%init("gregorian", 1970)
+    call time_data%set(365.d0)
+    
+    print*, "Testing year_zero offset in gregorian calendar"
+    test=.True.
+    test = test .and. (trim(time_data%as_string()) == trim("1971/01/01 00:00:00"))
+    test = test .and. (time_data%year_zero == 1970)
+    test = test .and. (time_data%current_date_time == 365.0)
+    if (test) then
+        print*, " PASSED"
+    else
+        print*, " FAILED "
+    endif
+    
 end program test_calendar
     
