@@ -49,6 +49,7 @@ contains
         character(len=MAXSTRINGLENGTH)  :: name, start_date, end_date, start_train, end_train
         character(len=MAXSTRINGLENGTH)  :: start_transform, end_transform
         character(len=MAXFILELENGTH)    :: training_file, prediction_file, observation_file, output_file
+        logical :: pure_analog, analog_regression
         
         ! setup the namelist
         namelist /parameters/   name,                                               &
@@ -56,7 +57,7 @@ contains
                                 output_file,                                        &
                                 start_date, end_date, start_train, end_train,       &
                                 start_transform, end_transform,                     &
-                                n_analogs
+                                n_analogs, pure_analog, analog_regression
 
         options%version = kVERSION_STRING
         options%options_filename = get_options_file()
@@ -73,6 +74,8 @@ contains
         end_transform    = ""
         output_file      = "downscaled_output.nc"
         n_analogs        = -1
+        pure_analog      = .False.
+        analog_regression= .True.
         
         options%name = options%options_filename
         options%debug = .True.
@@ -105,6 +108,8 @@ contains
         options%observation_file = observation_file
         options%output_file      = output_file
         options%n_analogs        = n_analogs
+        options%pure_analog      = pure_analog
+        options%analog_regression= analog_regression
         
     end subroutine read_base_options
 

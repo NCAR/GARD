@@ -265,6 +265,8 @@ OBJS =  \
 	$(BUILD)sorting.o			\
 	$(BUILD)quantile_mapping.o  \
 	$(BUILD)downscaling.o       \
+	$(BUILD)regression.o		\
+	$(BUILD)nr.o				\
 	$(BUILD)output.o    		\
 	$(BUILD)main.o
 	
@@ -408,6 +410,12 @@ $(BUILD)obs_io.o: io/obs_io.f90 $(BUILD)data_structures.o $(BUILD)string.o $(BUI
 $(BUILD)output.o: io/output.f90 $(BUILD)data_structures.o $(BUILD)io_routines.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 	
+$(BUILD)regression.o: downscaling_stats/regression.f90 $(BUILD)nr.o
+	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
+
+$(BUILD)nr.o: downscaling_stats/numrec.f90
+	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
+
 $(BUILD)reanalysis.o: objects/reanalysis.f90 $(BUILD)data_structures.o $(BUILD)geo_reader.o \
 					$(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
@@ -417,7 +425,7 @@ $(BUILD)atmosphere_io.o: io/atmosphere_io.f90 $(BUILD)data_structures.o $(BUILD)
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)downscaling.o: downscaling_stats/downscaling.f90 $(BUILD)data_structures.o $(BUILD)model_constants.o \
-					$(BUILD)quantile_mapping.o
+					$(BUILD)quantile_mapping.o $(BUILD)regression.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 

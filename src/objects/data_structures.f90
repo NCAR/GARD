@@ -192,6 +192,9 @@ module data_structures
         ! file names
         character (len=MAXFILELENGTH) :: output_file
         
+        logical :: pure_analog
+        logical :: analog_regression
+        
         ! options for each sub-component
         type(training_config)      :: training
         type(obs_config)           :: obs

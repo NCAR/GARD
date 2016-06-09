@@ -1,6 +1,7 @@
 module downscaling_mod
 
     use data_structures
+    use regression_mod,     only : compute_regression
     use model_constants
     use quantile_mapping,   only : develop_qm, apply_qm
     use time_util,          only : setup_time_indices
@@ -60,12 +61,20 @@ contains
                 allocate(output%variables(i)%obs        (tr_size, nx, ny))
                 allocate(output%variables(i)%training   (tr_size, nx, ny, n_atm_variables+1))
                 allocate(output%variables(i)%predictors (noutput, nx, ny, n_atm_variables+1))
+                
+                output%variables(i)%data        = 0
+                output%variables(i)%predictors  = 0
+                output%variables(i)%training    = 0
+                output%variables(i)%obs         = 0
             end do
             
-            !$omp parallel default(shared) &
-            !$omp private(train_data, pred_data, i, j, v)
+            !$omp parallel default(shared)                  &
+            !$omp private(train_data, pred_data, i, j, v)   &
+            !$omp firstprivate(nx,ny,n_atm_variables, n_obs_variables, noutput, ntrain, nobs, ntimes)
             allocate( train_data( ntrain, n_atm_variables+1 ) )
             allocate( pred_data(  ntimes, n_atm_variables+1 ) )
+            train_data=0
+            pred_data=0
             ! constant coefficient for regressions... might be better to keep this in the point downscaling section? 
             pred_data(:,1) = 1
             train_data(:,1) = 1
@@ -84,6 +93,8 @@ contains
                             call transform_data(options%prediction%transformations(v),                                         &
                                                 pred_data(:,v+1),  predictors%transform_start,   predictors%transform_stop,    &
                                                 train_data(:,v+1), training_atm%transform_start, training_atm%transform_stop)
+                            
+                            ! save these data for output debugging / algorithm development while we are at it. 
                             output%variables(1)%predictors(:,i,j,v+1) = pred_data( p_start   : p_end,    v+1)
                             output%variables(1)%training  (:,i,j,v+1) = train_data(t_tr_start: t_tr_stop,v+1)
                         enddo
@@ -224,22 +235,39 @@ contains
         type(config),            intent(in)  :: options
         
         real,    dimension(:), allocatable :: output
+        real,    dimension(:), allocatable :: obs_analogs
+        real,    dimension(:,:), allocatable :: regression_data
         integer, dimension(:), allocatable :: analogs
         
-        integer :: i,n, n_analogs, selected_analog
+        integer :: i,n, nvars
+        integer :: a, n_analogs, selected_analog
         real    :: rand
         
         n_analogs = options%n_analogs
+        nvars = size(atm,2)
         n = size(predictor)
         allocate(output(n))
         allocate(analogs(n_analogs))
+        if (options%analog_regression) then
+            allocate(regression_data(n_analogs, nvars+1))
+            allocate(obs_analogs(n_analogs))
+        endif
         
         do i = 1, n
             analogs = find_analogs(predictor(i,:), atm, n_analogs)
-            call random_number(rand)
-            selected_analog = floor(rand * n_analogs)+1
+            
+            if (options%pure_analog) then
+                call random_number(rand)
+                selected_analog = floor(rand * n_analogs)+1
 
-            output(i) = obs( analogs(selected_analog) )
+                output(i) = obs( analogs(selected_analog) )
+            elseif (options%analog_regression) then
+                do a=1,n_analogs
+                    obs_analogs(a) = obs(analogs(a))
+                    regression_data(a,:) = atm(analogs(a),:)
+                enddo
+                output(i) = compute_regression(predictor(i,:), regression_data, obs_analogs)
+            endif
         end do
         
     end function downscale_point
