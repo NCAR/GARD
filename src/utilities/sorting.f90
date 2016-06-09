@@ -2,6 +2,10 @@ module  sort_mod
     private
     
     public :: sort, quick_sort, heap_sort
+    ! interface sort
+    !     module procedure heap_sort  ! sort from array 1 into array 2
+    !     module procedure heap_sort_inplace  ! in place sort
+    ! end interface
     interface sort
         module procedure quick_sort  ! sort from array 1 into array 2
         module procedure QSORT_DATA  ! in place sort
@@ -37,6 +41,17 @@ contains
       end do      
 
     end subroutine siftdown
+
+    subroutine heap_sort_inplace(input)
+        implicit none
+        real, intent(inout),  dimension(:) :: input
+        real, dimension(:), allocatable :: temporary
+        
+        call heap_sort(input, temporary)
+        input = temporary
+        
+    end subroutine heap_sort_inplace
+
     
     ! adds items one by one to a min-heap to sort them
     subroutine heap_sort(input, output)
