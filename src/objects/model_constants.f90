@@ -3,7 +3,7 @@ module model_constants
     implicit none
     
     ! ------------------------------------------------
-    ! Model constants (string lengths)
+    ! String constants
     ! ------------------------------------------------
     integer,public,parameter :: MAXSTRINGLENGTH  = 1024     ! maximum random string length
     integer,public,parameter :: SM_STRING_LENGTH = 255      ! well defined small strings (unused at present)
@@ -12,13 +12,13 @@ module model_constants
     integer,public,parameter :: MAXDIMLENGTH     = 1024     ! maximum variable name length
     
     ! ------------------------------------------------
-    ! Model constants (Used for Initial Array sizes)
+    ! Size constants
     ! ------------------------------------------------
     integer,public,parameter :: MAX_NUMBER_TIMES = 48       ! maximum number of time steps to integrate from an input source
     integer,public,parameter :: MAX_NUMBER_VARS  = 255      ! maximum number of permitted variables to process 
     integer,public,parameter :: MAX_NUMBER_FILES = 100000   ! maximum number of permitted input files 
                                                             ! 100000 = 1 file/day for ~274 years
-    integer,public,parameter :: N_ATM_QM_SEGMENTS = 300
+    integer,public,parameter :: N_ATM_QM_SEGMENTS = 300     ! Number of quantiles to use for quantile mapping atmospheric data
 
     ! ------------------------------------------------
     ! Input Type Constants
@@ -30,12 +30,18 @@ module model_constants
     
     
     ! ------------------------------------------------
-    ! DAta Transformation Type Constants
+    ! Data Transformation Type Constants
     ! ------------------------------------------------
     integer,public,parameter :: kNO_TRANSFORM     = 0
     integer,public,parameter :: kQUANTILE_MAPPING = 1
     integer,public,parameter :: kLOG_TRANSFORM    = 2
     integer,public,parameter :: kCUBE_ROOT        = 3
+    
+    
+    ! ------------------------------------------------
+    ! Other Constants
+    ! ------------------------------------------------
+    integer,public,parameter :: kFILL_VALUE       = -9999
     
     ! ------------------------------------------------
     ! Physical Constants

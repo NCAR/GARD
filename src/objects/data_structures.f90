@@ -126,6 +126,7 @@ module data_structures
     ! ------------------------------------------------
     type, extends(base_data_type) :: obs
         type(obs_variable_type), allocatable, dimension(:) :: variables
+        logical, dimension(:,:), allocatable :: mask
     end type obs
     
     type, extends(base_data_type) :: results
@@ -164,6 +165,8 @@ module data_structures
     end type prediction_config
     
     type, extends(input_config) :: obs_config
+        real :: mask_value
+        integer :: mask_variable
     end type obs_config
     
     type, extends(atm_config) :: training_config

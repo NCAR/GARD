@@ -45,7 +45,7 @@ contains
     
     subroutine read_times(options, times)
         implicit none
-        type(input_config), intent(in) :: options
+        class(input_config), intent(in) :: options
         type(Time_type), intent(inout), dimension(:) :: times
         
         double precision, allocatable, dimension(:) :: temp_times

@@ -45,7 +45,7 @@ contains
     !!------------------------------------------------
     function read_obs(options) result(obs_data)
         implicit none
-        class(input_config), intent(in) :: options
+        class(obs_config), intent(in) :: options
         type(obs) :: obs_data
         
         integer :: var_idx, ntimesteps
@@ -61,7 +61,6 @@ contains
                 
                 var = read_obs_variable( options%var_names(var_idx),        &
                                          options%file_names(:, var_idx))
-                
                 if (var_idx==1) then
                     ntimesteps = size(var%data, 1)
                 else
@@ -79,6 +78,9 @@ contains
             end associate
         enddo
         
+        var_idx = options%mask_variable
+        call create_variable_mask(obs_data%mask, obs_data%variables(var_idx)%data, options%mask_value)
+        
         allocate(obs_data%times(ntimesteps))
         call read_times(options, obs_data%times)
         
@@ -86,6 +88,23 @@ contains
         call io_read(options%file_names(1, 1), options%lon_name, obs_data%lon)
         call standardize_coordinates(obs_data)
     end function read_obs
+    
+    subroutine create_variable_mask(mask, input_data, mask_value)
+        implicit none
+        logical, dimension(:,:),   intent(out), allocatable  :: mask
+        real,    dimension(:,:,:), intent(in) :: input_data
+        real,                      intent(in) :: mask_value
+        
+        integer :: nx, ny
+        
+        nx = size(input_data, 2)
+        ny = size(input_data, 3)
+        
+        allocate(mask(nx,ny))
+        mask = .True.
+        where(input_data(1,:,:) == mask_value) mask = .False.
+        
+    end subroutine create_variable_mask
     
     subroutine compute_grid_stats(var)
         implicit none
@@ -101,7 +120,7 @@ contains
         allocate(var%mean(nx,ny))
         allocate(var%stddev(nx,ny))
 
-        where(var%data>1e10) var%data=0
+        ! where(var%data>1e30) var%data=0
         
         call time_mean( var%data, var%mean )
         call time_stddev( var%data, var%stddev, mean_in=var%mean )
@@ -246,7 +265,7 @@ contains
                 deallocate(data_2d)
             endif
         end do
-        
+
         if ( (curstep-1) /= size(output,1) ) then
             write(*,*) "Error: data read in (", trim(str(curstep-1)), &
                         ") did not match calculated time steps:", trim(str(size(output,1)))

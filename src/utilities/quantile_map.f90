@@ -50,12 +50,11 @@ contains
         call sort(data_to_match, data_to_match_sorted)
         
         if (nseg<10) then
-            print*, "Quantile mapping with <10 segments not recommended, using 10 segments. "
+            write(*,*), "Quantile mapping with <10 segments not recommended, using 10 segments. "
             nseg=10
         endif
         input_step = ni/real(nseg)
         match_step = nm/real(nseg)
-        print*, input_step, match_step
 
         input_i = 1
         match_i = 1

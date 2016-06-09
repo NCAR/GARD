@@ -44,22 +44,28 @@ contains
             
             n_atm_variables = size(training_atm%variables)
             n_obs_variables = size(training_obs%variables)
+            
+            nx = 32
+            ny = 180
 
-            allocate( train_data( ntrain, n_atm_variables+1 ) )
-            allocate( pred_data(  ntimes, n_atm_variables+1 ) )
             allocate(output%variables(n_obs_variables))
             do i = 1,n_obs_variables
                 allocate(output%variables(i)%data(noutput, nx, ny))
                 allocate(output%variables(i)%errors(noutput, nx, ny))
             end do
             
+            !$omp parallel default(shared) &
+            !$omp private(train_data, pred_data, i, j, v)
+            allocate( train_data( ntrain, n_atm_variables+1 ) )
+            allocate( pred_data(  ntimes, n_atm_variables+1 ) )
             ! constant coefficient for regressions... might be better to keep this in the point downscaling section? 
             pred_data(:,1) = 1
             train_data(:,1) = 1
-            do j=1,ny
+            !$omp do
+            do j=100,ny
                 do i=1,nx
                     
-                    ! if (training_obs%mask(i,j)) then
+                    if (training_obs%mask(i,j)) then
                         
                         do v=1,n_atm_variables
                             
@@ -86,32 +92,39 @@ contains
                             end associate
                             
                             if (options%debug) then
+                                !$omp critical
                                 print*, ""
                                 print*, "-----------------------------"
                                 print*, "   Downscaling point: ",i,j
                                 print*, "   For variable     : ", v
+                                !$omp end critical
                             endif
                             
-                            call transform_data(kQUANTILE_MAPPING,                                  &
-                                                output%variables(v)%data(:,i,j),       1, noutput,  &
-                                                training_obs%variables(v)%data(:,i,j), 1, nobs)
+                            ! should be possible to run this here, but seems to run into a shared memory problem
+                            ! using heap_sort instead of quick_sort in the sorting module *seems* to fix it, through
+                            ! heap_sort is almost ~2x slower
+                            ! call transform_data(kQUANTILE_MAPPING,                                  &
+                            !                     output%variables(v)%data(:,i,j),       1, noutput,  &
+                            !                     training_obs%variables(v)%data(:,i,j), 1, nobs)
                         enddo
-
-                        
-                    ! endif
+                    else
+                        do v=1,n_obs_variables
+                            output%variables(v)%data(:,i,j) = kFILL_VALUE
+                        enddo
+                        if (options%debug) then
+                            !$omp critical
+                            print*, ""
+                            print*, "-----------------------------"
+                            print*, "   Masked point: ",i,j
+                            print*, "-----------------------------"
+                            !$omp end critical
+                        endif
+                    endif
                 enddo
             enddo
+            !$omp end do
+            !$omp end parallel
 
-            !     call develop_qm(var(p_start:p_end,6,1), &
-            !                     observed(o_tr_start:o_tr_stop, 135,100), qm, n_segments = 300)
-            ! 
-            !     call apply_qm(var(p_start:p_end,6,1), var(p_start:p_end,7,1), qm)
-            ! 
-            !     
-            !     end associate
-            ! end do
-            ! 
-            
     end function downscale
     
     function read_point(input_data, i, j, geolut) result(output)
@@ -201,7 +214,7 @@ contains
             analogs = find_analogs(predictor(i,:), atm, n_analogs)
             call random_number(rand)
             selected_analog = floor(rand * n_analogs)+1
-            print*, analogs(selected_analog)
+            ! print*, analogs(selected_analog)
             output(i) = obs( analogs(selected_analog) )
         end do
         

@@ -365,12 +365,15 @@ contains
         character(len=MAXVARLENGTH)     :: lat_name, lon_name, time_name
         character(len=MAXFILELENGTH), dimension(MAX_NUMBER_VARS) :: file_list
         character(len=MAXVARLENGTH),  dimension(MAX_NUMBER_VARS) :: var_names
+        real :: mask_value
+        integer :: mask_variable
 
         ! setup the namelist
         namelist /obs_parameters/ nfiles, nvars, name, data_type,           &
                                          lat_name, lon_name, time_name,     &
                                          file_list, var_names,              &
-                                         calendar, calendar_start_year
+                                         calendar, calendar_start_year,     &
+                                         mask_value, mask_variable
         !defaults :
         nfiles      = -1
         nvars       = -1
@@ -383,6 +386,8 @@ contains
         var_names   = ""
         calendar    = ""
         calendar_start_year = 1900
+        mask_value  = 1e20
+        mask_variable = 1
         
         ! read namelists
         open(io_newunit(name_unit), file=filename)
@@ -415,6 +420,8 @@ contains
         obs_options%calendar_start_year = calendar_start_year
         obs_options%time_file      = 1 
         obs_options%data_type      = read_data_type(data_type)
+        obs_options%mask_value     = mask_value
+        obs_options%mask_variable  = mask_variable
         obs_options%debug          = debug
         
         call check_obs_options(obs_options)
