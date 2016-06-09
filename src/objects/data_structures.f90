@@ -99,6 +99,11 @@ module data_structures
         real, allocatable, dimension(:,:) :: mean, stddev ! per gridpoint mean and standard deviation (for normalization?)
         integer :: transformation                         ! type of transformation applied to data (e.g. sqrt, log, ???)
     end type obs_variable_type
+
+    type, extends(variable_type) :: output_variable_type
+        real, allocatable, dimension(:,:)   :: mean, stddev ! per gridpoint mean and standard deviation (for normalization?)
+        real, allocatable, dimension(:,:,:) :: errors       ! store pre grid point expected errors from the downscaling code
+    end type output_variable_type
     
     type, extends(interpolable_type) :: base_data_type
         type(Time_type), allocatable, dimension(:) :: times
@@ -123,8 +128,8 @@ module data_structures
         type(obs_variable_type), allocatable, dimension(:) :: variables
     end type obs
     
-    type, extends(obs) :: results
-        
+    type, extends(base_data_type) :: results
+        type(output_variable_type), allocatable, dimension(:) :: variables
     end type results
 
     ! ------------------------------------------------
@@ -154,6 +159,8 @@ module data_structures
     end type atm_config
     
     type, extends(atm_config) :: prediction_config
+        ! tranformation to apply to each atmophseric variable
+        integer, dimension(MAX_NUMBER_VARS) :: transformations
     end type prediction_config
     
     type, extends(input_config) :: obs_config

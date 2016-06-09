@@ -10,10 +10,15 @@ module model_constants
     integer,public,parameter :: MAXFILELENGTH    = 1024     ! maximum file name length
     integer,public,parameter :: MAXVARLENGTH     = 1024     ! maximum variable name length
     integer,public,parameter :: MAXDIMLENGTH     = 1024     ! maximum variable name length
+    
+    ! ------------------------------------------------
+    ! Model constants (Used for Initial Array sizes)
+    ! ------------------------------------------------
     integer,public,parameter :: MAX_NUMBER_TIMES = 48       ! maximum number of time steps to integrate from an input source
     integer,public,parameter :: MAX_NUMBER_VARS  = 255      ! maximum number of permitted variables to process 
     integer,public,parameter :: MAX_NUMBER_FILES = 100000   ! maximum number of permitted input files 
                                                             ! 100000 = 1 file/day for ~274 years
+    integer,public,parameter :: N_ATM_QM_SEGMENTS = 300
 
     ! ------------------------------------------------
     ! Input Type Constants
@@ -22,6 +27,15 @@ module model_constants
     integer,public,parameter :: kREANALYSIS_TYPE  = 2
     integer,public,parameter :: kGEFS_TYPE        = 3
     integer,public,parameter :: kOBS_TYPE         = 4
+    
+    
+    ! ------------------------------------------------
+    ! DAta Transformation Type Constants
+    ! ------------------------------------------------
+    integer,public,parameter :: kNO_TRANSFORM     = 0
+    integer,public,parameter :: kQUANTILE_MAPPING = 1
+    integer,public,parameter :: kLOG_TRANSFORM    = 2
+    integer,public,parameter :: kCUBE_ROOT        = 3
     
     ! ------------------------------------------------
     ! Physical Constants

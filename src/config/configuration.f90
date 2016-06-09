@@ -261,13 +261,14 @@ contains
         character(len=MAXVARLENGTH)     :: lat_name, lon_name, time_name
         character(len=MAXFILELENGTH), dimension(MAX_NUMBER_VARS) :: file_list
         character(len=MAXVARLENGTH),  dimension(MAX_NUMBER_VARS) :: var_names
+        integer, dimension(MAX_NUMBER_VARS) :: transformations
 
         ! setup the namelist
         namelist /prediction_parameters/ nfiles, nvars, name, data_type,    &
                                          lat_name, lon_name, time_name,     &
                                          file_list, var_names,              &
                                          calendar, calendar_start_year,     &
-                                         selected_time
+                                         selected_time, transformations
 
         !defaults :
         nfiles      = -1
@@ -282,6 +283,7 @@ contains
         calendar    = ""
         calendar_start_year = 1900
         selected_time = -1
+        transformations = kQUANTILE_MAPPING
         
         ! read namelists
         open(io_newunit(name_unit), file=filename)
@@ -315,6 +317,7 @@ contains
         prediction_options%selected_time  = selected_time
         prediction_options%time_file      = 1 
         prediction_options%data_type      = read_data_type(data_type)
+        prediction_options%transformations= transformations
         prediction_options%debug          = debug
         
         call check_prediction_options(prediction_options)

@@ -383,18 +383,19 @@ $(BUILD)io_routines.o: io/io_routines.f90 $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)configuration.o: config/configuration.f90 $(BUILD)data_structures.o $(BUILD)model_constants.o \
-						 $(BUILD)string.o $(BUILD)io_routines.o $(BUILD)time.o
+					$(BUILD)string.o $(BUILD)io_routines.o $(BUILD)time.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)geo_reader.o: utilities/geo_reader.f90 $(BUILD)data_structures.o $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
-$(BUILD)init.o: main/init.f90 $(BUILD)data_structures.o $(BUILD)gcm_io.o $(BUILD)gefs_io.o $(BUILD)obs_io.o $(BUILD)model_constants.o
+$(BUILD)init.o: main/init.f90 $(BUILD)data_structures.o $(BUILD)gcm_io.o $(BUILD)gefs_io.o \
+					$(BUILD)obs_io.o $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)gefs_io.o: io/gefs_io.f90 $(BUILD)data_structures.o $(BUILD)string.o $(BUILD)model_constants.o \
 						$(BUILD)time_io.o $(BUILD)basic_stats.o $(BUILD)geo_reader.o
-		$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
+	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)gcm_io.o: io/gcm_io.f90 $(BUILD)data_structures.o $(BUILD)string.o $(BUILD)model_constants.o \
 					$(BUILD)time_io.o $(BUILD)basic_stats.o $(BUILD)geo_reader.o
@@ -407,20 +408,22 @@ $(BUILD)obs_io.o: io/obs_io.f90 $(BUILD)data_structures.o $(BUILD)string.o $(BUI
 $(BUILD)output.o: io/output.f90 $(BUILD)data_structures.o $(BUILD)io_routines.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 	
-$(BUILD)reanalysis.o: objects/reanalysis.f90 $(BUILD)data_structures.o $(BUILD)geo_reader.o $(BUILD)model_constants.o
+$(BUILD)reanalysis.o: objects/reanalysis.f90 $(BUILD)data_structures.o $(BUILD)geo_reader.o \
+					$(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)atmosphere_io.o: io/atmosphere_io.f90 $(BUILD)data_structures.o $(BUILD)geo_reader.o \
-	$(BUILD)gcm_io.o $(BUILD)gefs_io.o $(BUILD)model_constants.o
+					$(BUILD)gcm_io.o $(BUILD)gefs_io.o $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
-$(BUILD)downscaling.o: downscaling_stats/downscaling.f90 $(BUILD)data_structures.o $(BUILD)quantile_mapping.o
+$(BUILD)downscaling.o: downscaling_stats/downscaling.f90 $(BUILD)data_structures.o $(BUILD)model_constants.o \
+					$(BUILD)quantile_mapping.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 
 $(BUILD)main.o: main/main.f90 $(BUILD)atmosphere_io.o $(BUILD)configuration.o \
-				$(BUILD)init.o $(BUILD)model_constants.o $(BUILD)io_routines.o $(BUILD)output.o \
-				$(BUILD)downscaling.o
+					$(BUILD)init.o $(BUILD)model_constants.o $(BUILD)io_routines.o \
+					$(BUILD)downscaling.o $(BUILD)output.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 
