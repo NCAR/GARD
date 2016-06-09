@@ -1,6 +1,7 @@
 module output_mod
     use io_routines, only : io_write
     use data_structures
+    use string, only : str
     
     implicit none
 contains
@@ -9,10 +10,24 @@ contains
         type(config),  intent(in)   :: options
         type(results), intent(in)   :: output
         character(len=MAXFILELENGTH):: filename
+        integer :: nvars, i
         
-        filename = options%output_file
+        nvars = size(output%variables)
         
-        call io_write(filename, "data", output%variables(1)%data)
+        do i=1,nvars
+            
+            filename = trim(str(i))//trim(options%output_file)
+            call io_write(filename, "data", output%variables(i)%data)
+            
+            filename = "predictors_"//trim(options%output_file)
+            call io_write(filename, "data", output%variables(i)%predictors)
+
+            filename = "obs_"//trim(options%output_file)
+            call io_write(filename, "data", output%variables(i)%obs)
+
+            filename = "training_"//trim(options%output_file)
+            call io_write(filename, "data", output%variables(i)%training)
+        enddo
         
     end subroutine write_output
 

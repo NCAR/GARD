@@ -37,6 +37,8 @@ module model_constants
     integer,public,parameter :: kLOG_TRANSFORM    = 2
     integer,public,parameter :: kCUBE_ROOT        = 3
     
+    integer,public,parameter :: kNEAREST          = 1
+    integer,public,parameter :: kBILINEAR         = 2
     
     ! ------------------------------------------------
     ! Other Constants

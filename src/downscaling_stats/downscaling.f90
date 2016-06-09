@@ -20,7 +20,10 @@ contains
             integer :: n_obs_variables, n_atm_variables
             integer :: i, j, l, x, y, v
             real :: w
-            integer :: p_start, p_end, t_tr_start, t_tr_stop, o_tr_start, o_tr_stop
+            ! prediction period index variables
+            integer :: p_start, p_end
+            ! training index variables 
+            integer :: t_tr_start, t_tr_stop, o_tr_start, o_tr_stop, tr_size
             
             ! should this be done outside of "downscale" ? 
             call setup_timing(training_atm, training_obs, predictors, options)
@@ -31,6 +34,7 @@ contains
             t_tr_stop  = training_atm%training_stop
             o_tr_start = training_obs%training_start
             o_tr_stop  = training_obs%training_stop
+            tr_size    = o_tr_stop - o_tr_start + 1
 
 
             
@@ -40,18 +44,22 @@ contains
             nx     = size(training_obs%variables(1)%data,2)
             ny     = size(training_obs%variables(1)%data,3)
             
-            noutput = predictors%last_time - predictors%first_time + 1
+            noutput = p_end - p_start + 1
             
             n_atm_variables = size(training_atm%variables)
             n_obs_variables = size(training_obs%variables)
             
             nx = 32
-            ny = 180
+            ny = 132
+            ! ny = 180
 
             allocate(output%variables(n_obs_variables))
             do i = 1,n_obs_variables
-                allocate(output%variables(i)%data(noutput, nx, ny))
-                allocate(output%variables(i)%errors(noutput, nx, ny))
+                allocate(output%variables(i)%data       (noutput, nx, ny))
+                allocate(output%variables(i)%errors     (noutput, nx, ny))
+                allocate(output%variables(i)%obs        (tr_size, nx, ny))
+                allocate(output%variables(i)%training   (tr_size, nx, ny, n_atm_variables+1))
+                allocate(output%variables(i)%predictors (noutput, nx, ny, n_atm_variables+1))
             end do
             
             !$omp parallel default(shared) &
@@ -69,14 +77,15 @@ contains
                         
                         do v=1,n_atm_variables
                             
-                            pred_data(:,v+1)  = read_point( predictors%variables(v)%data,   i,j, predictors%geoLUT)
-                            train_data(:,v+1) = read_point( training_atm%variables(v)%data, i,j, training_atm%geoLUT)
+                            call read_point( predictors%variables(v)%data,   pred_data(:,v+1),  i,j, predictors%geoLUT,   options%prediction%interpolation_method)
+                            call read_point( training_atm%variables(v)%data, train_data(:,v+1), i,j, training_atm%geoLUT, options%training%interpolation_method)
                             
                             ! perform (e.g.) quantile mapping
                             call transform_data(options%prediction%transformations(v),                                         &
                                                 pred_data(:,v+1),  predictors%transform_start,   predictors%transform_stop,    &
                                                 train_data(:,v+1), training_atm%transform_start, training_atm%transform_stop)
-
+                            output%variables(1)%predictors(:,i,j,v+1) = pred_data( p_start   : p_end,    v+1)
+                            output%variables(1)%training  (:,i,j,v+1) = train_data(t_tr_start: t_tr_stop,v+1)
                         enddo
                         
                         do v=1,n_obs_variables
@@ -89,6 +98,10 @@ contains
                                 var(:,i,j) = downscale_point( pred_data( p_start   : p_end,    :),  &
                                                               train_data(t_tr_start: t_tr_stop,:),  & 
                                                               observed, errors(:,i,j), options )
+                                                              
+                                
+                                output%variables(v)%obs       (:,i,j)   = observed
+                                
                             end associate
                             
                             if (options%debug) then
@@ -127,32 +140,43 @@ contains
 
     end function downscale
     
-    function read_point(input_data, i, j, geolut) result(output)
+    subroutine read_point(input_data, output, i, j, geolut, method)
         implicit none
         real, dimension(:,:,:), intent(in) :: input_data
         integer,                intent(in) :: i, j
         type(geo_look_up_table),intent(in) :: geolut
+        integer,                intent(in) :: method
         
-        real, dimension(:), allocatable :: output
+        real, dimension(:),     intent(inout) :: output
         integer :: k,x,y
         real    :: w
         
         ! create the output to be the same length as first dimension of the input 
-        allocate( output( size(input_data,1) ) )
+        ! allocate( output( size(input_data,1) ) )
         
         ! interpolation is performed using the bilinear weights computing in the geolut
-        do k = 1,4
-            ! %x contains the x coordinate each elements
-            x = geolut%x(k,i,j)
-            ! %y contains the y coordinate each elements
-            y = geolut%y(k,i,j)
-            ! %w contains the weight each elements
-            w = geolut%w(k,i,j)
-            output = output + input_data(:, x, y) * w
-        end do
+        select case (method)
+        case (kBILINEAR)
+            output = 0
+            do k = 1,4
+                ! %x contains the x coordinate each elements
+                x = geolut%x(k,i,j)
+                ! %y contains the y coordinate each elements
+                y = geolut%y(k,i,j)
+                ! %w contains the weight each elements
+                w = geolut%w(k,i,j)
+                output = output + input_data(:, x, y) * w
+            end do
+        case (kNEAREST)
+            ! %x contains the nearest x coordinate
+            x = geolut%x(1,i,j)
+            ! %y contains the nearest y coordinate
+            y = geolut%y(1,i,j)
+            output = input_data(:, x, y)
+        end select
 
         
-    end function read_point
+    end subroutine read_point
     
     subroutine transform_data(transform_type, pred_data,  &
                             p_xf_start, p_xf_stop,      &
@@ -214,7 +238,7 @@ contains
             analogs = find_analogs(predictor(i,:), atm, n_analogs)
             call random_number(rand)
             selected_analog = floor(rand * n_analogs)+1
-            ! print*, analogs(selected_analog)
+
             output(i) = obs( analogs(selected_analog) )
         end do
         

@@ -62,11 +62,10 @@ program stat_down
     
     call geo_LUT(training_obs, training_atm)
     call geo_LUT(training_obs, predictions)
-    print*, shape(training_atm%geolut%w)
     
-    ! call io_write("obs.nc","data",training_obs%variables(1)%data)
-    ! call io_write("training.nc","data",training_atm%variables(1)%data)
-    ! call io_write("predictor.nc","data",predictions%variables(1)%data)
+    call io_write("obs.nc","data",training_obs%variables(1)%data)
+    call io_write("training.nc","data",training_atm%variables(1)%data)
+    call io_write("predictor.nc","data",predictions%variables(1)%data)
     
     print*, ""
     print*, "=========================================="

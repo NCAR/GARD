@@ -122,7 +122,7 @@ contains
         integer :: name_unit, i
 
         ! namelist variables to be read
-        integer :: nfiles, nvars, calendar_start_year, selected_time
+        integer :: nfiles, nvars, calendar_start_year, selected_time, interpolation_method
         integer, dimension(MAX_NUMBER_TIMES) :: time_indicies
         character(len=MAXSTRINGLENGTH)       :: name, data_type, calendar
         character(len=MAXVARLENGTH)          :: lat_name, lon_name, time_name
@@ -134,7 +134,8 @@ contains
                                          lat_name, lon_name, time_name,    &
                                          file_list, var_names,             &
                                          calendar, calendar_start_year,    &
-                                         selected_time, time_indicies
+                                         selected_time, time_indicies,     &
+                                         interpolation_method
         !defaults :
         nfiles      = -1
         nvars       = -1
@@ -149,6 +150,7 @@ contains
         calendar_start_year = 1900
         selected_time = -1
         time_indicies = -1
+        interpolation_method = kNEAREST
         
         ! read namelists
         open(io_newunit(name_unit), file=filename)
@@ -183,6 +185,7 @@ contains
         training_options%selected_time  = selected_time
         call copy_array_i(time_indicies, training_options%time_indicies)
         training_options%data_type      = read_data_type(data_type)
+        training_options%interpolation_method = interpolation_method
         training_options%debug          = debug
         
         call check_training_options(training_options)
@@ -256,7 +259,7 @@ contains
         integer :: name_unit, i, j
 
         ! namelist variables to be read
-        integer :: nfiles, nvars, calendar_start_year, selected_time
+        integer :: nfiles, nvars, calendar_start_year, selected_time, interpolation_method
         character(len=MAXSTRINGLENGTH)  :: name, data_type, calendar
         character(len=MAXVARLENGTH)     :: lat_name, lon_name, time_name
         character(len=MAXFILELENGTH), dimension(MAX_NUMBER_VARS) :: file_list
@@ -268,7 +271,8 @@ contains
                                          lat_name, lon_name, time_name,     &
                                          file_list, var_names,              &
                                          calendar, calendar_start_year,     &
-                                         selected_time, transformations
+                                         selected_time, transformations,    &
+                                         interpolation_method
 
         !defaults :
         nfiles      = -1
@@ -284,6 +288,7 @@ contains
         calendar_start_year = 1900
         selected_time = -1
         transformations = kQUANTILE_MAPPING
+        interpolation_method = kNEAREST
         
         ! read namelists
         open(io_newunit(name_unit), file=filename)
@@ -318,6 +323,7 @@ contains
         prediction_options%time_file      = 1 
         prediction_options%data_type      = read_data_type(data_type)
         prediction_options%transformations= transformations
+        prediction_options%interpolation_method = interpolation_method
         prediction_options%debug          = debug
         
         call check_prediction_options(prediction_options)

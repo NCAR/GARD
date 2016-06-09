@@ -101,8 +101,11 @@ module data_structures
     end type obs_variable_type
 
     type, extends(variable_type) :: output_variable_type
-        real, allocatable, dimension(:,:)   :: mean, stddev ! per gridpoint mean and standard deviation (for normalization?)
-        real, allocatable, dimension(:,:,:) :: errors       ! store pre grid point expected errors from the downscaling code
+        real, allocatable, dimension(:,:)       :: mean, stddev ! per gridpoint mean and standard deviation (for normalization?)
+        real, allocatable, dimension(:,:,:)     :: errors       ! store pre grid point expected errors from the downscaling code
+        real, allocatable, dimension(:,:,:)     :: obs
+        real, allocatable, dimension(:,:,:,:)   :: predictors
+        real, allocatable, dimension(:,:,:,:)   :: training
     end type output_variable_type
     
     type, extends(interpolable_type) :: base_data_type
@@ -157,6 +160,7 @@ module data_structures
     type, extends(input_config) :: atm_config
         integer, dimension(:), allocatable :: selected_level ! to just use a specific vertical level from each file (e.g. a pressure level)
                                                              ! the array is to provide one level for each variable
+        integer :: interpolation_method
     end type atm_config
     
     type, extends(atm_config) :: prediction_config
