@@ -51,8 +51,8 @@ ifeq ($(NODENAME), Nomad.local)
 endif
 
 ifeq ($(NODENAME), hydro-c1)
-	# FC=ifort
-	FC=gfortran
+	FC=ifort
+	# FC=gfortran
 	ifeq ($(FC), ifort)
 		NCDF_PATH = /opt/netcdf4-intel
 	endif
@@ -102,8 +102,8 @@ ifeq ($(FC), gfortran)
 endif
 # Intel fortran
 ifeq ($(FC), ifort)
-	COMP= -u -qopenmp -liomp5 -O3 -no-prec-div -xHost -ftz -fpe0
-	LINK= -qopenmp -liomp5
+	COMP= -u -qopenmp -O3 -no-prec-div -xHost -ftz -fpe0
+	LINK= -liomp5
 	PREPROC=-fpp
 	MODOUTPUT=-module $(BUILD)
 endif
@@ -173,8 +173,8 @@ endif
 ifeq ($(MODE), debugompslow)
 	ifeq ($(FC), ifort)
 		# COMP= -qopenmp -liomp5 -debug -debug-parameters all -traceback -ftrapuv -g -fpe0 -c -u -check all -check noarg_temp_created -CB
-		COMP= -qopenmp -liomp5 -debug -u	-fpe0 -traceback -check all -check noarg_temp_created -fp-stack-check
-		LINK= -qopenmp -liomp5
+		COMP= -qopenmp -debug -u	-fpe0 -traceback -check all -check noarg_temp_created -fp-stack-check
+		LINK= -liomp5
 	endif
 	ifeq ($(FC), gfortran)
 		COMP= -fopenmp -lgomp -g -fbounds-check -fbacktrace -finit-real=nan -ffree-line-length-none
@@ -193,9 +193,9 @@ ifeq ($(MODE), debugompslow)
 endif
 ifeq ($(MODE), debugomp)
 	ifeq ($(FC), ifort)
-		COMP= -qopenmp -liomp5 -debug -O3 -u -traceback -fpe0 -ftz -fast-transcendentals  -xHost 
+		COMP= -qopenmp -debug -O3 -u -traceback -fpe0 -ftz -fast-transcendentals  -xHost 
 		#-check all -check noarg_temp_created -fpe0 -fast-transcendentals -xhost
-		LINK= -qopenmp -liomp5
+		LINK= -liomp5
 	endif
 	ifeq ($(FC), gfortran)
 		COMP= -fopenmp -lgomp -O1 -g -fbounds-check -fbacktrace -finit-real=nan -ffree-line-length-none
@@ -217,7 +217,7 @@ PROF=
 ifeq ($(MODE), profile)
 	ifeq ($(FC), ifort)
 		PROF=-pg -debug inline-debug-info -shared-intel
-		COMP= -u -qopenmp -liomp5 -O3 -no-prec-div -xHost -ftz #because -fast includes -static 
+		COMP= -u -qopenmp -O3 -no-prec-div -xHost -ftz #because -fast includes -static 
 		# not available in ifort <13 -align array64byte
 	endif
 	ifeq ($(FC), gfortran)
@@ -226,7 +226,7 @@ ifeq ($(MODE), profile)
 endif
 ifeq ($(MODE), fast) # WARNING -ipo (included in -fast) takes forever for very little gain, and this may be unstable
 	ifeq ($(FC), ifort)
-		COMP= -u -qopenmp -liomp5 -fast -ftz #-fast-transcendentals # not available in ifort <13: -align array64byte
+		COMP= -u -qopenmp -fast -ftz #-fast-transcendentals # not available in ifort <13: -align array64byte
 	endif
 endif
 
@@ -319,19 +319,19 @@ allclean:clean
 
 # higher level rules
 downscale: $(OBJS)
-	$(FC) $(FCFLAGS) -o $@ $^ $(LDFLAGS)
+	$(FC) -o $@ $^ $(LDFLAGS)
 
 test_calendar : $(CAL_TEST_OBJS)
-	$(FC) $(FCFLAGS) -o $@ $^ $(LDFLAGS)
+	$(FC) -o $@ $^ $(LDFLAGS)
 
 test_qm : $(QM_TEST_OBJS)
-	$(FC) $(FCFLAGS) -o $@ $^ $(LDFLAGS)
+	$(FC) -o $@ $^ $(LDFLAGS)
 
 test_sort : $(SORT_TEST_OBJS)
-	$(FC) $(FCFLAGS) -o $@ $^ $(LDFLAGS)
+	$(FC) -o $@ $^ $(LDFLAGS)
 
 test_config : $(CONFIG_TEST_OBJS)
-	$(FC) $(FCFLAGS) -o $@ $^ $(LDFLAGS)
+	$(FC) -o $@ $^ $(LDFLAGS)
 
 # specify specific builds and dependencies. 
 
