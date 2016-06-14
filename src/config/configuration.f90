@@ -49,7 +49,7 @@ contains
         character(len=MAXSTRINGLENGTH)  :: name, start_date, end_date, start_train, end_train
         character(len=MAXSTRINGLENGTH)  :: start_transform, end_transform
         character(len=MAXFILELENGTH)    :: training_file, prediction_file, observation_file, output_file
-        logical :: pure_analog, analog_regression
+        logical :: pure_analog, analog_regression, pure_regression
         
         ! setup the namelist
         namelist /parameters/   name,                                               &
@@ -57,7 +57,7 @@ contains
                                 output_file,                                        &
                                 start_date, end_date, start_train, end_train,       &
                                 start_transform, end_transform,                     &
-                                n_analogs, pure_analog, analog_regression
+                                n_analogs, pure_analog, analog_regression, pure_regression
 
         options%version = kVERSION_STRING
         options%options_filename = get_options_file()
@@ -76,6 +76,7 @@ contains
         n_analogs        = -1
         pure_analog      = .False.
         analog_regression= .True.
+        pure_regression  = .False.
         
         options%name = options%options_filename
         options%debug = .True.
@@ -110,8 +111,11 @@ contains
         options%n_analogs        = n_analogs
         options%pure_analog      = pure_analog
         options%analog_regression= analog_regression
-        
+        options%pure_regression  = pure_regression
+
     end subroutine read_base_options
+
+
 
 
     !>------------------------------------------------
@@ -131,6 +135,7 @@ contains
         integer, dimension(MAX_NUMBER_TIMES) :: time_indicies
         character(len=MAXSTRINGLENGTH)       :: name, data_type, calendar
         character(len=MAXVARLENGTH)          :: lat_name, lon_name, time_name
+        character(len=MAXFILELENGTH)         :: preloaded
         character(len=MAXFILELENGTH), dimension(MAX_NUMBER_VARS) :: file_list
         character(len=MAXVARLENGTH),  dimension(MAX_NUMBER_VARS) :: var_names
 
@@ -140,7 +145,7 @@ contains
                                          file_list, var_names,             &
                                          calendar, calendar_start_year,    &
                                          selected_time, time_indicies,     &
-                                         interpolation_method
+                                         interpolation_method, preloaded
         !defaults :
         nfiles      = -1
         nvars       = -1
@@ -156,6 +161,7 @@ contains
         selected_time = -1
         time_indicies = -1
         interpolation_method = kNEAREST
+        preloaded   = ""
         
         ! read namelists
         open(io_newunit(name_unit), file=filename)
@@ -192,6 +198,7 @@ contains
         training_options%data_type      = read_data_type(data_type)
         training_options%interpolation_method = interpolation_method
         training_options%debug          = debug
+        training_options%preloaded      = preloaded
         
         call check_training_options(training_options)
     end function read_training_options
@@ -267,6 +274,7 @@ contains
         integer :: nfiles, nvars, calendar_start_year, selected_time, interpolation_method
         character(len=MAXSTRINGLENGTH)  :: name, data_type, calendar
         character(len=MAXVARLENGTH)     :: lat_name, lon_name, time_name
+        character(len=MAXFILELENGTH)    :: preloaded
         character(len=MAXFILELENGTH), dimension(MAX_NUMBER_VARS) :: file_list
         character(len=MAXVARLENGTH),  dimension(MAX_NUMBER_VARS) :: var_names
         integer, dimension(MAX_NUMBER_VARS) :: transformations
@@ -277,7 +285,7 @@ contains
                                          file_list, var_names,              &
                                          calendar, calendar_start_year,     &
                                          selected_time, transformations,    &
-                                         interpolation_method
+                                         interpolation_method, preloaded
 
         !defaults :
         nfiles      = -1
@@ -294,6 +302,7 @@ contains
         selected_time = -1
         transformations = kQUANTILE_MAPPING
         interpolation_method = kNEAREST
+        preloaded   = ""
         
         ! read namelists
         open(io_newunit(name_unit), file=filename)
@@ -330,6 +339,7 @@ contains
         prediction_options%transformations= transformations
         prediction_options%interpolation_method = interpolation_method
         prediction_options%debug          = debug
+        prediction_options%preloaded      = preloaded
         
         call check_prediction_options(prediction_options)
         
@@ -374,6 +384,7 @@ contains
         integer :: nfiles, nvars, calendar_start_year
         character(len=MAXSTRINGLENGTH)  :: name, data_type, calendar
         character(len=MAXVARLENGTH)     :: lat_name, lon_name, time_name
+        character(len=MAXFILELENGTH)    :: preloaded
         character(len=MAXFILELENGTH), dimension(MAX_NUMBER_VARS) :: file_list
         character(len=MAXVARLENGTH),  dimension(MAX_NUMBER_VARS) :: var_names
         real :: mask_value
@@ -384,7 +395,7 @@ contains
                                          lat_name, lon_name, time_name,     &
                                          file_list, var_names,              &
                                          calendar, calendar_start_year,     &
-                                         mask_value, mask_variable
+                                         mask_value, mask_variable, preloaded
         !defaults :
         nfiles      = -1
         nvars       = -1
@@ -399,6 +410,7 @@ contains
         calendar_start_year = 1900
         mask_value  = 1e20
         mask_variable = 1
+        preloaded   = ""
         
         ! read namelists
         open(io_newunit(name_unit), file=filename)
@@ -434,6 +446,7 @@ contains
         obs_options%mask_value     = mask_value
         obs_options%mask_variable  = mask_variable
         obs_options%debug          = debug
+        obs_options%preloaded      = preloaded
         
         call check_obs_options(obs_options)
     end function read_obs_options

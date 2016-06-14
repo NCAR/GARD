@@ -60,7 +60,8 @@ contains
             associate(var => obs_data%variables(var_idx))
                 
                 var = read_obs_variable( options%var_names(var_idx),        &
-                                         options%file_names(:, var_idx))
+                                         options%file_names(:, var_idx),    &
+                                         options%preloaded)
                 if (var_idx==1) then
                     ntimesteps = size(var%data, 1)
                 else
@@ -127,16 +128,26 @@ contains
         
     end subroutine compute_grid_stats
     
-    function read_obs_variable(varname, filenames) result(output)
+    function read_obs_variable(varname, filenames, preload) result(output)
         implicit none
         character(len=MAXVARLENGTH),    intent(in)              :: varname
         character(len=MAXFILELENGTH),   intent(in), dimension(:):: filenames
+        character(len=MAXFILELENGTH),   intent(in), optional    :: preload
         
         type(obs_variable_type) :: output
         
         integer, dimension(io_maxDims) :: dims
         
         output%name = varname
+        
+        if (present(preload)) then
+            if (trim(preload) /= "" ) then
+                print*, "Reading preloaded data: ", trim(preload)
+                call io_read(preload, "data", output%data)
+                return
+            endif
+        endif
+
         
         dims = get_dims(varname, filenames)
         ! note, we reverse the order of the dimensions here to speed up later computations which will occur per grid cell over time

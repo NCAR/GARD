@@ -142,6 +142,7 @@ module data_structures
     type input_config
         character (len=MAXFILELENGTH), allocatable, dimension(:,:) :: file_names
         character (len=MAXVARLENGTH),  allocatable, dimension(:)   :: var_names
+        character (len=MAXFILELENGTH) :: preloaded
         integer :: n_variables, nfiles
         
         type(Time_type),               allocatable, dimension(:,:) :: file_start, file_end
@@ -194,6 +195,7 @@ module data_structures
         
         logical :: pure_analog
         logical :: analog_regression
+        logical :: pure_regression
         
         ! options for each sub-component
         type(training_config)      :: training

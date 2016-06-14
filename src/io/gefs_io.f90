@@ -61,7 +61,8 @@ contains
                 
                 var = read_GEFS_variable( options%var_names(var_idx),        &
                                          options%file_names(:, var_idx),     &
-                                         options%selected_time)
+                                         options%selected_time,              &
+                                         options%preloaded)
                 
                 if (var_idx==1) then
                     ntimesteps = size(var%data, 1)
@@ -109,17 +110,26 @@ contains
         
     end subroutine compute_grid_stats
     
-    function read_GEFS_variable(varname, filenames, timestep) result(output)
+    function read_GEFS_variable(varname, filenames, timestep, preload) result(output)
         implicit none
         character(len=MAXVARLENGTH),    intent(in)              :: varname
         character(len=MAXFILELENGTH),   intent(in), dimension(:):: filenames
         integer,                        intent(in)              :: timestep 
+        character(len=MAXFILELENGTH),   intent(in), optional    :: preload
         
         type(atm_variable_type) :: output
         
         integer, dimension(io_maxDims) :: dims
         
         output%name = varname
+        
+        if (present(preload)) then
+            if (trim(preload) /= "" ) then
+                print*, "Reading preloaded data: ", trim(preload)
+                call io_read(trim(preload), "data", output%data)
+                return
+            endif
+        endif
         
         dims = get_dims(varname, filenames, timestep)
         ! note, we reverse the order of the dimensions here to speed up later computations which will occur per grid cell over time
