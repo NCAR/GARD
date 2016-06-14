@@ -98,11 +98,13 @@ module data_structures
     type, extends(variable_type) :: obs_variable_type
         real, allocatable, dimension(:,:) :: mean, stddev ! per gridpoint mean and standard deviation (for normalization?)
         integer :: transformation                         ! type of transformation applied to data (e.g. sqrt, log, ???)
+        real :: logistic_threshold                        ! threshold to use in logistic regression
     end type obs_variable_type
 
     type, extends(variable_type) :: output_variable_type
         real, allocatable, dimension(:,:)       :: mean, stddev ! per gridpoint mean and standard deviation (for normalization?)
         real, allocatable, dimension(:,:,:)     :: errors       ! store pre grid point expected errors from the downscaling code
+        real, allocatable, dimension(:,:,:,:)   :: coefficients ! store pre grid point regression coefficients
         real, allocatable, dimension(:,:,:)     :: obs
         real, allocatable, dimension(:,:,:,:)   :: predictors
         real, allocatable, dimension(:,:,:,:)   :: training
@@ -170,6 +172,7 @@ module data_structures
     end type prediction_config
     
     type, extends(input_config) :: obs_config
+        real :: logistic_threshold
         real :: mask_value
         integer :: mask_variable
     end type obs_config

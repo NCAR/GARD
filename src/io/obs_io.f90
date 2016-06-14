@@ -59,6 +59,8 @@ contains
         do var_idx = 1, options%n_variables
             associate(var => obs_data%variables(var_idx))
                 
+                var%logistic_threshold = options%logistic_threshold
+                
                 var = read_obs_variable( options%var_names(var_idx),        &
                                          options%file_names(:, var_idx),    &
                                          options%preloaded)

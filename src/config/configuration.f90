@@ -30,14 +30,12 @@ contains
     function read_config() result(options)
         implicit none
         type(config) :: options
-        character(len=MAXFILELENGTH) :: filename
         
         call read_base_options(options)
         
-        options%prediction  = read_prediction_options( options%prediction_file,  options%debug)
-        options%training    = read_training_options( options%training_file,      options%debug)
-        options%obs         = read_obs_options( options%observation_file,        options%debug)
-        
+        options%prediction  = read_prediction_options(  options%prediction_file,    options%debug)
+        options%training    = read_training_options(    options%training_file,      options%debug)
+        options%obs         = read_obs_options(         options%observation_file,   options%debug)
     end function read_config
 
 
@@ -387,7 +385,7 @@ contains
         character(len=MAXFILELENGTH)    :: preloaded
         character(len=MAXFILELENGTH), dimension(MAX_NUMBER_VARS) :: file_list
         character(len=MAXVARLENGTH),  dimension(MAX_NUMBER_VARS) :: var_names
-        real :: mask_value
+        real :: mask_value, logistic_threshold
         integer :: mask_variable
 
         ! setup the namelist
@@ -395,7 +393,8 @@ contains
                                          lat_name, lon_name, time_name,     &
                                          file_list, var_names,              &
                                          calendar, calendar_start_year,     &
-                                         mask_value, mask_variable, preloaded
+                                         mask_value, mask_variable,         &
+                                         preloaded, logistic_threshold
         !defaults :
         nfiles      = -1
         nvars       = -1
@@ -411,6 +410,7 @@ contains
         mask_value  = 1e20
         mask_variable = 1
         preloaded   = ""
+        logistic_threshold = kFILL_VALUE
         
         ! read namelists
         open(io_newunit(name_unit), file=filename)
@@ -447,6 +447,7 @@ contains
         obs_options%mask_variable  = mask_variable
         obs_options%debug          = debug
         obs_options%preloaded      = preloaded
+        obs_options%logistic_threshold = logistic_threshold
         
         call check_obs_options(obs_options)
     end function read_obs_options
@@ -587,6 +588,7 @@ contains
             write(*,*) "Using options file = ", trim(options_file)
             stop "Options file does not exist. "
         endif
+        write(*,*) "Using options file = ", trim(options_file)
     end function get_options_file
     
 end module config_mod

@@ -53,17 +53,18 @@ contains
             write(*,*) "N atmospheric variables: ", n_atm_variables
             write(*,*) "N observed variables: ", n_obs_variables
             
-            nx = 32
-            ny = 132
+            nx = 64
+            ny = 164
             ! ny = 180
 
             allocate(output%variables(n_obs_variables))
             do i = 1,n_obs_variables
-                allocate(output%variables(i)%data       (noutput, nx, ny))
-                allocate(output%variables(i)%errors     (noutput, nx, ny))
-                allocate(output%variables(i)%obs        (tr_size, nx, ny))
-                allocate(output%variables(i)%training   (tr_size, nx, ny, n_atm_variables+1))
-                allocate(output%variables(i)%predictors (noutput, nx, ny, n_atm_variables+1))
+                allocate(output%variables(i)%data        (noutput, nx, ny))
+                allocate(output%variables(i)%errors      (noutput, nx, ny))
+                allocate(output%variables(i)%coefficients(n_atm_variables+1, noutput, nx, ny))
+                allocate(output%variables(i)%obs         (tr_size, nx, ny))
+                allocate(output%variables(i)%training    (tr_size, nx, ny, n_atm_variables+1))
+                allocate(output%variables(i)%predictors  (noutput, nx, ny, n_atm_variables+1))
                 
                 output%variables(i)%data        = 0
                 output%variables(i)%predictors  = 0
@@ -104,7 +105,8 @@ contains
             !$omp barrier
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             
-            !$omp do schedule(static, 1)
+            !!schedule(static, 1)
+            !$omp do 
             do j=100,ny
                 do i=1,nx
                     
@@ -142,7 +144,8 @@ contains
                                                             pred_data    (   p_start : p_end,     :),        &
                                                             train_data   (t_tr_start : t_tr_stop, :),        & 
                                                             training_obs%variables(v)%data(o_tr_start : o_tr_stop, i, j),  &
-                                                            output%variables(v)%errors(:,i,j), options )
+                                                            output%variables(v)%errors(:,i,j),               &
+                                                            output%variables(v)%coefficients(:,:,i,j), options )
                                                           
                             output%variables(v)%obs       (:,i,j)   = training_obs%variables(v)%data(o_tr_start:o_tr_stop, i, j)
                             
@@ -248,11 +251,13 @@ contains
         
     end subroutine transform_data
     
-    function downscale_point(predictor, atm, obs, errors, options) result(output)
+    function downscale_point(predictor, atm, obs, errors, output_coeff, options) result(output)
         implicit none
-        real,    dimension(:,:), intent(in)  :: predictor, atm
-        real,    dimension(:),   intent(in)  :: obs, errors
-        type(config),            intent(in)  :: options
+        real,    dimension(:,:), intent(in)   :: predictor, atm ! (ntimes, nvars)
+        real,    dimension(:),   intent(in)   :: obs
+        real,    dimension(:),   intent(inout):: errors
+        real,    dimension(:,:), intent(inout):: output_coeff
+        type(config),            intent(in)   :: options
         
         real,    dimension(:),   allocatable :: output
         real,    dimension(:),   allocatable :: obs_analogs
@@ -278,7 +283,11 @@ contains
         endif
         
         if (options%pure_regression) then
-            output(1) = compute_regression(predictor(1,:), atm, obs, coefficients)
+            output(1)  = compute_regression(predictor(1,:), atm, obs, coefficients, errors(1))
+            errors(2:) = errors(1)
+            do i=1,nvars
+                output_coeff(i,:) = coefficients(i)
+            enddo
         endif
         
         do i = 1, n
@@ -290,7 +299,9 @@ contains
                 
                 call random_number(rand)
                 selected_analog = floor(rand * n_analogs)+1
-
+                
+                errors(i) = compute_analog_error(obs, analogs, obs(analogs(selected_analog)))
+                output_coeff(:,i) = atm(analogs(selected_analog), :)
                 output(i) = obs( analogs(selected_analog) )
                 
             elseif (options%analog_regression) then
@@ -298,8 +309,9 @@ contains
                     obs_analogs(a) = obs(analogs(a))
                     regression_data(a,:) = atm(analogs(a),:)
                 enddo
-                output(i) = compute_regression(predictor(i,:), regression_data, obs_analogs, coefficients)
-                
+                output(i) = compute_regression(predictor(i,:), regression_data, obs_analogs, coefficients, errors(i))
+                output_coeff(:,i) = coefficients
+                                
             elseif (options%pure_regression) then
                 output(i) = 0
                 do j=1,nvars
@@ -310,6 +322,28 @@ contains
         end do
         
     end function downscale_point
+    
+    ! compute the root mean square error between input[analogs] and y_hat
+    function compute_analog_error(input, analogs, y_hat) result(error)
+        implicit none
+        real,    intent(in), dimension(:) :: input
+        integer, intent(in), dimension(:) :: analogs
+        real,    intent(in)               :: y_hat
+        real                              :: error
+        
+        double precision :: mean
+        integer :: i, n
+        
+        n = size(analogs)
+        mean = 0
+        
+        do i=1,n
+            mean = mean + (input( analogs(i) ) - y_hat)**2
+        enddo
+        
+        error = sqrt(mean / n)
+        
+    end function compute_analog_error
     
     ! normalize an atmospheric variable by subtracting the mean and dividing by the standard deviation
     ! Assumes mean and stddev have already been calculated as part of the data structure

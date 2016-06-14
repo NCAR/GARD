@@ -45,12 +45,13 @@ contains
         
     end function nr_compute_regression
     
-    function compute_regression(x, training_x, training_y, coefficients) result(y)
+    function compute_regression(x, training_x, training_y, coefficients, error) result(y)
         implicit none
         real,    intent(in),    dimension(:)   :: x
         real,    intent(in),    dimension(:,:) :: training_x
         real,    intent(in),    dimension(:)   :: training_y
         real(8), intent(inout), dimension(:)   :: coefficients
+        real,    intent(inout), optional       :: error
         real,    allocatable,   dimension(:,:) :: training_x_lp
         real,    allocatable,   dimension(:)   :: training_y_lp
         
@@ -86,6 +87,15 @@ contains
         do i=1,nvars
             y = y + coefficients(i) * x(i)
         end do
+        
+        if (present(error)) then
+            training_y_lp = 0
+            do i=1,nvars
+                training_y_lp = training_y_lp + coefficients(i) * training_x(:,i)
+            enddo
+            ! root mean square error
+            error = sqrt( sum((training_y_lp - training_y)**2) / ntimes )
+        endif
         
     end function compute_regression
 
@@ -308,12 +318,14 @@ contains
 
     subroutine logistic_regression(X, Y, B)
         implicit none
-        real, intent(in) :: X(:,:)
-        real, intent(in) :: Y(:)
+        real,    intent(in) :: X(:,:)
+        real,    intent(in) :: Y(:)
         real(8), intent(out) :: B(:)
 
-        real(8), allocatable :: Yp(:), P(:), BN(:), V(:,:)
-        real, allocatable :: YN(:), XV(:,:)
+        real,    allocatable :: Yp(:), P(:), V(:,:)
+        real(8), allocatable :: BN(:)
+        real,    allocatable :: YN(:), XV(:,:)
+        
         integer :: nvars, ntimes, i, t, f, it
         real :: d
 
@@ -340,16 +352,16 @@ contains
         i = 0
         it = 0
         do while (f /= 1)
-            P = 1.0d0 / (1.0d0 + exp(-matmul(X, B))) 
+            P = 1.0 / (1.0 + exp(-matmul(X, B))) 
             if (ANY(P > 0.97)) then
                 !print *, "WARNING: logistic regression diverging"
                 f = 1
             else
 
                 YN = Yp - P
-                V = 0.0d0
+                V = 0.0
                 do t = 1, ntimes, 1
-                    V(t,t) = P(t)*(1.0d0-P(t))
+                    V(t,t) = P(t)*(1.0-P(t))
                 enddo
                 XV = matmul(V,X)
                 call lapack_least_squares(XV, YN, BN)

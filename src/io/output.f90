@@ -27,6 +27,14 @@ contains
 
             filename = "training_"//trim(options%output_file)
             call io_write(filename, "data", output%variables(i)%training)
+            
+            filename = "coef_"//trim(options%output_file)
+            call io_write(filename, "data", output%variables(i)%coefficients)
+
+            filename = "errors_"//trim(options%output_file)
+            call io_write(filename, "data", output%variables(i)%errors)
+
+
         enddo
         
     end subroutine write_output
