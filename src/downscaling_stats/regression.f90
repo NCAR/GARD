@@ -2,35 +2,83 @@ module  regression_mod
     use nr
 contains
     
-    function compute_regression(x, training_x, training_y) result(y)
+    function compute_regression(x, training_x, training_y, coefficients) result(y)
         implicit none
-        real, intent(in), dimension(:)   :: x
-        real, intent(in), dimension(:,:) :: training_x
-        real, intent(in), dimension(:)   :: training_y
+        real,    intent(in),    dimension(:)   :: x
+        real,    intent(in),    dimension(:,:) :: training_x
+        real,    intent(in),    dimension(:)   :: training_y
+        real(8), intent(inout), dimension(:)   :: coefficients
         
         real :: y
         
         integer :: nvars, ntimes, i
-        real(8), dimension(:),allocatable :: coefficients
         real, dimension(:,:), allocatable :: transpose_x
         
         nvars  = size(x)
-        ntimes = size(training_x,2)
+        ntimes = size(training_x,1)
         
-        allocate( transpose_x(ntimes,nvars) )
+        allocate( transpose_x(nvars,ntimes) )
         
+        if (maxval(training_y) == 0) then
+            y=0
+            return
+        endif
+        
+        if (any(maxval(abs(training_x),dim=1) == 0.0)) then
+            y=0
+            return
+        endif
+
         do i=1,nvars
-            transpose_x(:,i) = training_x(i,:)
+            transpose_x(i,:) = training_x(:,i)
         enddo
         
         call least_squares(training_x, training_y, transpose_x, coefficients)
         
         y = 0
+        if (maxval(abs(coefficients)) == 0) then
+            y = sum(training_y)/size(training_y)
+        endif
         do i=1,nvars
             y = y + coefficients(i) * x(i)
         end do
         
     end function compute_regression
+    
+    subroutine lapack_least_squares(X, Y, B)
+        implicit none
+        real, intent(inout), dimension(:,:) :: X
+        real, intent(inout), dimension(:)   :: Y
+        real(8), intent(inout), dimension(:)   :: B
+        
+        real, dimension(1000) :: WORK
+        integer :: n, m, nrhs, LDX, LDY, LWORK, INFO
+        
+        m = size(X,1)
+        LDX = m
+        
+        n = size(X,2)
+        LDY = m
+        
+        nrhs = 1
+        
+        ! First find the optimal work size (LWORK)
+        LWORK = -1
+        CALL SGELS( 'N', M, N, NRHS, X, LDX, Y, LDY, WORK, LWORK, INFO )
+        LWORK = MIN( 1000, INT( WORK( 1 ) ) )
+        
+        ! Now solve the equations X*B = Y
+        CALL SGELS( 'N', M, N, NRHS, X, LDX, Y, LDY, WORK, LWORK, INFO )
+        
+        ! print*, "=============================="
+        ! print*, X
+        
+        print*, "=============================="
+        print*, Y(1:n)
+        B(1:n) = Y(1:n)
+
+    end subroutine lapack_least_squares
+
 
     !
     ! Solve linear equation for x (Ax = b => x = bA^-1) using LU decomposition and back substitution.
@@ -44,10 +92,10 @@ contains
     subroutine least_squares(X, Y, TX, B)
         implicit none
 
-        real, intent(in) :: X(:,:)
-        real, intent(in) :: Y(:)
-        real, intent(in) :: TX(:,:)
-        real(8), allocatable, intent(out) :: B(:)
+        real,    intent(in)     :: X(:,:)
+        real,    intent(in)     :: Y(:)
+        real,    intent(in)     :: TX(:,:)
+        real(8), intent(inout)  :: B(:)
 
         real(8), allocatable :: A(:,:)
         integer, allocatable :: indx(:)
@@ -57,9 +105,9 @@ contains
         nvars = size(X,2) -1
         ntimes = size(Y)
 
-        if (.not.allocated(B)) then
-            allocate(B(nvars+1))
-        endif
+        ! if (.not.allocated(B)) then
+        !     allocate(B(nvars+1))
+        ! endif
         allocate(A(nvars+1,nvars+1))
         allocate(indx(nvars+1))
 
@@ -67,11 +115,20 @@ contains
         B = matmul(TX, Y)
         A = matmul(TX, X)
 
+        if (any(maxval(abs(A),dim=2) == 0.0)) then
+            !$omp critical
+            print*, "ERROR"
+            !$omp end critical
+            B = 0
+            return
+        endif
         call ludcmp(A, indx, d )
 
         if (ANY(ABS(A) < 9.99999968E-15)) then
             B(:) = 0.0d0
-            print *, "Warning, LUdcmp produced a zero."
+            !$omp critical
+            print*, "Warning, LUdcmp produced a zero."
+            !$omp end critical
             return
         endif
 

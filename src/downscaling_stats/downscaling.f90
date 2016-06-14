@@ -50,6 +50,9 @@ contains
             n_atm_variables = size(training_atm%variables)
             n_obs_variables = size(training_obs%variables)
             
+            write(*,*) "N atmospheric variables: ", n_atm_variables
+            write(*,*) "N observed variables: ", n_obs_variables
+            
             nx = 32
             ny = 132
             ! ny = 180
@@ -70,7 +73,8 @@ contains
             
             !$omp parallel default(shared)                  &
             !$omp private(train_data, pred_data, i, j, v)   &
-            !$omp firstprivate(nx,ny,n_atm_variables, n_obs_variables, noutput, ntrain, nobs, ntimes)
+            !$omp firstprivate(nx,ny,n_atm_variables, n_obs_variables, noutput, ntrain, nobs, ntimes) &
+            !$omp firstprivate(p_start, p_end, t_tr_start, t_tr_stop, o_tr_start, o_tr_stop)
             allocate( train_data( ntrain, n_atm_variables+1 ) )
             allocate( pred_data(  ntimes, n_atm_variables+1 ) )
             train_data=0
@@ -78,7 +82,29 @@ contains
             ! constant coefficient for regressions... might be better to keep this in the point downscaling section? 
             pred_data(:,1) = 1
             train_data(:,1) = 1
-            !$omp do
+            
+            do v=1,n_atm_variables
+                ! does not need to be normalized if it is transformed to match training_atm anyway
+                if (options%prediction%transformations(v) /= kQUANTILE_MAPPING) then
+                    !$omp do
+                    do j=1, size(predictors%variables(v)%data,3)
+                        call normalize(predictors%variables(v), j)
+                    enddo
+                    !$omp end do
+                endif
+                !$omp do
+                do j=1, size(training_atm%variables(v)%data,3)
+                    call normalize(training_atm%variables(v), j)
+                enddo
+                !$omp end do
+            enddo
+            
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            ! Normalization must be finished before running anything else
+            !$omp barrier
+            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            
+            !$omp do schedule(static, 1)
             do j=100,ny
                 do i=1,nx
                     
@@ -97,36 +123,30 @@ contains
                             ! save these data for output debugging / algorithm development while we are at it. 
                             output%variables(1)%predictors(:,i,j,v+1) = pred_data( p_start   : p_end,    v+1)
                             output%variables(1)%training  (:,i,j,v+1) = train_data(t_tr_start: t_tr_stop,v+1)
+                            
                         enddo
-                        
-                        do v=1,n_obs_variables
-                            associate(                                       &
-                                var        => output%variables(v)%data,      &
-                                errors     => output%variables(v)%errors,    &
-                                observed   => training_obs%variables(v)%data(o_tr_start:o_tr_stop, i, j) &
-                                )
 
-                                var(:,i,j) = downscale_point( pred_data( p_start   : p_end,    :),  &
-                                                              train_data(t_tr_start: t_tr_stop,:),  & 
-                                                              observed, errors(:,i,j), options )
-                                                              
-                                
-                                output%variables(v)%obs       (:,i,j)   = observed
-                                
-                            end associate
+                        do v=1,n_obs_variables
                             
                             if (options%debug) then
                                 !$omp critical
-                                print*, ""
-                                print*, "-----------------------------"
-                                print*, "   Downscaling point: ",i,j
-                                print*, "   For variable     : ", v
+                                write(*,*) ""
+                                write(*,*) "-----------------------------"
+                                write(*,*) "   Downscaling point: ",i,j
+                                write(*,*) "   For variable     : ", v
                                 !$omp end critical
                             endif
                             
+                            ! removed associate statment because it was causing problems with parallelization with ifort...
+                            output%variables(v)%data(:,i,j) = downscale_point(                                          &
+                                                            pred_data    (   p_start : p_end,     :),        &
+                                                            train_data   (t_tr_start : t_tr_stop, :),        & 
+                                                            training_obs%variables(v)%data(o_tr_start : o_tr_stop, i, j),  &
+                                                            output%variables(v)%errors(:,i,j), options )
+                                                          
+                            output%variables(v)%obs       (:,i,j)   = training_obs%variables(v)%data(o_tr_start:o_tr_stop, i, j)
+                            
                             ! should be possible to run this here, but seems to run into a shared memory problem
-                            ! using heap_sort instead of quick_sort in the sorting module *seems* to fix it, through
-                            ! heap_sort is almost ~2x slower
                             ! call transform_data(kQUANTILE_MAPPING,                                  &
                             !                     output%variables(v)%data(:,i,j),       1, noutput,  &
                             !                     training_obs%variables(v)%data(:,i,j), 1, nobs)
@@ -137,10 +157,10 @@ contains
                         enddo
                         if (options%debug) then
                             !$omp critical
-                            print*, ""
-                            print*, "-----------------------------"
-                            print*, "   Masked point: ",i,j
-                            print*, "-----------------------------"
+                            write(*,*) ""
+                            write(*,*) "-----------------------------"
+                            write(*,*) "   Masked point: ",i,j
+                            write(*,*) "-----------------------------"
                             !$omp end critical
                         endif
                     endif
@@ -234,43 +254,86 @@ contains
         real,    dimension(:),   intent(in)  :: obs, errors
         type(config),            intent(in)  :: options
         
-        real,    dimension(:), allocatable :: output
-        real,    dimension(:), allocatable :: obs_analogs
+        real,    dimension(:),   allocatable :: output
+        real,    dimension(:),   allocatable :: obs_analogs
         real,    dimension(:,:), allocatable :: regression_data
-        integer, dimension(:), allocatable :: analogs
+        integer, dimension(:),   allocatable :: analogs
+        real(8), dimension(:),   allocatable :: coefficients
         
-        integer :: i,n, nvars
+        integer :: i, j, n, nvars
         integer :: a, n_analogs, selected_analog
         real    :: rand
         
         n_analogs = options%n_analogs
         nvars = size(atm,2)
-        n = size(predictor)
+        n = size(predictor,1)
+        
+        allocate(coefficients(nvars))
         allocate(output(n))
         allocate(analogs(n_analogs))
+        
         if (options%analog_regression) then
-            allocate(regression_data(n_analogs, nvars+1))
+            allocate(regression_data(n_analogs, nvars))
             allocate(obs_analogs(n_analogs))
         endif
         
+        if (options%pure_regression) then
+            output(1) = compute_regression(predictor(1,:), atm, obs, coefficients)
+        endif
+        
         do i = 1, n
-            analogs = find_analogs(predictor(i,:), atm, n_analogs)
+            if (.not.options%pure_regression) then
+                analogs = find_analogs(predictor(i,:), atm, n_analogs)
+            endif
             
             if (options%pure_analog) then
+                
                 call random_number(rand)
                 selected_analog = floor(rand * n_analogs)+1
 
                 output(i) = obs( analogs(selected_analog) )
+                
             elseif (options%analog_regression) then
                 do a=1,n_analogs
                     obs_analogs(a) = obs(analogs(a))
                     regression_data(a,:) = atm(analogs(a),:)
                 enddo
-                output(i) = compute_regression(predictor(i,:), regression_data, obs_analogs)
+                output(i) = compute_regression(predictor(i,:), regression_data, obs_analogs, coefficients)
+                
+            elseif (options%pure_regression) then
+                output(i) = 0
+                do j=1,nvars
+                    output(i) = output(i) + predictor(i,j) * coefficients(j)
+                enddo
             endif
+            
         end do
         
     end function downscale_point
+    
+    ! normalize an atmospheric variable by subtracting the mean and dividing by the standard deviation
+    ! Assumes mean and stddev have already been calculated as part of the data structure
+    ! If stddev is 0, then no division occurs (mean is still removed)
+    subroutine normalize(var, j)
+        implicit none
+        class(atm_variable_type), intent(inout) :: var
+        integer, intent(in) :: j
+        integer :: i, n
+        
+        n = size(var%mean,1)
+        
+        do i=1,n
+            var%data(:,i,j) = var%data(:,i,j) - var%mean(i,j)
+            
+            if (var%stddev(i,j) /= 0) then
+                var%data(:,i,j) = var%data(:,i,j) / var%stddev(i,j)
+            else
+                write(*,*) "ERROR Normalizing:", trim(var%name)
+                write(*,*) "  For point: ", i, j
+            endif
+        enddo
+        
+    end subroutine normalize
     
     function find_analogs(match, input, n) result(analogs)
         implicit none
@@ -290,13 +353,14 @@ contains
             
             n_inputs = size(input,1)
             nvars    = size(input,2)
+
             allocate(mask(n_inputs))
             allocate(distances(n_inputs))
             distances = 0
             mask = .True.
             
             do i=1,nvars
-                distances = distances + abs(input(:,i) - match(i))
+                distances = distances + (input(:,i) - match(i))**2
             enddo
             
             do i = 1, n
@@ -343,27 +407,16 @@ contains
         type(obs),    intent(inout) :: training_obs
         type(config), intent(in) :: options
         
-        print*, "-------------------"
-        print*, "Training ATM"
+        write(*,*) "-------------------"
+        write(*,*) "Training ATM"
         call setup_time_indices(training_atm, options)
-        print*, "-------------------"
-        print*, "Training Obs"
+        write(*,*) "-------------------"
+        write(*,*) "Training Obs"
         call setup_time_indices(training_obs, options)
-        print*, "-------------------"
-        print*, "Predictors"
+        write(*,*) "-------------------"
+        write(*,*) "Predictors"
         call setup_time_indices(predictors, options)
 
     end subroutine setup_timing
 
 end module downscaling_mod
-
-! results type information for reference:
-! type(obs_variable_type), allocatable, dimension(:) :: variables
-    ! character(len=MAXVARLENGTH)         :: name      ! name of the variable
-    ! real, allocatable, dimension(:,:,:) :: data      ! raw data
-    ! integer                             :: data_type ! Type of data.  e.g. precip, temperature, or other. 
-    ! real, allocatable, dimension(:,:) :: mean, stddev ! per gridpoint mean and standard deviation (for normalization?)
-    ! integer :: transformation                         ! type of transformation applied to data (e.g. sqrt, log, ???)
-! type(Time_type), allocatable, dimension(:) :: times
-! integer :: n_variables, n_times
-! character (len=MAXSTRINGLENGTH) :: name

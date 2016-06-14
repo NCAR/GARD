@@ -48,6 +48,7 @@ endif
 ifeq ($(NODENAME), Nomad.local)
 	FC=gfortran
 	NCDF_PATH=/usr/local
+	LAPACK_PATH=/usr/local/opt/lapack
 endif
 
 ifeq ($(NODENAME), hydro-c1)
@@ -55,10 +56,13 @@ ifeq ($(NODENAME), hydro-c1)
 	# FC=gfortran
 	ifeq ($(FC), ifort)
 		NCDF_PATH = /opt/netcdf4-intel
+		LAPACK_PATH = /usr
 	endif
-	ifeq ($(FC), gfortran)
-		NCDF_PATH = /opt/netcdf4-gcc
-	endif
+	# Not sure this is valid for LAPACK. 
+	# ifeq ($(FC), gfortran)
+	# 	NCDF_PATH = /opt/netcdf4-gcc
+	# 	LAPACK_PATH = /usr
+	# endif
 endif
 
 # on yellowstone:
@@ -243,7 +247,7 @@ endif
 # flags forall
 FCFLAGS = $(COMP) -I$(NCDF_PATH)/include -I$(BUILD) $(INC_NCAR)
 # libraries needed for linking
-LDFLAGS = $(LINK) -L$(NCDF_PATH)/lib -lnetcdf -lnetcdff $(LIB_NCAR)
+LDFLAGS = $(LINK) -L$(NCDF_PATH)/lib -lnetcdf -lnetcdff $(LIB_NCAR) -L$(LAPACK_PATH)/lib -llapack -lblas
 
 OBJS =  \
 	$(BUILD)time.o            	\
