@@ -1,7 +1,7 @@
 module downscaling_mod
 
     use data_structures
-    use regression_mod,     only : compute_regression
+    use regression_mod,     only : compute_regression, compute_logistic_regression
     use model_constants
     use quantile_mapping,   only : develop_qm, apply_qm
     use time_util,          only : setup_time_indices
@@ -58,18 +58,27 @@ contains
             ! ny = 180
 
             allocate(output%variables(n_obs_variables))
-            do i = 1,n_obs_variables
-                allocate(output%variables(i)%data        (noutput, nx, ny))
-                allocate(output%variables(i)%errors      (noutput, nx, ny))
-                allocate(output%variables(i)%coefficients(n_atm_variables+1, noutput, nx, ny))
-                allocate(output%variables(i)%obs         (tr_size, nx, ny))
-                allocate(output%variables(i)%training    (tr_size, nx, ny, n_atm_variables+1))
-                allocate(output%variables(i)%predictors  (noutput, nx, ny, n_atm_variables+1))
+            do v = 1,n_obs_variables
+                allocate(output%variables(v)%data        (noutput, nx, ny))
+                allocate(output%variables(v)%errors      (noutput, nx, ny))
+                if (options%logistic_threshold/=kFILL_VALUE) then
+                    allocate(output%variables(v)%logistic    (noutput, nx, ny))
+                    allocate(output%variables(v)%coefficients((n_atm_variables+1)*2, noutput, nx, ny))
+                else
+                    ! unfortunately logistic has to be allocated even if it is not used because it is indexed 
+                    ! however, it does not need a complete time sequence because time is never indexed
+                    allocate(output%variables(v)%logistic    (2, nx, ny))
+                    allocate(output%variables(v)%coefficients(n_atm_variables+1, noutput, nx, ny))
+                endif
+                allocate(output%variables(v)%obs         (tr_size, nx, ny))
+                allocate(output%variables(v)%training    (tr_size, nx, ny, n_atm_variables+1))
+                allocate(output%variables(v)%predictors  (noutput, nx, ny, n_atm_variables+1))
+                output%variables(v)%logistic_threshold = options%logistic_threshold
                 
-                output%variables(i)%data        = 0
-                output%variables(i)%predictors  = 0
-                output%variables(i)%training    = 0
-                output%variables(i)%obs         = 0
+                output%variables(v)%data        = 0
+                output%variables(v)%predictors  = 0
+                output%variables(v)%training    = 0
+                output%variables(v)%obs         = 0
             end do
             
             !$omp parallel default(shared)                  &
@@ -139,22 +148,27 @@ contains
                                 !$omp end critical
                             endif
                             
-                            ! removed associate statment because it was causing problems with parallelization with ifort...
-                            output%variables(v)%data(:,i,j) = downscale_point(                                          &
-                                                            pred_data    (   p_start : p_end,     :),        &
-                                                            train_data   (t_tr_start : t_tr_stop, :),        & 
-                                                            training_obs%variables(v)%data(o_tr_start : o_tr_stop, i, j),  &
-                                                            output%variables(v)%errors(:,i,j),               &
-                                                            output%variables(v)%coefficients(:,:,i,j), options )
+                            ! As tempting as it may be, associate statements are not threadsafe!!!
+                            output%variables(v)%data(:,i,j) = downscale_point(                                         &
+                                                    pred_data                       (   p_start : p_end,     :),       &
+                                                    train_data                      (t_tr_start : t_tr_stop, :),       &
+                                                    training_obs%variables(v)%data  (o_tr_start : o_tr_stop, i, j),    &
+                                                    output%variables(v)%errors      (           :,           i, j),    &
+                                                    output%variables(v)%coefficients(           :,  :,       i, j),    &
+                                                    output%variables(v)%logistic    (           :,           i, j),    &
+                                                    output%variables(v)%logistic_threshold,                            &
+                                                    options )
                                                           
-                            output%variables(v)%obs       (:,i,j)   = training_obs%variables(v)%data(o_tr_start:o_tr_stop, i, j)
+                            output%variables(v)%obs(:,i,j) = training_obs%variables(v)%data(o_tr_start:o_tr_stop, i, j)
                             
                             ! should be possible to run this here, but seems to run into a shared memory problem
+                            ! may have been related to the previous associate statement...
                             ! call transform_data(kQUANTILE_MAPPING,                                  &
                             !                     output%variables(v)%data(:,i,j),       1, noutput,  &
                             !                     training_obs%variables(v)%data(:,i,j), 1, nobs)
+                            
                         enddo
-                    else
+                    else ! this is a masked point in the observations
                         do v=1,n_obs_variables
                             output%variables(v)%data(:,i,j) = kFILL_VALUE
                         enddo
@@ -251,12 +265,14 @@ contains
         
     end subroutine transform_data
     
-    function downscale_point(predictor, atm, obs, errors, output_coeff, options) result(output)
+    function downscale_point(predictor, atm, obs, errors, output_coeff, logistic, logistic_threshold, options) result(output)
         implicit none
         real,    dimension(:,:), intent(in)   :: predictor, atm ! (ntimes, nvars)
         real,    dimension(:),   intent(in)   :: obs
         real,    dimension(:),   intent(inout):: errors
         real,    dimension(:,:), intent(inout):: output_coeff
+        real,    dimension(:),   intent(inout):: logistic
+        real,                    intent(in)   :: logistic_threshold
         type(config),            intent(in)   :: options
         
         real,    dimension(:),   allocatable :: output
@@ -288,35 +304,65 @@ contains
             do i=1,nvars
                 output_coeff(i,:) = coefficients(i)
             enddo
+            
+            if (logistic_threshold/=kFILL_VALUE) then
+                logistic(1) = compute_logistic_regression(predictor(1,:), atm, obs, coefficients, logistic_threshold)
+                
+                do i = nvars+1,nvars*2
+                    output_coeff(i,:) = coefficients(i)
+                enddo
+            endif
         endif
         
         do i = 1, n
-            if (.not.options%pure_regression) then
-                analogs = find_analogs(predictor(i,:), atm, n_analogs)
-            endif
-            
+
             if (options%pure_analog) then
                 
+                analogs = find_analogs(predictor(i,:), atm, n_analogs)
                 call random_number(rand)
                 selected_analog = floor(rand * n_analogs)+1
                 
-                errors(i) = compute_analog_error(obs, analogs, obs(analogs(selected_analog)))
-                output_coeff(:,i) = atm(analogs(selected_analog), :)
                 output(i) = obs( analogs(selected_analog) )
                 
+                errors(i) = compute_analog_error(obs, analogs, obs(analogs(selected_analog)))
+                
+                output_coeff(1:nvars,i) = atm(analogs(selected_analog), :)
+
+                if (logistic_threshold/=kFILL_VALUE) then
+                    logistic(i) = compute_analog_exceedance(obs, analogs, logistic_threshold)
+                endif
+                
             elseif (options%analog_regression) then
+                analogs = find_analogs(predictor(i,:), atm, n_analogs)
                 do a=1,n_analogs
                     obs_analogs(a) = obs(analogs(a))
                     regression_data(a,:) = atm(analogs(a),:)
                 enddo
+                
                 output(i) = compute_regression(predictor(i,:), regression_data, obs_analogs, coefficients, errors(i))
-                output_coeff(:,i) = coefficients
+                output_coeff(1:nvars,i) = coefficients
+                
+                if (logistic_threshold/=kFILL_VALUE) then
+                    logistic(i) = compute_logistic_regression(predictor(i,:), regression_data, obs_analogs, coefficients, logistic_threshold)
+                    
+                    do j = 1,nvars
+                        output_coeff(j+nvars,i) = coefficients(j)
+                    enddo
+                endif
+
                                 
             elseif (options%pure_regression) then
+                !  test matmul(predictor, output_coeff(:,1)) should provide all time values efficiently?
+                ! output(i) = dot_product(predictor(i,:), output_coeff(:,1))
                 output(i) = 0
                 do j=1,nvars
-                    output(i) = output(i) + predictor(i,j) * coefficients(j)
+                    output(i) = output(i) + predictor(i,j) * output_coeff(j,1)
                 enddo
+
+                if (logistic_threshold/=kFILL_VALUE) then
+                    logistic(i) = 1.0 / (1.0 + exp(-dot_product(predictor(i,:), output_coeff(nvars+1:nvars*2,1))))
+                endif
+                
             endif
             
         end do
@@ -344,6 +390,26 @@ contains
         error = sqrt(mean / n)
         
     end function compute_analog_error
+    
+    function compute_analog_exceedance(input, analogs, threshold) result(probability)
+        implicit none
+        real,    intent(in), dimension(:) :: input
+        integer, intent(in), dimension(:) :: analogs
+        real,    intent(in)               :: threshold
+        real                              :: probability
+        integer :: i, n
+        
+        n = size(analogs)
+        probability = 0
+        do i = 1, n
+            if (input(analogs(i)) > threshold) then
+                probability = probability + 1
+            endif
+        end do
+        
+        probability = probability / n
+        
+    end function compute_analog_exceedance
     
     ! normalize an atmospheric variable by subtracting the mean and dividing by the standard deviation
     ! Assumes mean and stddev have already been calculated as part of the data structure

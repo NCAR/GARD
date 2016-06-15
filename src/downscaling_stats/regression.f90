@@ -315,6 +315,33 @@ contains
         end do
 
     end subroutine nr_logistic_regression
+    
+    function compute_logistic_regression(x, training_x, training_y, coefficients, threshold) result(output)
+        implicit none
+        real,    intent(in) :: x(:)
+        real,    intent(in) :: training_x(:,:)
+        real,    intent(in) :: training_y(:)
+        real(8), intent(out):: coefficients(:)
+        real,    intent(in) :: threshold
+        real :: output
+        
+        real, dimension(:), allocatable :: binary_values
+        integer :: n
+        
+        n = size(training_y)
+        allocate(binary_values(n))
+        binary_values = 0
+        where(training_y > threshold) binary_values = 1
+        
+        call logistic_regression(training_x, binary_values, coefficients)
+        
+        output = dot_product(x, coefficients)
+        ! at this point exp(-output) is foolishly large, much higher will cause an overflow
+        output = max(-80.0, output)
+        
+        output = 1.0 / (1.0 + exp(-output))
+        
+    end function compute_logistic_regression
 
     subroutine logistic_regression(X, Y, B)
         implicit none
@@ -328,6 +355,16 @@ contains
         
         integer :: nvars, ntimes, i, t, f, it
         real :: d
+        
+        if (all(Y > 0)) then
+            B(1) = 88
+            B(2:)= 0
+            return
+        elseif (all(Y==0)) then
+            B(1) = -88
+            B(2:)= 0
+            return
+        endif
 
         nvars = size(X,2) -1
         ntimes = size(Y)
@@ -353,7 +390,7 @@ contains
         it = 0
         do while (f /= 1)
             P = 1.0 / (1.0 + exp(-matmul(X, B))) 
-            if (ANY(P > 0.97)) then
+            if (ANY(P > 0.9999999)) then
                 !print *, "WARNING: logistic regression diverging"
                 f = 1
             else

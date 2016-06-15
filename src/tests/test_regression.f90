@@ -132,6 +132,21 @@ program test_regression
     else
         print*, " FAILED!!!!!!!!"
     endif
+    
+    print*, "--------------------------"
+    print*, "Testing compute_logistic_regression"
+    print*, "--------------------------"
+
+    TX(1,1) = compute_logistic_regression([1.0,4.0],X,Y,B,0.0)
+    if (abs(TX(1,1) - TX(1,4)) < MAX_ERROR)then
+        print*, " PASSED"
+    else
+        print*, " FAILED!!!!!!!!"
+        print*, TX(1,1), "!=", TX(1,4)
+        print*, B
+    endif
+        
+
 
 contains
     function read_verbosity() result(verbosity)

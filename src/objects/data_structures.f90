@@ -108,6 +108,8 @@ module data_structures
         real, allocatable, dimension(:,:,:)     :: obs
         real, allocatable, dimension(:,:,:,:)   :: predictors
         real, allocatable, dimension(:,:,:,:)   :: training
+        real, allocatable, dimension(:,:,:)     :: logistic
+        real :: logistic_threshold
     end type output_variable_type
     
     type, extends(interpolable_type) :: base_data_type
@@ -200,6 +202,9 @@ module data_structures
         logical :: analog_regression
         logical :: pure_regression
         
+        ! if not equal to kFILL_VALUE then it will be used to generate a probability of exceedance
+        real    :: logistic_threshold
+        
         ! options for each sub-component
         type(training_config)      :: training
         type(obs_config)           :: obs
@@ -210,7 +215,7 @@ module data_structures
         type(Time_type) :: first_time,     last_time        ! define the period over which the model should be applied
         type(Time_type) :: transform_start, transform_stop  ! define the period over which any transformations should be developed
                                                             ! e.g. to Quantile map GCM data into training atm data space
-
+                                                            
         integer :: first_point, last_point ! start and end positions to run the model for(?)
         integer :: n_analogs
         

@@ -34,6 +34,11 @@ contains
             filename = "errors_"//trim(options%output_file)
             call io_write(filename, "data", output%variables(i)%errors)
 
+            if (options%logistic_threshold/=kFILL_VALUE) then
+                filename = "logistic_"//trim(options%output_file)
+                call io_write(filename, "data", output%variables(i)%logistic)
+            endif
+
 
         enddo
         

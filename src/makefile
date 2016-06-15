@@ -106,7 +106,7 @@ ifeq ($(FC), gfortran)
 endif
 # Intel fortran
 ifeq ($(FC), ifort)
-	COMP= -u -qopenmp -O3 -no-prec-div -xHost -ftz -fpe0
+	COMP= -u -qopenmp -O3 -no-prec-div -xHost -ftz
 	LINK= -liomp5
 	PREPROC=-fpp
 	MODOUTPUT=-module $(BUILD)

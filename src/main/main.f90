@@ -64,8 +64,9 @@ program stat_down
     call geo_LUT(training_obs, predictions)
     
     if (options%debug) then
+        print*, "=========================================="
         print*, ""
-        print*, "Witing "
+        print*, "Writing input data"
         do i=1,size(training_obs%variables)
             call io_write("obs_"//trim(training_obs%variables(i)%name)//".nc","data", &
                             training_obs%variables(i)%data)
