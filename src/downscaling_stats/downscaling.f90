@@ -308,8 +308,8 @@ contains
             if (logistic_threshold/=kFILL_VALUE) then
                 logistic(1) = compute_logistic_regression(predictor(1,:), atm, obs, coefficients, logistic_threshold)
                 
-                do i = nvars+1,nvars*2
-                    output_coeff(i,:) = coefficients(i)
+                do i = 1,nvars
+                    output_coeff(i+nvars,:) = coefficients(i)
                 enddo
             endif
         endif
