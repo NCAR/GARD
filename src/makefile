@@ -298,6 +298,12 @@ QM_TEST_OBJS = 					\
 	$(BUILD)quantile_mapping.o	\
 	$(BUILD)sorting.o			\
 	$(BUILD)test_qm.o
+
+REGRESSION_TEST_OBJS = 			\
+	$(BUILD)regression.o		\
+	$(BUILD)nr.o				\
+	$(BUILD)test_regression.o
+
 	
 
 # These are the primary user facing rules
@@ -309,7 +315,7 @@ model: downscale
 	
 all: downscale test
 
-test: test_calendar test_sort test_qm test_config
+test: test_calendar test_sort test_qm test_config test_regression
 
 install: downscale
 	cp downscale $(INSTALL_DIR)/
@@ -325,6 +331,10 @@ allclean:clean
 downscale: $(OBJS)
 	$(FC) -o $@ $^ $(LDFLAGS)
 
+# various unit tests	
+test_regression : $(REGRESSION_TEST_OBJS)
+	$(FC) -o $@ $^ $(LDFLAGS)
+
 test_calendar : $(CAL_TEST_OBJS)
 	$(FC) -o $@ $^ $(LDFLAGS)
 
@@ -337,9 +347,13 @@ test_sort : $(SORT_TEST_OBJS)
 test_config : $(CONFIG_TEST_OBJS)
 	$(FC) -o $@ $^ $(LDFLAGS)
 
+
 # specify specific builds and dependencies. 
 
 # unit tests
+$(BUILD)test_regression.o: tests/test_regression.f90 $(BUILD)nr.o $(BUILD)regression.o
+	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
+
 $(BUILD)test_calendar.o: tests/test_calendar.f90 $(BUILD)time.o $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
