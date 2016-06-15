@@ -178,7 +178,7 @@ module data_structures
     end type obs_config
     
     type, extends(atm_config) :: training_config
-        integer, dimension(:), allocatable :: time_indicies
+        integer, dimension(:), allocatable :: time_indices
     end type training_config
     
     ! ------------------------------------------------

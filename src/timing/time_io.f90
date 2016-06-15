@@ -43,6 +43,31 @@ contains
         
     end function year_from_units
     
+    function get_selected_time(options) result(selected_time)
+        implicit none
+        class(input_config), intent(in) :: options
+        integer :: selected_time
+        
+        select type(options)
+        type is (training_config)
+            if (options%selected_time/=-1) then
+                selected_time = options%selected_time
+            elseif (options%time_indices(1)/=-1) then
+                selected_time = options%time_indices( ceiling(size(options%time_indices) / 2.0) )
+            else
+                selected_time = -1
+            endif
+            
+        class default
+            if (options%selected_time/=-1) then
+                selected_time = options%selected_time
+            else
+                selected_time = -1
+            endif
+        end select
+        
+    end function get_selected_time
+    
     subroutine read_times(options, times)
         implicit none
         class(input_config), intent(in) :: options
@@ -52,9 +77,12 @@ contains
         integer :: ntimes, file_idx, cur_time, time_idx, error, start_year
         character(len=MAXSTRINGLENGTH) :: calendar, units
         real :: calendar_gain
+        integer :: selected_time
         
         ntimes = size(times,1)
         cur_time = 1
+        
+        selected_time = get_selected_time(options)
         
         do file_idx = 1, size(options%file_names,1)
             
@@ -83,7 +111,7 @@ contains
             ! in case it is in units of e.g. "hours since" or "seconds since"
             temp_times = temp_times * calendar_gain
             
-            if (options%selected_time == -1) then
+            if (selected_time == -1) then
                 do time_idx = 1, size(temp_times,1)
                     
                     call times(cur_time)%init(calendar, start_year)
@@ -93,7 +121,7 @@ contains
                 end do
             else
                 call times(cur_time)%init(calendar, start_year)
-                call times(cur_time)%set(temp_times(options%selected_time))
+                call times(cur_time)%set(temp_times(selected_time))
                 
                 cur_time = cur_time + 1
             endif

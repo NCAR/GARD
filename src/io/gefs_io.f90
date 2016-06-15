@@ -45,7 +45,7 @@ contains
     !!------------------------------------------------
     function read_GEFS(options) result(GEFS_data)
         implicit none
-        class(input_config), intent(in) :: options
+        class(training_config), intent(in) :: options
         type(atm) :: GEFS_data
         
         integer :: var_idx, ntimesteps
@@ -59,9 +59,10 @@ contains
         do var_idx = 1, options%n_variables
             associate(var => GEFS_data%variables(var_idx))
                 
-                var = read_GEFS_variable( options%var_names(var_idx),        &
+                var = read_GEFS_variable(options%var_names(var_idx),        &
                                          options%file_names(:, var_idx),     &
                                          options%selected_time,              &
+                                         options%time_indices,              &
                                          options%preloaded)
                 
                 if (var_idx==1) then
@@ -110,16 +111,18 @@ contains
         
     end subroutine compute_grid_stats
     
-    function read_GEFS_variable(varname, filenames, timestep, preload) result(output)
+    function read_GEFS_variable(varname, filenames, timestep, time_indices, preload) result(output)
         implicit none
         character(len=MAXVARLENGTH),    intent(in)              :: varname
         character(len=MAXFILELENGTH),   intent(in), dimension(:):: filenames
-        integer,                        intent(in)              :: timestep 
+        integer,                        intent(in)              :: timestep
+        integer,                        intent(in), dimension(:):: time_indices
         character(len=MAXFILELENGTH),   intent(in), optional    :: preload
         
         type(atm_variable_type) :: output
         
         integer, dimension(io_maxDims) :: dims
+        logical :: using_all_times
         
         output%name = varname
         
@@ -131,20 +134,23 @@ contains
             endif
         endif
         
-        dims = get_dims(varname, filenames, timestep)
+        ! if not subsets in by timestep or time_indices to average were specified then we are using all times in the file
+        using_all_times = ((timestep == -1).and.(time_indices(1) == -1))
+        dims = get_dims(varname, filenames, using_all_times)
+        
         ! note, we reverse the order of the dimensions here to speed up later computations which will occur per grid cell over time
         allocate(output%data(dims(1), dims(2), dims(3)))
-        
-        call load_data(varname, filenames, output%data, timestep)
+
+        call load_data(varname, filenames, output%data, timestep, time_indices)
         
     end function read_GEFS_variable
     
     !! requires all filenames to have the same number of time steps... no good for monthly files...
-    function get_dims(varname, filenames, timestep) result(dims)
+    function get_dims(varname, filenames, using_all_times) result(dims)
         implicit none
         character(len=MAXVARLENGTH),    intent(in)               :: varname
         character(len=MAXFILELENGTH),   intent(in), dimension(:) :: filenames
-        integer,                        intent(in)               :: timestep 
+        logical,                        intent(in)               :: using_all_times
         
         integer :: file_idx, ntimesteps, nx, ny
         integer, dimension(io_maxDims) :: dims
@@ -162,7 +168,7 @@ contains
                 ntimesteps = ntimesteps + 1
             else
                 ! the last dimension is assumed to be time (+1 because dims(1)=ndims takes a slot)
-                if (timestep==-1) then
+                if (using_all_times) then
                     ntimesteps = ntimesteps + dims( dims(1)+1 )
                 else
                     ntimesteps = ntimesteps + 1
@@ -203,12 +209,13 @@ contains
     !!      and the 3rd dim subset to the first element for now
     !!
     !!------------------------------------------------------------
-    subroutine load_data(varname, filenames, output, timestep)
+    subroutine load_data(varname, filenames, output, timestep, time_indices)
         implicit none
         character(len=MAXVARLENGTH),  intent(in)                    :: varname
         character(len=MAXFILELENGTH), intent(in),   dimension(:)    :: filenames
         real,                         intent(inout),dimension(:,:,:):: output
-        integer,                        intent(in)              :: timestep 
+        integer,                        intent(in)                  :: timestep 
+        integer,                        intent(in), dimension(:)    :: time_indices
         
         ! array index counters
         integer :: file_idx, curstep, i
@@ -234,10 +241,19 @@ contains
                 call io_read(filenames(file_idx), varname, data_4d)
                 ! assign all timesteps to output data array
                 if (timestep==-1) then
-                    do i=1,dims(5)
-                        output(curstep,:,:) = data_4d(:,:,1,i)
+                    if (time_indices(1)==-1) then
+                        do i=1,dims(5)
+                            output(curstep,:,:) = data_4d(:,:,1,i)
+                            curstep = curstep + 1
+                        end do
+                    else
+                        output(curstep,:,:) = data_4d(:,:,1,time_indices(1))
+                        do i=2,size(time_indices)
+                            output(curstep,:,:) = output(curstep,:,:) + data_4d(:,:,1,time_indices(i))
+                        enddo
+                        output(curstep,:,:) = output(curstep,:,:) / size(time_indices)
                         curstep = curstep + 1
-                    end do
+                    endif
                 else
                     output(curstep,:,:) = data_4d(:,:,1,timestep)
                     curstep = curstep + 1
@@ -251,10 +267,19 @@ contains
                 call io_read(filenames(file_idx), varname, data_3d)
                 ! assign all timesteps to output data array
                 if (timestep==-1) then
-                    do i=1,dims(4)
-                        output(curstep,:,:) = data_3d(:,:,i)
+                    if (time_indices(1)==-1) then
+                        do i=1,dims(4)
+                            output(curstep,:,:) = data_3d(:,:,i)
+                            curstep = curstep + 1
+                        end do
+                    else
+                        output(curstep,:,:) = data_3d(:,:,time_indices(1))
+                        do i=2,size(time_indices)
+                            output(curstep,:,:) = output(curstep,:,:) + data_3d(:,:,time_indices(i))
+                        enddo
+                        output(curstep,:,:) = output(curstep,:,:) / size(time_indices)
                         curstep = curstep + 1
-                    end do
+                    endif
                 else
                     output(curstep,:,:) = data_3d(:,:,timestep)
                     curstep = curstep + 1

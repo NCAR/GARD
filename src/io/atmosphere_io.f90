@@ -25,7 +25,12 @@ contains
             ! case (kREANALYSIS_TYPE)
             !     atm_data = read_reanalysis(options)
             case (kGEFS_TYPE)
-                atm_data = read_gefs(options)
+                select type(options)
+                type is (training_config)
+                    atm_data = read_gefs(options)
+                class default
+                    write(*,*) "Input config: ", trim(options%name), "is not a training input config type"
+                end select
         end select
         
     end function read_atm
