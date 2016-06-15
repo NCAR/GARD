@@ -33,6 +33,12 @@ program stat_down
     
     call model_init(options)
     
+    ! read in the atmospheric predictor data (e.g. GCM or GEFS)
+    print*, ""
+    print*, "=========================================="
+    print*, "Reading predictor"
+    predictions  = read_atm(options%prediction)
+    
     ! read in the training atmospheric data (e.g. reanalysis or GEFS)
     print*, ""
     print*, "=========================================="
@@ -43,12 +49,6 @@ program stat_down
     print*, "=========================================="
     print*, "Reading obs"
     training_obs = read_obs(options%obs)
-    
-    ! read in the atmospheric predictor data (e.g. GCM or GEFS)
-    print*, ""
-    print*, "=========================================="
-    print*, "Reading predictor"
-    predictions  = read_atm(options%prediction)
     
     print*, ""
     print*, "=========================================="
@@ -63,9 +63,20 @@ program stat_down
     call geo_LUT(training_obs, training_atm)
     call geo_LUT(training_obs, predictions)
     
-    call io_write("obs.nc","data",training_obs%variables(1)%data)
-    call io_write("training.nc","data",training_atm%variables(1)%data)
-    call io_write("predictor.nc","data",predictions%variables(1)%data)
+    if (options%debug) then
+        print*, ""
+        print*, "Witing "
+        do i=1,size(training_obs%variables)
+            call io_write("obs_"//trim(training_obs%variables(i)%name)//".nc","data", &
+                            training_obs%variables(i)%data)
+        enddo
+        do i=1,size(training_atm%variables)
+            call io_write("training_"//trim(training_atm%variables(i)%name)//".nc","data", &
+                            training_atm%variables(i)%data)
+            call io_write("predictor_"//trim(predictions%variables(i)%name)//".nc","data", &
+                            predictions%variables(i)%data)
+        enddo
+    endif
     
     print*, ""
     print*, "=========================================="
