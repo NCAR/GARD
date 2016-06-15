@@ -19,6 +19,7 @@ module config_mod
     character(len=MAXFILELENGTH), parameter :: kDEFAULT_OPTIONS_FILENAME = "downscale_options.txt"
     character(len=MAXFILELENGTH), parameter :: kVERSION_STRING = "0.1"
     
+    logical :: module_debug
     public :: read_config
     public :: read_files_list, read_data_type, get_options_file ! only need to be public for test_config
 contains
@@ -47,10 +48,10 @@ contains
         character(len=MAXSTRINGLENGTH)  :: name, start_date, end_date, start_train, end_train
         character(len=MAXSTRINGLENGTH)  :: start_transform, end_transform
         character(len=MAXFILELENGTH)    :: training_file, prediction_file, observation_file, output_file
-        logical :: pure_analog, analog_regression, pure_regression
+        logical :: pure_analog, analog_regression, pure_regression, debug
         
         ! setup the namelist
-        namelist /parameters/   name,                                               &
+        namelist /parameters/   name, debug,                                        &
                                 training_file, prediction_file, observation_file,   &
                                 output_file,                                        &
                                 start_date, end_date, start_train, end_train,       &
@@ -75,9 +76,9 @@ contains
         pure_analog      = .False.
         analog_regression= .True.
         pure_regression  = .False.
+        debug            = .True.
         
         options%name = options%options_filename
-        options%debug = .True.
         
         ! read namelists
         open(io_newunit(name_unit), file=trim(options%options_filename))
@@ -111,6 +112,9 @@ contains
         options%analog_regression= analog_regression
         options%pure_regression  = pure_regression
 
+        options%debug = debug
+        module_debug = options%debug
+
     end subroutine read_base_options
 
 
@@ -130,7 +134,7 @@ contains
 
         ! namelist variables to be read
         integer :: nfiles, nvars, calendar_start_year, selected_time, interpolation_method
-        integer, dimension(MAX_NUMBER_TIMES) :: time_indicies
+        integer, dimension(MAX_NUMBER_TIMES) :: time_indices
         character(len=MAXSTRINGLENGTH)       :: name, data_type, calendar
         character(len=MAXVARLENGTH)          :: lat_name, lon_name, time_name
         character(len=MAXFILELENGTH)         :: preloaded
@@ -142,7 +146,7 @@ contains
                                          lat_name, lon_name, time_name,    &
                                          file_list, var_names,             &
                                          calendar, calendar_start_year,    &
-                                         selected_time, time_indicies,     &
+                                         selected_time, time_indices,     &
                                          interpolation_method, preloaded
         !defaults :
         nfiles      = -1
@@ -157,7 +161,7 @@ contains
         calendar    = ""
         calendar_start_year = 1900
         selected_time = -1
-        time_indicies = -1
+        time_indices = -1
         interpolation_method = kNEAREST
         preloaded   = ""
         
@@ -192,7 +196,7 @@ contains
         training_options%calendar_start_year = calendar_start_year
         training_options%time_file      = 1
         training_options%selected_time  = selected_time
-        call copy_array_i(time_indicies, training_options%time_indicies)
+        call copy_array_i(time_indices, training_options%time_indices)
         training_options%data_type      = read_data_type(data_type)
         training_options%interpolation_method = interpolation_method
         training_options%debug          = debug
@@ -219,6 +223,7 @@ contains
         do i = 1, size(input)
             if (input(i) /= invalid_test) n = n+1
         end do
+        n = max(1, n)
         
         if (allocated(output)) then
             if (size(output)/=n) then
@@ -523,6 +528,7 @@ contains
         integer :: i, error
         character(len=MAXFILELENGTH) :: temporary_file
         
+        if (module_debug) print*, "Reading: ",trim(filename)
         open(unit=io_newunit(file_unit), file=filename)
         i=0
         error=0
