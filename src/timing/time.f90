@@ -268,6 +268,11 @@ contains
         
         mjd = this%current_date_time+1d-5 ! add less than one second
         
+        !------------------------------------------------------------
+        !
+        ! Calculate the dates for a Gregorian Calendar
+        !
+        !------------------------------------------------------------
         if (this%calendar==GREGORIAN) then
             if (this%year_zero == NON_VALID_YEAR) then
                 jday = nint(mjd+2400000.5)
@@ -282,6 +287,11 @@ contains
             month = mod(h/s+m,n)+1
             year  = e/p-y+(n+m-month)/n
                         
+        !------------------------------------------------------------
+        !
+        ! Calculate the dates for a No leap Calendar
+        !
+        !------------------------------------------------------------
         else if (this%calendar==NOLEAP) then
             year=floor(mjd/365)
             day_fraction=mjd - year*365+1
@@ -293,6 +303,11 @@ contains
             day = floor(day_fraction - this%month_start(month))+1
             year=year+this%year_zero
             
+        !------------------------------------------------------------
+        !
+        ! Calculate the dates for a 360-day Calendar
+        !
+        !------------------------------------------------------------
         else if (this%calendar==THREESIXTY) then
             year=floor(mjd/360)
             day_fraction=mjd - year*360+1
@@ -305,6 +320,11 @@ contains
             year=year+this%year_zero
         end if
         
+        !------------------------------------------------------------
+        !
+        ! Calculate the hour/minute/second for any calendar
+        !
+        !------------------------------------------------------------
         day_fraction=mod(mjd,1.0)
         hour=floor(day_fraction*24)
         
@@ -315,6 +335,7 @@ contains
         second = nint((day_fraction-(24d0*60*1d-5))*60)
         
     end subroutine calendar_date
+
 
     !>------------------------------------------------------------
     !!  Return the day of the year corresponding to the current date_time
