@@ -114,13 +114,15 @@ contains
             !$omp barrier
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             
-            !!schedule(static, 1)
-            !$omp do 
+            ! parallelization could be over x and y, (do n=1,ny*nx; j=n/nx; i=mod(n,nx)) and use schedule(dynamic)
+            !$omp do schedule(static, 1)
             do j=100,ny
                 do i=1,nx
                     
                     if (training_obs%mask(i,j)) then
                         
+                        ! index 1 is the constant for the regression code... should be moved into regression code...?
+                        output%variables(1)%predictors(:,i,j,1) = pred_data( p_start   : p_end,    1)
                         do v=1,n_atm_variables
                             
                             call read_point( predictors%variables(v)%data,   pred_data(:,v+1),  i,j, predictors%geoLUT,   options%prediction%interpolation_method)
