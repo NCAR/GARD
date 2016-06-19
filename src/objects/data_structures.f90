@@ -144,34 +144,48 @@ module data_structures
     ! types for the options for each sub-component (since these are identical for now, could we just use one...)
     ! ------------------------------------------------
     type input_config
+        character (len=MAXSTRINGLENGTH) :: name
+        
         character (len=MAXFILELENGTH), allocatable, dimension(:,:) :: file_names
         character (len=MAXVARLENGTH),  allocatable, dimension(:)   :: var_names
-        character (len=MAXFILELENGTH) :: preloaded
         integer :: n_variables, nfiles
         
-        type(Time_type),               allocatable, dimension(:,:) :: file_start, file_end
+        ! file prefix to read data from instead of a long list of file_names
+        ! filenames are defined as <preloaded>_<variable_name>.nc will be read
+        ! e.g. predictor_ua.nc
+        character (len=MAXFILELENGTH) :: preloaded
+        
+        ! will try to read these from the input data files units attribute, but can be specified here if not
         character (len=MAXSTRINGLENGTH) :: calendar
-        integer :: calendar_start_year
+        integer :: calendar_start_year          ! year to start the time data calendar (e.g. 1900-01-01)
+        double precision :: time_gain      = 1  ! to convert file "time" data into days (from e.g. seconds) calculated from units
         
         integer :: data_type ! Type of data.  e.g. gcm, reanalysis, forecast
-        integer :: time_file
-        character (len=MAXVARLENGTH) :: lat_name, lon_name, time_name
-        character (len=MAXSTRINGLENGTH) :: name
-        logical :: debug
-        double precision :: time_gain      = 1  ! to convert file "time" data into days (from e.g. seconds)
+        
+        integer :: time_file ! specify the variable number to use when selecting files to read time data from
+        character (len=MAXVARLENGTH)    :: lat_name, lon_name, time_name
+        
         integer :: selected_time   = -1         ! to just use a single time from each file (for e.g. GEFS forecast)
+        
+        logical :: debug
     end type input_config
     
     type, extends(input_config) :: atm_config
         integer, dimension(:), allocatable :: selected_level ! to just use a specific vertical level from each file (e.g. a pressure level)
                                                              ! the array is to provide one level for each variable
         integer :: interpolation_method
+        
+        integer, dimension(:), allocatable :: time_indices   ! specific time indices to average over (e.g. multiple hours in a daily file)
+        ! tranformation to apply to each atmophseric variable
+        integer, dimension(:), allocatable :: transformations
+        integer, dimension(:), allocatable :: input_Xforms
     end type atm_config
     
     type, extends(atm_config) :: prediction_config
-        ! tranformation to apply to each atmophseric variable
-        integer, dimension(MAX_NUMBER_VARS) :: transformations
     end type prediction_config
+    
+    type, extends(atm_config) :: training_config
+    end type training_config
     
     type, extends(input_config) :: obs_config
         real :: logistic_threshold
@@ -179,9 +193,6 @@ module data_structures
         integer :: mask_variable
     end type obs_config
     
-    type, extends(atm_config) :: training_config
-        integer, dimension(:), allocatable :: time_indices
-    end type training_config
     
     ! ------------------------------------------------
     ! store all model options

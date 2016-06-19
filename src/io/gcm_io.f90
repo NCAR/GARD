@@ -45,7 +45,7 @@ contains
     !!------------------------------------------------
     function read_gcm(options) result(gcm_data)
         implicit none
-        class(input_config), intent(in) :: options
+        class(atm_config), intent(in) :: options
         type(atm) :: gcm_data
         
         integer :: var_idx, ntimesteps
@@ -60,7 +60,8 @@ contains
             associate(var => gcm_data%variables(var_idx))
                 
                 var = read_gcm_variable( options%var_names(var_idx),        &
-                                         options%file_names(:, var_idx))
+                                         options%file_names(:, var_idx),    &
+                                         options%selected_level(var_idx))
                 
                 if (var_idx==1) then
                     ntimesteps = size(var%data, 1)
@@ -107,10 +108,11 @@ contains
         
     end subroutine compute_grid_stats
     
-    function read_gcm_variable(varname, filenames) result(output)
+    function read_gcm_variable(varname, filenames, level) result(output)
         implicit none
         character(len=MAXVARLENGTH),    intent(in)              :: varname
         character(len=MAXFILELENGTH),   intent(in), dimension(:):: filenames
+        integer,                        intent(in)              :: level
         
         type(atm_variable_type) :: output
         
@@ -123,7 +125,7 @@ contains
         ! note, we reverse the order of the dimensions here to speed up later computations which will occur per grid cell over time
         allocate(output%data(dims(1), dims(2), dims(3)))
         
-        call load_data(varname, filenames, output%data)
+        call load_data(varname, filenames, output%data, level)
         
     end function read_gcm_variable
     
@@ -186,11 +188,12 @@ contains
     !!      and the 3rd dim subset to the first element for now
     !!
     !!------------------------------------------------------------
-    subroutine load_data(varname, filenames, output)
+    subroutine load_data(varname, filenames, output, level)
         implicit none
         character(len=MAXVARLENGTH),  intent(in)                    :: varname
         character(len=MAXFILELENGTH), intent(in),   dimension(:)    :: filenames
         real,                         intent(inout),dimension(:,:,:):: output
+        integer,                      intent(in)                    :: level
         
         ! array index counters
         integer :: file_idx, curstep, i
@@ -216,7 +219,7 @@ contains
                 call io_read(filenames(file_idx), varname, data_4d)
                 ! assign all timesteps to output data array
                 do i=1,dims(5)
-                    output(curstep,:,:) = data_4d(:,:,1,i)
+                    output(curstep,:,:) = data_4d(:,:,level,i)
                     curstep = curstep + 1
                 end do
                 ! deallocate input array because it is allocated in the read routine... bad form? 

@@ -263,7 +263,6 @@ OBJS =  \
 	$(BUILD)gcm_io.o          	\
 	$(BUILD)gefs_io.o          	\
 	$(BUILD)obs_io.o    		\
-	$(BUILD)reanalysis.o    	\
 	$(BUILD)geo_reader.o      	\
     $(BUILD)basic_stats.o     	\
 	$(BUILD)sorting.o			\
@@ -273,6 +272,7 @@ OBJS =  \
 	$(BUILD)nr.o				\
 	$(BUILD)output.o    		\
 	$(BUILD)main.o
+	# $(BUILD)reanalysis.o    	\
 	
 
 CONFIG_TEST_OBJS =    			\
@@ -434,9 +434,9 @@ $(BUILD)regression.o: downscaling_stats/regression.f90 $(BUILD)nr.o
 $(BUILD)nr.o: downscaling_stats/numrec.f90
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
-$(BUILD)reanalysis.o: objects/reanalysis.f90 $(BUILD)data_structures.o $(BUILD)geo_reader.o \
-					$(BUILD)model_constants.o
-	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
+# $(BUILD)reanalysis.o: objects/reanalysis.f90 $(BUILD)data_structures.o $(BUILD)geo_reader.o \
+# 					$(BUILD)model_constants.o
+# 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)atmosphere_io.o: io/atmosphere_io.f90 $(BUILD)data_structures.o $(BUILD)geo_reader.o \
 					$(BUILD)gcm_io.o $(BUILD)gefs_io.o $(BUILD)model_constants.o

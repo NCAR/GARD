@@ -389,7 +389,9 @@ contains
         i = 0
         it = 0
         do while (f /= 1)
-            P = 1.0 / (1.0 + exp(-matmul(X, B))) 
+            
+            P = max(-80.0, matmul(X, B))
+            P = 1.0 / (1.0 + exp(-P))
             if (ANY(P > 0.9999999)) then
                 !print *, "WARNING: logistic regression diverging"
                 f = 1

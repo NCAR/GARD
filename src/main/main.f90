@@ -39,6 +39,10 @@ program stat_down
     print*, "Reading predictor"
     predictions  = read_atm(options%prediction)
     
+    do i=1,size(predictions%variables)
+        call io_write("predictor_"//trim(predictions%variables(i)%name)//".nc","data", &
+                        predictions%variables(i)%data)
+    enddo
     ! read in the training atmospheric data (e.g. reanalysis or GEFS)
     print*, ""
     print*, "=========================================="
@@ -74,8 +78,8 @@ program stat_down
         do i=1,size(training_atm%variables)
             call io_write("training_"//trim(training_atm%variables(i)%name)//".nc","data", &
                             training_atm%variables(i)%data)
-            call io_write("predictor_"//trim(predictions%variables(i)%name)//".nc","data", &
-                            predictions%variables(i)%data)
+            ! call io_write("predictor_"//trim(predictions%variables(i)%name)//".nc","data", &
+            !                 predictions%variables(i)%data)
         enddo
     endif
     

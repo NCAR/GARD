@@ -140,19 +140,22 @@ contains
         ! namelist variables to be read
         integer :: nfiles, nvars, calendar_start_year, selected_time, interpolation_method
         integer, dimension(MAX_NUMBER_TIMES) :: time_indices
+        integer, dimension(MAX_NUMBER_VARS)  :: selected_level
         character(len=MAXSTRINGLENGTH)       :: name, data_type, calendar
         character(len=MAXVARLENGTH)          :: lat_name, lon_name, time_name
         character(len=MAXFILELENGTH)         :: preloaded
         character(len=MAXFILELENGTH), dimension(MAX_NUMBER_VARS) :: file_list
         character(len=MAXVARLENGTH),  dimension(MAX_NUMBER_VARS) :: var_names
+        integer, dimension(MAX_NUMBER_VARS) :: input_tranformations
 
         ! setup the namelist
-        namelist /training_parameters/ nfiles, nvars, name, data_type,   &
-                                         lat_name, lon_name, time_name,    &
-                                         file_list, var_names,             &
-                                         calendar, calendar_start_year,    &
+        namelist /training_parameters/ nfiles, nvars, name, data_type,    &
+                                         lat_name, lon_name, time_name,   &
+                                         file_list, var_names,            &
+                                         calendar, calendar_start_year,   &
                                          selected_time, time_indices,     &
-                                         interpolation_method, preloaded
+                                         interpolation_method, preloaded, &
+                                         selected_level, input_tranformations
         !defaults :
         nfiles      = -1
         nvars       = -1
@@ -168,12 +171,15 @@ contains
         selected_time = -1
         time_indices = -1
         interpolation_method = kNEAREST
+        input_tranformations = kNO_TRANSFORM
         preloaded   = ""
+        selected_level = -1
         
         ! read namelists
         open(io_newunit(name_unit), file=filename)
         read(name_unit,nml=training_parameters)
         close(name_unit)
+        
         
         if (nfiles <= 0) stop "Number of training files (nfiles) is not valid. "
         if (nvars  <= 0) stop "Number of training variables (nvars) is not valid. "
@@ -181,6 +187,8 @@ contains
         ! allocate necessary arrays
         allocate(training_options%file_names(nfiles,nvars))
         allocate(training_options%var_names(nvars))
+        allocate(training_options%selected_level(nvars))
+        allocate(training_options%input_Xforms(nvars))
         
         ! finally, store the data into the config structure
         training_options%name           = name
@@ -190,8 +198,8 @@ contains
             training_options%var_names(i)    = var_names(i)
             nfiles = read_files_list(file_list(i), training_options%file_names(:,i))
             if (nfiles /= training_options%nfiles) then
-                write(*,*) nfiles, training_options%nfiles
-                stop "Error reading the correct number of training input files"
+                write(*,*) "WARNING read a different number of training input files than specified"
+                write(*,*) nfiles, training_options%nfiles, trim(var_names(i))
             endif
         end do
         training_options%lat_name       = lat_name
@@ -201,12 +209,15 @@ contains
         training_options%calendar_start_year = calendar_start_year
         training_options%time_file      = 1
         training_options%selected_time  = selected_time
-        call copy_array_i(time_indices, training_options%time_indices)
+        call copy_array_i(time_indices,   training_options%time_indices)
+        training_options%selected_level = selected_level(1:nvars)
         training_options%data_type      = read_data_type(data_type)
         training_options%interpolation_method = interpolation_method
+        training_options%input_Xforms   = input_tranformations(1:nvars)
         training_options%debug          = debug
         training_options%preloaded      = preloaded
         
+        where(training_options%selected_level == -1) training_options%selected_level = 1
         call check_training_options(training_options)
     end function read_training_options
     
@@ -256,6 +267,7 @@ contains
         if (trim(opt%calendar) == "")  stop "Error : Calendar not supplied in training options. "
         if (trim(opt%time_name) == "") stop "Error : time_name not supplied in training options. "
         
+        
         do i = 1, opt%n_variables
             if (trim(opt%var_names(i)) == "") stop "Invalid or not enough variable names specified in training options. "
             do j = 1, opt%nfiles
@@ -280,37 +292,44 @@ contains
 
         ! namelist variables to be read
         integer :: nfiles, nvars, calendar_start_year, selected_time, interpolation_method
+        integer, dimension(MAX_NUMBER_TIMES) :: time_indices
+        integer, dimension(MAX_NUMBER_VARS) :: selected_level
         character(len=MAXSTRINGLENGTH)  :: name, data_type, calendar
         character(len=MAXVARLENGTH)     :: lat_name, lon_name, time_name
         character(len=MAXFILELENGTH)    :: preloaded
         character(len=MAXFILELENGTH), dimension(MAX_NUMBER_VARS) :: file_list
         character(len=MAXVARLENGTH),  dimension(MAX_NUMBER_VARS) :: var_names
-        integer, dimension(MAX_NUMBER_VARS) :: transformations
+        integer, dimension(MAX_NUMBER_VARS) :: transformations, input_tranformations
 
         ! setup the namelist
         namelist /prediction_parameters/ nfiles, nvars, name, data_type,    &
                                          lat_name, lon_name, time_name,     &
                                          file_list, var_names,              &
                                          calendar, calendar_start_year,     &
-                                         selected_time, transformations,    &
-                                         interpolation_method, preloaded
+                                         selected_time,                     &
+                                         input_tranformations, transformations,&
+                                         interpolation_method, preloaded,   &
+                                         selected_level, time_indices
 
         !defaults :
-        nfiles      = -1
-        nvars       = -1
-        name        = ""
-        data_type   = ""
-        lat_name    = ""
-        lon_name    = ""
-        time_name   = ""
-        file_list   = ""
-        var_names   = ""
-        calendar    = ""
+        nfiles              = -1
+        nvars               = -1
+        name                = ""
+        data_type           = ""
+        lat_name            = ""
+        lon_name            = ""
+        time_name           = ""
+        file_list           = ""
+        var_names           = ""
+        calendar            = ""
         calendar_start_year = 1900
-        selected_time = -1
-        transformations = kQUANTILE_MAPPING
+        selected_time       = -1
+        transformations     = kQUANTILE_MAPPING
+        input_tranformations = kNO_TRANSFORM
         interpolation_method = kNEAREST
-        preloaded   = ""
+        preloaded           = ""
+        time_indices        = -1
+        selected_level      = -1
         
         ! read namelists
         open(io_newunit(name_unit), file=filename)
@@ -323,6 +342,9 @@ contains
         ! allocate necessary arrays
         allocate(prediction_options%file_names(nfiles,nvars))
         allocate(prediction_options%var_names(nvars))
+        allocate(prediction_options%selected_level(nvars))
+        allocate(prediction_options%transformations(nvars))
+        allocate(prediction_options%input_Xforms(nvars))
         
         ! finally, store the data into the config structure
         prediction_options%name           = name
@@ -342,14 +364,20 @@ contains
         prediction_options%calendar       = calendar
         prediction_options%calendar_start_year = calendar_start_year
         prediction_options%selected_time  = selected_time
+        prediction_options%selected_level = selected_level(1:nvars)
+        call copy_array_i(time_indices, prediction_options%time_indices)
         prediction_options%time_file      = 1 
         prediction_options%data_type      = read_data_type(data_type)
         prediction_options%transformations= transformations
+        prediction_options%input_Xforms   = input_tranformations(1:nvars)
         prediction_options%interpolation_method = interpolation_method
         prediction_options%debug          = debug
         prediction_options%preloaded      = preloaded
         
+        print*, prediction_options%selected_level
+        where(prediction_options%selected_level == -1) prediction_options%selected_level = 1
         call check_prediction_options(prediction_options)
+        print*, prediction_options%selected_level
         
     end function read_prediction_options
     
@@ -362,9 +390,9 @@ contains
         type(prediction_config) :: opt
         integer :: i,j
         
-        if (trim(opt%lat_name) == "")  stop "Error : lat_name not supplied in prediction options. "
-        if (trim(opt%lon_name) == "")  stop "Error : lon_name not supplied in prediction options. "
-        if (trim(opt%calendar) == "")  stop "Error : Calendar not supplied in prediction options. "
+        if (trim(opt%lat_name)  == "") stop "Error : lat_name not supplied in prediction options. "
+        if (trim(opt%lon_name)  == "") stop "Error : lon_name not supplied in prediction options. "
+        if (trim(opt%calendar)  == "") stop "Error : Calendar not supplied in prediction options. "
         if (trim(opt%time_name) == "") stop "Error : time_name not supplied in prediction options. "
         
         do i = 1, opt%n_variables

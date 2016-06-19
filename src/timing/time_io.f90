@@ -49,7 +49,7 @@ contains
         integer :: selected_time
         
         select type(options)
-        type is (training_config)
+        class is (atm_config)
             if (options%selected_time/=-1) then
                 selected_time = options%selected_time
             elseif (options%time_indices(1)/=-1) then

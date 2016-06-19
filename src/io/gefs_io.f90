@@ -14,12 +14,12 @@ module gefs_mod
     use model_constants
     use basic_stats_mod,only: time_mean, time_stddev
     use string,         only: str
-    use io_routines,    only: io_read, io_getdims, io_maxDims
+    use io_routines,    only: io_read, io_getdims, io_maxDims, file_exists
     use time_io,        only: read_times
     use geo,            only: standardize_coordinates
     
     implicit none
-    logical :: debug
+    logical :: debug = .False.
     
 contains
     
@@ -45,7 +45,7 @@ contains
     !!------------------------------------------------
     function read_GEFS(options) result(GEFS_data)
         implicit none
-        class(training_config), intent(in) :: options
+        class(atm_config), intent(in) :: options
         type(atm) :: GEFS_data
         
         integer :: var_idx, ntimesteps
@@ -82,12 +82,15 @@ contains
         enddo
         
         allocate(GEFS_data%times(ntimesteps))
+        if (debug) print*, "Reading Time data"
         call read_times(options, GEFS_data%times)
         
+        if (debug) print*, "Lat / Lon coordinates"
         call io_read(options%file_names(1, 1), options%lat_name, GEFS_data%lat)
         call io_read(options%file_names(1, 1), options%lon_name, GEFS_data%lon)
         
         call standardize_coordinates(GEFS_data)
+        
     end function read_GEFS
     
     subroutine compute_grid_stats(var)
@@ -128,9 +131,11 @@ contains
         
         if (present(preload)) then
             if (trim(preload) /= "" ) then
-                print*, "Reading preloaded data: ", trim(preload)
-                call io_read(trim(preload), "data", output%data)
-                return
+                if (file_exists(trim(preload)//trim(varname)//".nc")) then
+                    write(*,*) "Reading preloaded data: ", trim(preload)//trim(varname)//".nc"
+                    call io_read(trim(preload)//trim(varname)//".nc", "data", output%data)
+                    return
+                endif
             endif
         endif
         
