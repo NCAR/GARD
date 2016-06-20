@@ -44,11 +44,12 @@ contains
         implicit none
         type(config), intent(inout)     :: options
         
-        integer :: name_unit, n_analogs
+        integer :: name_unit, n_analogs, n_log_analogs
         character(len=MAXSTRINGLENGTH)  :: name, start_date, end_date, start_train, end_train
         character(len=MAXSTRINGLENGTH)  :: start_transform, end_transform
         character(len=MAXFILELENGTH)    :: training_file, prediction_file, observation_file, output_file
         logical :: pure_analog, analog_regression, pure_regression, debug
+        logical :: sample_analog, logistic_from_analog_exceedance
         real    :: logistic_threshold
         
         ! setup the namelist
@@ -57,8 +58,9 @@ contains
                                 output_file,                                        &
                                 start_date, end_date, start_train, end_train,       &
                                 start_transform, end_transform,                     &
-                                n_analogs, logistic_threshold,                      &
-                                pure_analog, analog_regression, pure_regression
+                                n_analogs, n_log_analogs, logistic_threshold,       &
+                                pure_analog, analog_regression, pure_regression,    &
+                                sample_analog, logistic_from_analog_exceedance
 
         options%version = kVERSION_STRING
         options%options_filename = get_options_file()
@@ -75,11 +77,14 @@ contains
         end_transform    = ""
         output_file      = "downscaled_output.nc"
         n_analogs        = -1
+        n_log_analogs    = -1
         pure_analog      = .False.
         analog_regression= .True.
         pure_regression  = .False.
         debug            = .True.
         logistic_threshold= kFILL_VALUE
+        sample_analog    = .False.
+        logistic_from_analog_exceedance = .False.
         
         options%name = options%options_filename
         
@@ -111,11 +116,15 @@ contains
         options%observation_file    = observation_file
         options%output_file         = output_file
         options%n_analogs           = n_analogs
+        options%n_log_analogs       = n_log_analogs
         options%pure_analog         = pure_analog
         options%analog_regression   = analog_regression
         options%pure_regression     = pure_regression
         
         options%logistic_threshold  = logistic_threshold
+        options%sample_analog       = sample_analog
+        options%logistic_from_analog_exceedance  = logistic_from_analog_exceedance
+
 
         options%debug = debug
         module_debug = options%debug
@@ -374,10 +383,8 @@ contains
         prediction_options%debug          = debug
         prediction_options%preloaded      = preloaded
         
-        print*, prediction_options%selected_level
         where(prediction_options%selected_level == -1) prediction_options%selected_level = 1
         call check_prediction_options(prediction_options)
-        print*, prediction_options%selected_level
         
     end function read_prediction_options
     

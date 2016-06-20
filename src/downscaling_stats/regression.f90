@@ -137,7 +137,9 @@ contains
             CALL SGELS( 'N', M, N, NRHS, X, LDX, Y, LDY, WORK, LWORK, INFO )
         endif
         if (INFO/=0) then
+            !$omp critical (print_lock)
             write(*,*) "ERROR in SGELS with argument:", 0-INFO
+            !$omp end critical (print_lock)
             Y = 0
         endif
 
@@ -175,7 +177,6 @@ contains
         do i=1,m
             W_full(i,i) = 1/W(i)
         enddo
-        
         
         ! print*, "entering sggglm"
         LWORK = 10000
@@ -222,9 +223,9 @@ contains
         A = matmul(TX, X)
 
         if (any(maxval(abs(A),dim=2) == 0.0)) then
-            !$omp critical
+            !$omp critical (print_lock)
             print*, "ERROR"
-            !$omp end critical
+            !$omp end critical (print_lock)
             B = 0
             return
         endif
@@ -232,9 +233,9 @@ contains
 
         if (ANY(ABS(A) < 9.99999968E-15)) then
             B(:) = 0.0d0
-            !$omp critical
+            !$omp critical (print_lock)
             print*, "Warning, LUdcmp produced a zero."
-            !$omp end critical
+            !$omp end critical (print_lock)
             return
         endif
 

@@ -213,6 +213,13 @@ module data_structures
         logical :: analog_regression
         logical :: pure_regression
         
+        ! for analog regression, determine whether to compute the logistic regresion (if False), 
+        ! or just the exceedance probability of the selected analogs (if True)
+        logical :: logistic_from_analog_exceedance
+        ! for pure analog, determine whether to compute the expected value by sampling a random analog (if True), 
+        ! or to compute the mean across all analogs (if False)
+        logical :: sample_analog
+        
         ! if not equal to kFILL_VALUE then it will be used to generate a probability of exceedance
         real    :: logistic_threshold
         
@@ -229,6 +236,7 @@ module data_structures
                                                             
         integer :: first_point, last_point ! start and end positions to run the model for(?)
         integer :: n_analogs
+        integer :: n_log_analogs
         
         logical :: debug
         integer :: warning_level        ! level of warnings to issue when checking options settings 0-10.  

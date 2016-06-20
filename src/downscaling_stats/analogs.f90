@@ -47,6 +47,27 @@ contains
         
     end function find_analogs
     
+    ! compute the mean of input[analogs]
+    function compute_analog_mean(input, analogs) result(mean)
+        implicit none
+        real,    intent(in), dimension(:) :: input
+        integer, intent(in), dimension(:) :: analogs
+        real                              :: mean
+        
+        double precision :: internal_mean
+        integer :: i, n
+        
+        n = size(analogs)
+        internal_mean = 0
+        
+        do i=1,n
+            internal_mean = internal_mean + input( analogs(i) )
+        enddo
+        
+        mean = internal_mean / n
+        
+    end function compute_analog_mean
+    
     ! compute the root mean square error between input[analogs] and y_hat
     function compute_analog_error(input, analogs, y_hat) result(error)
         implicit none
