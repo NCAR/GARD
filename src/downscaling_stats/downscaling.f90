@@ -62,11 +62,16 @@ contains
             n_atm_variables = size(training_atm%variables)
             n_obs_variables = size(training_obs%variables)
             
-            nx = 32
-            ny = 132
-            total_number_of_gridcells = nx * (ny-100)
+            print*, nx, ny, " Grid Cells"
+            ! nx = 32
+            ! ny = 132
+            ! total_number_of_gridcells = nx * (ny-100)
+            total_number_of_gridcells = nx * ny
             
+            call System_Clock(timeone)
             call allocate_data(output, n_obs_variables, noutput, nx, ny, n_atm_variables, tr_size, options)
+            call System_Clock(timetwo)
+            timers(7) = timetwo - timeone
 
             call System_Clock(master_timeone)
             write(*,*), "Entering Parallel Region and Normalizing"
@@ -108,7 +113,7 @@ contains
             !$omp end single
             ! parallelization could be over x and y, (do n=1,ny*nx; j=n/nx; i=mod(n,nx)) and use schedule(dynamic)
             !$omp do schedule(static, 1)
-            do j=101,ny
+            do j=1,ny
                 do i=1,nx
                     
                     if (training_obs%mask(i,j)) then
@@ -194,8 +199,9 @@ contains
             print*, "---------------------------------------------------"
             print*, "           Time profiling information "
             print*, "---------------------------------------------------"
-            print*, "Total Time : ",  nint(100.0),                     "%    ",  master_timers(5)
+            print*, "Total Time : ",  nint(100.0),                     "%    ",  nint(0.01*master_timers(5))
             print*, "---------------------------------------------------"
+            print*, "Allocation : ",  nint((100.d0 * master_timers(7))/master_timers(5)),  "%    ", nint(0.01*master_timers(7))
             print*, "GeoInterp  : ",  nint((100.d0 * master_timers(4))/master_timers(5)),  "%    ", nint(0.01*master_timers(4))
             print*, "Transform  : ",  nint((100.d0 * master_timers(6))/master_timers(5)),  "%    ", nint(0.01*master_timers(6))
             print*, "Analog     : ",  nint((100.d0 * master_timers(1))/master_timers(5)),  "%    ", nint(0.01*master_timers(1))
