@@ -245,9 +245,9 @@ endif
 # export LD_RUN_PATH=$LD_RUN_PATH:/path/to/netcdf/libraries/lib:/path/to/fftw/libraries/lib
 
 # flags forall
-FCFLAGS = $(COMP) -I$(NCDF_PATH)/include -I$(BUILD) $(INC_NCAR)
+FCFLAGS = $(COMP) $(PROF) -I$(NCDF_PATH)/include -I$(BUILD) $(INC_NCAR)
 # libraries needed for linking
-LDFLAGS = $(LINK) -L$(NCDF_PATH)/lib -lnetcdf -lnetcdff $(LIB_NCAR) -L$(LAPACK_PATH)/lib -llapack -lblas
+LDFLAGS = $(LINK) $(PROF) -L$(NCDF_PATH)/lib -lnetcdf -lnetcdff $(LIB_NCAR) -L$(LAPACK_PATH)/lib -llapack -lblas
 
 OBJS =  \
 	$(BUILD)time.o            	\
@@ -267,6 +267,7 @@ OBJS =  \
     $(BUILD)basic_stats.o     	\
 	$(BUILD)sorting.o			\
 	$(BUILD)quantile_mapping.o  \
+	$(BUILD)analogs.o       	\
 	$(BUILD)downscaling.o       \
 	$(BUILD)regression.o		\
 	$(BUILD)nr.o				\
@@ -443,7 +444,10 @@ $(BUILD)atmosphere_io.o: io/atmosphere_io.f90 $(BUILD)data_structures.o $(BUILD)
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)downscaling.o: downscaling_stats/downscaling.f90 $(BUILD)data_structures.o $(BUILD)model_constants.o \
-					$(BUILD)quantile_mapping.o $(BUILD)regression.o
+					$(BUILD)quantile_mapping.o $(BUILD)regression.o $(BUILD)analogs.o
+	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
+
+$(BUILD)analogs.o: downscaling_stats/analogs.f90
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 

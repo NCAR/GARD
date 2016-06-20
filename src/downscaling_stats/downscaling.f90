@@ -2,6 +2,7 @@ module downscaling_mod
 
     use data_structures
     use regression_mod,     only : compute_regression, compute_logistic_regression
+    use analog_mod,         only : find_analogs, compute_analog_error, compute_analog_exceedance
     use model_constants
     use quantile_mapping,   only : develop_qm, apply_qm
     use time_util,          only : setup_time_indices
@@ -53,10 +54,10 @@ contains
             write(*,*) "N atmospheric variables: ", n_atm_variables
             write(*,*) "N observed variables: ", n_obs_variables
             
-            nx = 64
+            nx = 164
             ny = 164
             ! ny = 180
-
+            write(*,*), "Allocating Memory"
             allocate(output%variables(n_obs_variables))
             do v = 1,n_obs_variables
                 allocate(output%variables(v)%data        (noutput, nx, ny))
@@ -81,6 +82,7 @@ contains
                 output%variables(v)%obs         = 0
             end do
             
+            write(*,*), "Entering Parallel Region and Normalizing"
             !$omp parallel default(shared)                  &
             !$omp private(train_data, pred_data, i, j, v)   &
             !$omp firstprivate(nx,ny,n_atm_variables, n_obs_variables, noutput, ntrain, nobs, ntimes) &
@@ -113,10 +115,12 @@ contains
             ! Normalization must be finished before running anything else
             !$omp barrier
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            
+            !$omp single
+            write(*,*), "Downscaling..."
+            !$omp end single
             ! parallelization could be over x and y, (do n=1,ny*nx; j=n/nx; i=mod(n,nx)) and use schedule(dynamic)
             !$omp do schedule(static, 1)
-            do j=100,ny
+            do j=1,ny
                 do i=1,nx
                     
                     if (training_obs%mask(i,j)) then
@@ -164,7 +168,7 @@ contains
                             output%variables(v)%obs(:,i,j) = training_obs%variables(v)%data(o_tr_start:o_tr_stop, i, j)
                             
                             ! should be possible to run this here, but seems to run into a shared memory problem
-                            ! may have been related to the previous associate statement...
+                            ! probably related to the previous associate statement...
                             ! call transform_data(kQUANTILE_MAPPING,                                  &
                             !                     output%variables(v)%data(:,i,j),       1, noutput,  &
                             !                     training_obs%variables(v)%data(:,i,j), 1, nobs)
@@ -371,47 +375,6 @@ contains
         
     end function downscale_point
     
-    ! compute the root mean square error between input[analogs] and y_hat
-    function compute_analog_error(input, analogs, y_hat) result(error)
-        implicit none
-        real,    intent(in), dimension(:) :: input
-        integer, intent(in), dimension(:) :: analogs
-        real,    intent(in)               :: y_hat
-        real                              :: error
-        
-        double precision :: mean
-        integer :: i, n
-        
-        n = size(analogs)
-        mean = 0
-        
-        do i=1,n
-            mean = mean + (input( analogs(i) ) - y_hat)**2
-        enddo
-        
-        error = sqrt(mean / n)
-        
-    end function compute_analog_error
-    
-    function compute_analog_exceedance(input, analogs, threshold) result(probability)
-        implicit none
-        real,    intent(in), dimension(:) :: input
-        integer, intent(in), dimension(:) :: analogs
-        real,    intent(in)               :: threshold
-        real                              :: probability
-        integer :: i, n
-        
-        n = size(analogs)
-        probability = 0
-        do i = 1, n
-            if (input(analogs(i)) > threshold) then
-                probability = probability + 1
-            endif
-        end do
-        
-        probability = probability / n
-        
-    end function compute_analog_exceedance
     
     ! normalize an atmospheric variable by subtracting the mean and dividing by the standard deviation
     ! Assumes mean and stddev have already been calculated as part of the data structure
@@ -430,78 +393,15 @@ contains
             if (var%stddev(i,j) /= 0) then
                 var%data(:,i,j) = var%data(:,i,j) / var%stddev(i,j)
             else
+                !$omp critical
                 write(*,*) "ERROR Normalizing:", trim(var%name)
                 write(*,*) "  For point: ", i, j
+                !$omp end critical
             endif
         enddo
         
     end subroutine normalize
     
-    function find_analogs(match, input, n) result(analogs)
-        implicit none
-        real,    intent(in), dimension(:)   :: match
-        real,    intent(in), dimension(:,:) :: input
-        integer, intent(in)     :: n
-        integer, dimension(1:n)   :: analogs
-        
-        real,    dimension(:), allocatable :: distances
-        logical, dimension(:), allocatable :: mask
-        integer, dimension(1) :: min_location
-        integer :: i, n_inputs, nvars
-        
-        ! if (match==0) then
-        !     analogs = pick_n_random_zeros(input, n)
-        ! else
-            
-            n_inputs = size(input,1)
-            nvars    = size(input,2)
-
-            allocate(mask(n_inputs))
-            allocate(distances(n_inputs))
-            distances = 0
-            mask = .True.
-            
-            do i=1,nvars
-                distances = distances + (input(:,i) - match(i))**2
-            enddo
-            
-            do i = 1, n
-                min_location = minloc(distances,mask=mask)
-                mask(min_location) = .false.
-                
-                analogs(i) = min_location(1)
-            end do
-        ! endif
-        
-    end function find_analogs
-    
-    function pick_n_random_zeros(input, n) result(analogs)
-        implicit none
-        real,    intent(in), dimension(:) :: input
-        integer, intent(in)     :: n
-        integer, dimension(1:n)   :: analogs
-        integer, dimension(:), allocatable :: zero_locations
-        
-        integer :: i, n_inputs, n_zeros, selected_analog
-        real :: rand
-
-        n_inputs = size(input)
-        allocate(zero_locations(n_inputs))
-        n_zeros = 0
-        do i=1,n_inputs
-            if (input(i)==0) then
-                n_zeros = n_zeros + 1
-                zero_locations(n_zeros) = i
-            end if
-        end do
-        
-        do i=1,n
-            call random_number(rand)
-            selected_analog = floor(rand * n_zeros)+1
-            analogs(i) = zero_locations(selected_analog)
-        end do
-
-    end function pick_n_random_zeros
     
     subroutine setup_timing(training_atm, training_obs, predictors, options)
         implicit none
