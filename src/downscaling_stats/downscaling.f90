@@ -9,7 +9,7 @@ module downscaling_mod
     use time_util,          only : setup_time_indices
     implicit none
     
-    double precision, dimension(10) :: master_timers
+    integer*8, dimension(10) :: master_timers
 
     
 contains
@@ -30,8 +30,8 @@ contains
             integer :: p_start, p_end
             ! training index variables 
             integer :: t_tr_start, t_tr_stop, o_tr_start, o_tr_stop, tr_size
-            double precision :: timeone, timetwo, master_timeone, master_timetwo
-            double precision, dimension(10) :: timers
+            integer*8 :: timeone, timetwo, master_timeone, master_timetwo
+            integer*8, dimension(10) :: timers
             
             integer :: total_number_of_gridcells, current_completed_gridcells
             
@@ -39,7 +39,7 @@ contains
             master_timers = 0
             current_completed_gridcells = 0
             
-            call CPU_TIME(timeone)
+            call System_Clock(timeone)
             ! should this be done outside of "downscale" ? 
             call setup_timing(training_atm, training_obs, predictors, options)
             ! simple local variables to make code more legible later
@@ -68,7 +68,7 @@ contains
             
             call allocate_data(output, n_obs_variables, noutput, nx, ny, n_atm_variables, tr_size, options)
 
-            call CPU_TIME(master_timeone)
+            call System_Clock(master_timeone)
             write(*,*), "Entering Parallel Region and Normalizing"
             !$omp parallel default(shared)                  &
             !$omp private(train_data, pred_data, i, j, v, timeone, timetwo)   &
@@ -116,10 +116,13 @@ contains
                         ! index 1 is the constant for the regression code... should be moved into regression code...?
                         output%variables(1)%predictors(:,i,j,1) = pred_data( p_start   : p_end,    1)
                         do v=1,n_atm_variables
-                            
+                            call System_Clock(timeone)
                             call read_point( predictors%variables(v)%data,   pred_data(:,v+1),  i,j, predictors%geoLUT,   options%prediction%interpolation_method)
                             call read_point( training_atm%variables(v)%data, train_data(:,v+1), i,j, training_atm%geoLUT, options%training%interpolation_method)
+                            call System_Clock(timetwo)
+                            timers(4) = timers(4) + (timetwo-timeone)
                             
+                            call System_Clock(timeone)
                             ! perform (e.g.) quantile mapping
                             call transform_data(options%prediction%transformations(v),                                         &
                                                 pred_data(:,v+1),  predictors%transform_start,   predictors%transform_stop,    &
@@ -128,6 +131,8 @@ contains
                             ! save these data for output debugging / algorithm development while we are at it. 
                             output%variables(1)%predictors(:,i,j,v+1) = pred_data( p_start   : p_end,    v+1)
                             output%variables(1)%training  (:,i,j,v+1) = train_data(t_tr_start: t_tr_stop,v+1)
+                            call System_Clock(timetwo)
+                            timers(6) = timers(6) + (timetwo-timeone)
                         enddo
 
                         do v=1,n_obs_variables
@@ -141,7 +146,6 @@ contains
                                 !$omp end critical (print_lock)
                             endif
                             
-                            call CPU_TIME(timeone)
                             ! As tempting as it may be, associate statements are not threadsafe!!!
                             output%variables(v)%data(:,i,j) = downscale_point(                                         &
                                                     pred_data                       (   p_start : p_end,     :),       &
@@ -151,13 +155,9 @@ contains
                                                     output%variables(v)%coefficients(           :,  :,       i, j),    &
                                                     output%variables(v)%logistic    (           :,           i, j),    &
                                                     output%variables(v)%logistic_threshold,                            &
-                                                    options, timeone, timers )
+                                                    options, timers )
                                                           
                             output%variables(v)%obs(:,i,j) = training_obs%variables(v)%data(o_tr_start:o_tr_stop, i, j)
-                            call CPU_TIME(timetwo)
-                            !$omp critical
-                            timers(8) = timers(8) + (timetwo-timeone)
-                            !$omp end critical
 
                         enddo
                     else ! this is a masked point in the observations
@@ -188,23 +188,20 @@ contains
             master_timers = timers + master_timers
             !$omp end critical
             !$omp end parallel
-            call CPU_TIME(master_timetwo)
+            call System_Clock(master_timetwo)
             master_timers(5) = master_timers(5) + (master_timetwo-master_timeone)*16
             print*, ""
             print*, "---------------------------------------------------"
             print*, "           Time profiling information "
             print*, "---------------------------------------------------"
-            print*, "Total Time : ",  nint(100.0),                     "%    ",  nint(master_timers(5))
+            print*, "Total Time : ",  nint(100.0),                     "%    ",  master_timers(5)
             print*, "---------------------------------------------------"
-            print*, "Total DSpt : ",  nint(100 * master_timers(8)/master_timers(5)),  "%    ", nint(master_timers(8))
-            print*, "Internal   : ",  nint(100 * master_timers(4)/master_timers(5)),  "%    ", nint(master_timers(4))
-            print*, "Analog     : ",  nint(100 * master_timers(1)/master_timers(5)),  "%    ", nint(master_timers(1))
-            print*, "Regression : ",  nint(100 * master_timers(2)/master_timers(5)),  "%    ", nint(master_timers(2))
-            print*, "Log.Regres : ",  nint(100 * master_timers(3)/master_timers(5)),  "%    ", nint(master_timers(3))
-            print*, "Second 1/2 : ",  nint(100 * master_timers(7)/master_timers(5)),  "%    ", nint(master_timers(7))
-            print*, "Sec.1/2 in : ",  nint(100 * master_timers(6)/master_timers(5)),  "%    ", nint(master_timers(6))
-            print*, "Log.Analog : ",  nint(100 * master_timers(9)/master_timers(5)),  "%    ", nint(master_timers(9))
-            print*, "Setup time : ",  nint(100 * master_timers(10)/master_timers(5)), "%    ", nint(master_timers(10))
+            print*, "GeoInterp  : ",  nint((100.d0 * master_timers(4))/master_timers(5)),  "%    ", nint(0.01*master_timers(4))
+            print*, "Transform  : ",  nint((100.d0 * master_timers(6))/master_timers(5)),  "%    ", nint(0.01*master_timers(6))
+            print*, "Analog     : ",  nint((100.d0 * master_timers(1))/master_timers(5)),  "%    ", nint(0.01*master_timers(1))
+            print*, "Regression : ",  nint((100.d0 * master_timers(2))/master_timers(5)),  "%    ", nint(0.01*master_timers(2))
+            print*, "Log.Regres : ",  nint((100.d0 * master_timers(3))/master_timers(5)),  "%    ", nint(0.01*master_timers(3))
+            print*, "Log.Analog : ",  nint((100.d0 * master_timers(9))/master_timers(5)),  "%    ", nint(0.01*master_timers(9))
 
     end function downscale
     
@@ -285,7 +282,7 @@ contains
         
     end subroutine transform_data
     
-    function downscale_point(predictor, atm, obs, errors, output_coeff, logistic, logistic_threshold, options, start_time, timers) result(output)
+    function downscale_point(predictor, atm, obs, errors, output_coeff, logistic, logistic_threshold, options, timers) result(output)
         implicit none
         real,    dimension(:,:), intent(in)   :: predictor, atm ! (ntimes, nvars)
         real,    dimension(:),   intent(in)   :: obs
@@ -294,8 +291,7 @@ contains
         real,    dimension(:),   intent(inout):: logistic
         real,                    intent(in)   :: logistic_threshold
         type(config),            intent(in)   :: options
-        double precision,        intent(in)   :: start_time
-        double precision, dimension(:), intent(inout) :: timers
+        integer*8, dimension(:), intent(inout) :: timers
         
         real,    dimension(:),   allocatable :: output
         real,    dimension(:),   allocatable :: obs_analogs
@@ -303,14 +299,12 @@ contains
         integer, dimension(:),   allocatable :: analogs
         real(8), dimension(:),   allocatable :: coefficients
         
-        double precision :: timeone, timetwo
-        double precision :: master_timeone, master_timetwo, half_time, inner_timeone
+        integer*8 :: timeone, timetwo
         integer :: i, j, n, nvars
         integer :: a, n_analogs, selected_analog
         real    :: rand
         integer :: omp_get_thread_num
         
-        call CPU_TIME(master_timeone)
         n_analogs = options%n_analogs
         nvars = size(atm,2)
         n = size(predictor,1)
@@ -319,26 +313,25 @@ contains
         allocate(output(n))
         allocate(analogs(n_analogs))
         
-        call CPU_TIME(timeone)
+        call System_Clock(timeone)
         if (options%analog_regression) then
             allocate(regression_data(n_analogs, nvars))
             allocate(obs_analogs(n_analogs))
         endif
-        call CPU_TIME(timetwo)
+        call System_Clock(timetwo)
         timers(1) = timers(1) + (timetwo-timeone)
-        timers(10) = timers(10) + (timetwo-start_time)
 
         if (options%pure_regression) then
-            call CPU_TIME(timeone)
+            call System_Clock(timeone)
             output(1)  = compute_regression(predictor(1,:), atm, obs, coefficients, errors(1))
             errors(2:) = errors(1)
             do i=1,nvars
                 output_coeff(i,:) = coefficients(i)
             enddo
-            call CPU_TIME(timetwo)
+            call System_Clock(timetwo)
             timers(2) = timers(2) + (timetwo-timeone)
 
-            call CPU_TIME(timeone)
+            call System_Clock(timeone)
             if (logistic_threshold/=kFILL_VALUE) then
                 logistic(1) = compute_logistic_regression(predictor(1,:), atm, obs, coefficients, logistic_threshold)
                 
@@ -346,12 +339,11 @@ contains
                     output_coeff(i+nvars,:) = coefficients(i)
                 enddo
             endif
-            call CPU_TIME(timetwo)
+            call System_Clock(timetwo)
             timers(3) = timers(3) + (timetwo-timeone)
 
         endif
         
-        call CPU_TIME(half_time)
         do i = 1, n
             if (options%pure_analog) then
                 
@@ -375,33 +367,32 @@ contains
                 endif
                 
             elseif (options%analog_regression) then
-                call CPU_TIME(inner_timeone)
-                call CPU_TIME(timeone)
+                call System_Clock(timeone)
                 analogs = find_analogs(predictor(i,:), atm, n_analogs)
                 do a=1,n_analogs
                     obs_analogs(a) = obs(analogs(a))
                     regression_data(a,:) = atm(analogs(a),:)
                 enddo
-                call CPU_TIME(timetwo)
+                call System_Clock(timetwo)
                 timers(1) = timers(1) + (timetwo-timeone)
 
-                call CPU_TIME(timeone)
+                call System_Clock(timeone)
                 output(i) = compute_regression(predictor(i,:), regression_data, obs_analogs, coefficients, errors(i))
                 output_coeff(1:nvars,i) = coefficients
-                call CPU_TIME(timetwo)
+                call System_Clock(timetwo)
                 timers(2) = timers(2) + (timetwo-timeone)
 
-                call CPU_TIME(timeone)
+                call System_Clock(timeone)
                 if (logistic_threshold/=kFILL_VALUE) then
                     if (options%logistic_from_analog_exceedance) then
                         
                         ! if the user specified using fewer analogs specifically for the logistic component, find them here
                         if (options%n_log_analogs /= n_analogs) then
                             analogs(1:options%n_log_analogs) = find_analogs(predictor(i,:), atm, options%n_log_analogs)
-                            call CPU_TIME(timetwo)
+                            call System_Clock(timetwo)
                             timers(9) = timers(9) + (timetwo-timeone)
                             
-                            call CPU_TIME(timeone)
+                            call System_Clock(timeone)
                             logistic(i) = compute_analog_exceedance(obs, analogs(1:options%n_log_analogs), logistic_threshold)
                         else
                             logistic(i) = compute_analog_exceedance(obs, analogs, logistic_threshold)
@@ -417,17 +408,9 @@ contains
                         enddo
                     endif
                 endif
-                call CPU_TIME(timetwo)
+                call System_Clock(timetwo)
                 timers(3) = timers(3) + (timetwo-timeone)
                 
-                call CPU_TIME(timetwo)
-                timers(6) = timers(6) + (timetwo - inner_timeone)
-                if (omp_get_thread_num() == 2) then
-                !$omp critical (print_lock)
-                    print*, timers(6)-(timers(1)+timers(2)+timers(3)+timers(9)), timers(6), timers(1)+timers(2)+timers(3)+timers(9)
-                    print*, timers(1), timers(2), timers(3), timers(9)
-                !$omp end critical (print_lock)
-                endif
             elseif (options%pure_regression) then
                 !  test matmul(predictor, output_coeff(:,1)) should provide all time values efficiently?
                 ! output(i) = dot_product(predictor(i,:), output_coeff(:,1))
@@ -442,9 +425,6 @@ contains
                 
             endif
         end do
-        call CPU_TIME(master_timetwo)
-        timers(4) = timers(4) + (master_timetwo - master_timeone)
-        timers(7) = timers(7) + (master_timetwo - half_time)
 
     end function downscale_point
     
