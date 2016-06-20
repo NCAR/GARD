@@ -13,7 +13,7 @@ contains
             implicit none
             type(atm),    intent(inout) :: training_atm, predictors
             type(obs),    intent(inout) :: training_obs
-            type(config), intent(in) :: options
+            type(config), intent(in)    :: options
             
             type(results) :: output
             type(qm_correction_type) :: qm
@@ -36,51 +36,23 @@ contains
             t_tr_stop  = training_atm%training_stop
             o_tr_start = training_obs%training_start
             o_tr_stop  = training_obs%training_stop
+            
+            ntimes     = size(predictors%variables(1)%data,1)
+            ntrain     = size(training_atm%variables(1)%data,1)
+            nobs       = size(training_obs%variables(1)%data,1)
+            nx         = size(training_obs%variables(1)%data,2)
+            ny         = size(training_obs%variables(1)%data,3)
+            
             tr_size    = o_tr_stop - o_tr_start + 1
-
-
-            
-            ntimes = size(predictors%variables(1)%data,1)
-            ntrain = size(training_atm%variables(1)%data,1)
-            nobs   = size(training_obs%variables(1)%data,1)
-            nx     = size(training_obs%variables(1)%data,2)
-            ny     = size(training_obs%variables(1)%data,3)
-            
-            noutput = p_end - p_start + 1
+            noutput    = p_end - p_start + 1
             
             n_atm_variables = size(training_atm%variables)
             n_obs_variables = size(training_obs%variables)
             
-            write(*,*) "N atmospheric variables: ", n_atm_variables
-            write(*,*) "N observed variables: ", n_obs_variables
-            
             nx = 164
             ny = 164
-            ! ny = 180
-            write(*,*), "Allocating Memory"
-            allocate(output%variables(n_obs_variables))
-            do v = 1,n_obs_variables
-                allocate(output%variables(v)%data        (noutput, nx, ny))
-                allocate(output%variables(v)%errors      (noutput, nx, ny))
-                if (options%logistic_threshold/=kFILL_VALUE) then
-                    allocate(output%variables(v)%logistic    (noutput, nx, ny))
-                    allocate(output%variables(v)%coefficients((n_atm_variables+1)*2, noutput, nx, ny))
-                else
-                    ! unfortunately logistic has to be allocated even if it is not used because it is indexed 
-                    ! however, it does not need a complete time sequence because time is never indexed
-                    allocate(output%variables(v)%logistic    (2, nx, ny))
-                    allocate(output%variables(v)%coefficients(n_atm_variables+1, noutput, nx, ny))
-                endif
-                allocate(output%variables(v)%obs         (tr_size, nx, ny))
-                allocate(output%variables(v)%training    (tr_size, nx, ny, n_atm_variables+1))
-                allocate(output%variables(v)%predictors  (noutput, nx, ny, n_atm_variables+1))
-                output%variables(v)%logistic_threshold = options%logistic_threshold
-                
-                output%variables(v)%data        = 0
-                output%variables(v)%predictors  = 0
-                output%variables(v)%training    = 0
-                output%variables(v)%obs         = 0
-            end do
+            
+            call allocate_data(output, n_obs_variables, noutput, nx, ny, n_atm_variables, tr_size, options)
             
             write(*,*), "Entering Parallel Region and Normalizing"
             !$omp parallel default(shared)                  &
@@ -167,17 +139,8 @@ contains
                                                           
                             output%variables(v)%obs(:,i,j) = training_obs%variables(v)%data(o_tr_start:o_tr_stop, i, j)
                             
-                            ! should be possible to run this here, but seems to run into a shared memory problem
-                            ! probably related to the previous associate statement...
-                            ! call transform_data(kQUANTILE_MAPPING,                                  &
-                            !                     output%variables(v)%data(:,i,j),       1, noutput,  &
-                            !                     training_obs%variables(v)%data(:,i,j), 1, nobs)
-                            
                         enddo
                     else ! this is a masked point in the observations
-                        do v=1,n_obs_variables
-                            output%variables(v)%data(:,i,j) = kFILL_VALUE
-                        enddo
                         if (options%debug) then
                             !$omp critical
                             write(*,*) ""
@@ -186,6 +149,11 @@ contains
                             write(*,*) "-----------------------------"
                             !$omp end critical
                         endif
+                        
+                        ! store a fill value in the output
+                        do v=1,n_obs_variables
+                            output%variables(v)%data(:,i,j) = kFILL_VALUE
+                        enddo
                     endif
                 enddo
             enddo
@@ -420,5 +388,47 @@ contains
         call setup_time_indices(predictors, options)
 
     end subroutine setup_timing
+    
+    subroutine allocate_data(output, n_obs_variables, noutput, nx, ny, n_atm_variables, tr_size, options)
+        implicit none
+        type(results),  intent(inout)   :: output
+        integer,        intent(in)      :: n_obs_variables, noutput, nx, ny, n_atm_variables, tr_size
+        type(config),   intent(in)      :: options
+        
+        integer :: v
+        
+        write(*,*), "Allocating Memory"
+        
+        allocate(output%variables(n_obs_variables))
+        
+        do v = 1,n_obs_variables
+            allocate(output%variables(v)%data        (noutput, nx, ny))
+            allocate(output%variables(v)%errors      (noutput, nx, ny))
+            
+            if (options%logistic_threshold/=kFILL_VALUE) then
+                allocate(output%variables(v)%logistic    (noutput, nx, ny))
+                allocate(output%variables(v)%coefficients((n_atm_variables+1)*2, noutput, nx, ny))
+            else
+                ! unfortunately logistic has to be allocated even if it is not used because it is indexed 
+                ! however, it does not need a complete time sequence because time is never indexed
+                allocate(output%variables(v)%logistic    (2, nx, ny))
+                allocate(output%variables(v)%coefficients(n_atm_variables+1, noutput, nx, ny))
+            endif
+            
+            allocate(output%variables(v)%obs         (tr_size, nx, ny))
+            allocate(output%variables(v)%training    (tr_size, nx, ny, n_atm_variables+1))
+            allocate(output%variables(v)%predictors  (noutput, nx, ny, n_atm_variables+1))
+            
+            
+            output%variables(v)%logistic_threshold = options%logistic_threshold
+            output%variables(v)%data        = 0
+            output%variables(v)%predictors  = 0
+            output%variables(v)%training    = 0
+            output%variables(v)%obs         = 0
+        end do
+
+        
+        
+    end subroutine allocate_data
 
 end module downscaling_mod
