@@ -1,16 +1,20 @@
 module analog_mod
-
+    
+    use string, only: str
     implicit none
+    
+    integer, parameter :: MIN_NUMBER_ANALOGS = 20
     
     
 contains
 
-    function find_analogs(match, input, n) result(analogs)
+    subroutine find_analogs(analogs, match, input, n, threshold)
         implicit none
-        real,    intent(in), dimension(:)   :: match
-        real,    intent(in), dimension(:,:) :: input
-        integer, intent(in)     :: n
-        integer, dimension(1:n)   :: analogs
+        integer, intent(inout), dimension(:), allocatable  :: analogs
+        real,    intent(in),    dimension(:)   :: match
+        real,    intent(in),    dimension(:,:) :: input
+        integer, intent(in)                    :: n
+        real,    intent(in)                    :: threshold
         
         real,    dimension(:), allocatable :: distances
         logical, dimension(:), allocatable :: mask
@@ -21,31 +25,35 @@ contains
         !     analogs = pick_n_random_zeros(input, n)
         ! else
             
-            n_inputs = size(input,1)
-            nvars    = size(input,2)
+        n_inputs = size(input,1)
+        nvars    = size(input,2)
 
-            allocate(mask(n_inputs))
-            allocate(distances(n_inputs))
-            distances = 0
-            mask = .True.
-            
-            do i=1,nvars
-                distances = distances + (input(:,i) - match(i))**2
-            enddo
-            
-            ! fast way (O(nlogn) worst case, typically closer to O(n))
+        allocate(mask(n_inputs))
+        allocate(distances(n_inputs))
+        distances = 0
+        mask = .True.
+        
+        do i=1,nvars
+            distances = distances + (input(:,i) - match(i))**2
+        enddo
+        
+        ! fast selection (O(n_inputs log(nanalogs)) worst case, typically closer to O(n_inputs))
+        if (n>0) then
+            if (.not.allocated(analogs)) allocate(analogs(n))
             call top_n_analogs(distances, n, analogs)
+        elseif (threshold>0) then
+            distances = distances / nvars ! normalize by the number of variables so the supplied threshold doesn't have to changes
+            call analogs_from_threshold(distances, threshold, analogs)
+        else
+            !$omp critical (print_lock)
+            write(*,*) "ERROR: find_analogs, nanalogs=",trim(str(n))," analog_threshold=",trim(str(threshold))
+            stop "No number of or threshold for analog selection supplied"
+            !$omp end critical (print_lock)
+        endif
             
-            ! foolish way (O(n^2))
-            ! do i = 1, n
-            !     min_location = minloc(distances,mask=mask)
-            !     mask(min_location) = .false.
-            !     
-            !     analogs(i) = min_location(1)
-            ! end do
         ! endif
         
-    end function find_analogs
+    end subroutine find_analogs
     
     ! compute the mean of input[analogs]
     function compute_analog_mean(input, analogs) result(mean)
@@ -142,6 +150,44 @@ contains
 
     end subroutine top_n_analogs
 
+    ! private? search for all analog days that match a given threshold
+    subroutine analogs_from_threshold(distances, initial_threshold, analogs)
+        implicit none
+        real,    intent(in),    dimension(:)               :: distances
+        real,    intent(in)                                :: initial_threshold
+        integer, intent(inout), dimension(:), allocatable  :: analogs
+        
+        real :: threshold
+        integer :: i, n_distances, n_analogs, current_analog
+        n_distances = size(distances)
+
+        threshold = initial_threshold        
+        n_analogs = 0
+        do while (n_analogs < MIN_NUMBER_ANALOGS)
+            n_analogs = 0
+            do i=1,n_distances
+                if (distances(i) < threshold) then
+                    n_analogs = n_analogs + 1
+                endif
+            enddo
+            ! in case we did not find enough analogs, increase the search threshold before trying again
+            threshold = threshold * 2
+        enddo
+        
+        if (allocated(analogs)) then
+            deallocate(analogs)
+        endif
+        allocate(analogs(n_analogs))
+        threshold = threshold / 2 ! bump the threshold back to where it was when we found these analogs
+        current_analog = 1
+        do i=1,n_distances
+            if (distances(i) < threshold) then
+                analogs(current_analog) = i
+                current_analog = current_analog + 1
+            endif
+        enddo
+        
+    end subroutine analogs_from_threshold
     
     ! private? 
     function pick_n_random_zeros(input, n) result(analogs)

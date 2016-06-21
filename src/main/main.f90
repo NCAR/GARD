@@ -68,12 +68,21 @@ program stat_down
         print*, ""
         print*, "Writing input data"
         do i=1,size(training_obs%variables)
+            if (trim(options%obs%preloaded) == "") then
+                options%obs%preloaded = "obs_preload_"
+            endif
             call io_write(trim(options%obs%preloaded)//trim(training_obs%variables(i)%name)//".nc","data", &
                             training_obs%variables(i)%data)
         enddo
         do i=1,size(training_atm%variables)
+            if (trim(options%training%preloaded) == "") then
+                options%training%preloaded = "training_preload_"
+            endif
             call io_write(trim(options%training%preloaded)//trim(training_atm%variables(i)%name)//".nc","data", &
                             training_atm%variables(i)%data)
+            if (trim(options%prediction%preloaded) == "") then
+                options%prediction%preloaded = "prediction_preload_"
+            endif
             call io_write(trim(options%prediction%preloaded)//trim(predictions%variables(i)%name)//".nc","data", &
                             predictions%variables(i)%data)
         enddo

@@ -36,7 +36,11 @@ module model_constants
     integer,public,parameter :: kQUANTILE_MAPPING = 1
     integer,public,parameter :: kLOG_TRANSFORM    = 2
     integer,public,parameter :: kCUBE_ROOT        = 3
+    integer,public,parameter :: kFIFTH_ROOT       = 4
     
+    ! ------------------------------------------------
+    ! Geospatial Interpolation Type Constants
+    ! ------------------------------------------------
     integer,public,parameter :: kNEAREST          = 1
     integer,public,parameter :: kBILINEAR         = 2
     
@@ -45,18 +49,5 @@ module model_constants
     ! ------------------------------------------------
     integer,public,parameter :: kFILL_VALUE       = -9999
     
-    ! ------------------------------------------------
-    ! Physical Constants
-    ! ------------------------------------------------
-    ! real,public, parameter :: LH_vaporization=2260000.0 ! J/kg
-    ! ! could be calculated as 2.5E6 + (-2112.0)*temp_degC ?
-    ! real,public, parameter :: Rd  = 287.058   ! J/(kg K) specific gas constant for dry air
-    ! real,public, parameter :: Rw  = 461.5     ! J/(kg K) specific gas constant for moist air
-    ! real,public, parameter :: cp  = 1012.0    ! J/kg/K   specific heat capacity of moist STP air? 
-    ! real,public, parameter :: gravity= 9.81   ! m/s^2    gravity
-    ! real,public, parameter :: pi  = 3.1415927 ! pi
-    ! real,public, parameter :: stefan_boltzmann = 5.67e-8 ! the Stefan-Boltzmann constant
-    ! real,public, parameter :: karman = 0.41   ! the von Karman constant
-
 
 end module model_constants

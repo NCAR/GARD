@@ -132,7 +132,7 @@ contains
         if (present(preload)) then
             if (trim(preload) /= "" ) then
                 if (file_exists(trim(preload)//trim(varname)//".nc")) then
-                    write(*,*) "Reading preloaded data: ", trim(preload)//trim(varname)//".nc"
+                    if (debug) write(*,*) "Reading preloaded data: ", trim(preload)//trim(varname)//".nc"
                     call io_read(trim(preload)//trim(varname)//".nc", "data", output%data)
                     return
                 endif

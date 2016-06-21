@@ -11,13 +11,10 @@ module data_structures
     use time
     implicit none
     
-    ! private
-    ! public, config, atm,  obs,  results
     
-    
-! ------------------------------------------------
-!   various data structures for use in geographic interpolation routines
-! ------------------------------------------------
+    ! ------------------------------------------------
+    !   various data structures for use in geographic interpolation routines
+    ! ------------------------------------------------
     ! contains the location of a specific grid point
     type position
         integer::x,y
@@ -166,6 +163,8 @@ module data_structures
         character (len=MAXVARLENGTH)    :: lat_name, lon_name, time_name
         
         integer :: selected_time   = -1         ! to just use a single time from each file (for e.g. GEFS forecast)
+
+        integer, dimension(:), allocatable :: input_Xforms
         
         logical :: debug
     end type input_config
@@ -178,7 +177,6 @@ module data_structures
         integer, dimension(:), allocatable :: time_indices   ! specific time indices to average over (e.g. multiple hours in a daily file)
         ! tranformation to apply to each atmophseric variable
         integer, dimension(:), allocatable :: transformations
-        integer, dimension(:), allocatable :: input_Xforms
     end type atm_config
     
     type, extends(atm_config) :: prediction_config
@@ -237,6 +235,7 @@ module data_structures
         integer :: first_point, last_point ! start and end positions to run the model for(?)
         integer :: n_analogs
         integer :: n_log_analogs
+        real    :: analog_threshold
         
         logical :: debug
         integer :: warning_level        ! level of warnings to issue when checking options settings 0-10.  

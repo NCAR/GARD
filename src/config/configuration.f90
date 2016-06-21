@@ -50,7 +50,7 @@ contains
         character(len=MAXFILELENGTH)    :: training_file, prediction_file, observation_file, output_file
         logical :: pure_analog, analog_regression, pure_regression, debug
         logical :: sample_analog, logistic_from_analog_exceedance
-        real    :: logistic_threshold
+        real    :: logistic_threshold, analog_threshold
         
         ! setup the namelist
         namelist /parameters/   name, debug,                                        &
@@ -60,7 +60,8 @@ contains
                                 start_transform, end_transform,                     &
                                 n_analogs, n_log_analogs, logistic_threshold,       &
                                 pure_analog, analog_regression, pure_regression,    &
-                                sample_analog, logistic_from_analog_exceedance
+                                sample_analog, logistic_from_analog_exceedance,     &
+                                analog_threshold
 
         options%version = kVERSION_STRING
         options%options_filename = get_options_file()
@@ -78,6 +79,7 @@ contains
         output_file      = "downscaled_output.nc"
         n_analogs        = -1
         n_log_analogs    = -1
+        analog_threshold = -1
         pure_analog      = .False.
         analog_regression= .True.
         pure_regression  = .False.
@@ -117,6 +119,7 @@ contains
         options%output_file         = output_file
         options%n_analogs           = n_analogs
         options%n_log_analogs       = n_log_analogs
+        options%analog_threshold    = analog_threshold
         options%pure_analog         = pure_analog
         options%analog_regression   = analog_regression
         options%pure_regression     = pure_regression
@@ -155,7 +158,7 @@ contains
         character(len=MAXFILELENGTH)         :: preloaded
         character(len=MAXFILELENGTH), dimension(MAX_NUMBER_VARS) :: file_list
         character(len=MAXVARLENGTH),  dimension(MAX_NUMBER_VARS) :: var_names
-        integer, dimension(MAX_NUMBER_VARS) :: input_tranformations
+        integer, dimension(MAX_NUMBER_VARS) :: input_transformations
 
         ! setup the namelist
         namelist /training_parameters/ nfiles, nvars, name, data_type,    &
@@ -164,7 +167,7 @@ contains
                                          calendar, calendar_start_year,   &
                                          selected_time, time_indices,     &
                                          interpolation_method, preloaded, &
-                                         selected_level, input_tranformations
+                                         selected_level, input_transformations
         !defaults :
         nfiles      = -1
         nvars       = -1
@@ -180,7 +183,7 @@ contains
         selected_time = -1
         time_indices = -1
         interpolation_method = kNEAREST
-        input_tranformations = kNO_TRANSFORM
+        input_transformations = kNO_TRANSFORM
         preloaded   = ""
         selected_level = -1
         
@@ -222,7 +225,7 @@ contains
         training_options%selected_level = selected_level(1:nvars)
         training_options%data_type      = read_data_type(data_type)
         training_options%interpolation_method = interpolation_method
-        training_options%input_Xforms   = input_tranformations(1:nvars)
+        training_options%input_Xforms   = input_transformations(1:nvars)
         training_options%debug          = debug
         training_options%preloaded      = preloaded
         
@@ -308,7 +311,7 @@ contains
         character(len=MAXFILELENGTH)    :: preloaded
         character(len=MAXFILELENGTH), dimension(MAX_NUMBER_VARS) :: file_list
         character(len=MAXVARLENGTH),  dimension(MAX_NUMBER_VARS) :: var_names
-        integer, dimension(MAX_NUMBER_VARS) :: transformations, input_tranformations
+        integer, dimension(MAX_NUMBER_VARS) :: transformations, input_transformations
 
         ! setup the namelist
         namelist /prediction_parameters/ nfiles, nvars, name, data_type,    &
@@ -316,7 +319,7 @@ contains
                                          file_list, var_names,              &
                                          calendar, calendar_start_year,     &
                                          selected_time,                     &
-                                         input_tranformations, transformations,&
+                                         input_transformations, transformations,&
                                          interpolation_method, preloaded,   &
                                          selected_level, time_indices
 
@@ -334,7 +337,7 @@ contains
         calendar_start_year = 1900
         selected_time       = -1
         transformations     = kQUANTILE_MAPPING
-        input_tranformations = kNO_TRANSFORM
+        input_transformations = kNO_TRANSFORM
         interpolation_method = kNEAREST
         preloaded           = ""
         time_indices        = -1
@@ -378,7 +381,7 @@ contains
         prediction_options%time_file      = 1 
         prediction_options%data_type      = read_data_type(data_type)
         prediction_options%transformations= transformations
-        prediction_options%input_Xforms   = input_tranformations(1:nvars)
+        prediction_options%input_Xforms   = input_transformations(1:nvars)
         prediction_options%interpolation_method = interpolation_method
         prediction_options%debug          = debug
         prediction_options%preloaded      = preloaded
@@ -430,6 +433,7 @@ contains
         character(len=MAXFILELENGTH)    :: preloaded
         character(len=MAXFILELENGTH), dimension(MAX_NUMBER_VARS) :: file_list
         character(len=MAXVARLENGTH),  dimension(MAX_NUMBER_VARS) :: var_names
+        integer,                      dimension(MAX_NUMBER_VARS) :: input_transformations
         real :: mask_value, logistic_threshold
         integer :: mask_variable
 
@@ -439,7 +443,8 @@ contains
                                          file_list, var_names,              &
                                          calendar, calendar_start_year,     &
                                          mask_value, mask_variable,         &
-                                         preloaded, logistic_threshold
+                                         preloaded, logistic_threshold,     &
+                                         input_transformations
         !defaults :
         nfiles      = -1
         nvars       = -1
@@ -455,6 +460,7 @@ contains
         mask_value  = 1e20
         mask_variable = 1
         preloaded   = ""
+        input_transformations = 0
         logistic_threshold = kFILL_VALUE
         
         ! read namelists
@@ -468,6 +474,7 @@ contains
         ! allocate necessary arrays
         allocate(obs_options%file_names(nfiles,nvars))
         allocate(obs_options%var_names(nvars))
+        allocate(obs_options%input_Xforms(nvars))
         
         ! finally, store the data into the config structure
         obs_options%name           = name
@@ -493,6 +500,7 @@ contains
         obs_options%debug          = debug
         obs_options%preloaded      = preloaded
         obs_options%logistic_threshold = logistic_threshold
+        obs_options%input_Xforms   = input_transformations(1:nvars)
         
         call check_obs_options(obs_options)
     end function read_obs_options

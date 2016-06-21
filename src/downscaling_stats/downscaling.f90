@@ -10,6 +10,7 @@ module downscaling_mod
     implicit none
     
     integer*8, dimension(10) :: master_timers
+    real, parameter :: LOG_FILL_VALUE = 1e-30
 
     
 contains
@@ -30,7 +31,7 @@ contains
             integer :: p_start, p_end
             ! training index variables 
             integer :: t_tr_start, t_tr_stop, o_tr_start, o_tr_stop, tr_size
-            integer*8 :: timeone, timetwo, master_timeone, master_timetwo
+            integer*8 :: timeone, timetwo, master_timeone, master_timetwo, master_time_post_init
             integer*8, dimension(10) :: timers
             
             integer :: total_number_of_gridcells, current_completed_gridcells
@@ -62,19 +63,34 @@ contains
             n_atm_variables = size(training_atm%variables)
             n_obs_variables = size(training_obs%variables)
             
-            print*, nx, ny, " Grid Cells"
-            ! nx = 32
-            ! ny = 132
-            ! total_number_of_gridcells = nx * (ny-100)
+            ! nx = 128
+            ! ny = 128
+            
+            print*, "=========================================="
+            print*, "Running for "
+            print*, nx, "   by",ny, " Grid Cells"
+            
             total_number_of_gridcells = nx * ny
+            ! total_number_of_gridcells = nx * (ny-100)
             
             call System_Clock(timeone)
             call allocate_data(output, n_obs_variables, noutput, nx, ny, n_atm_variables, tr_size, options)
+            print*, ""
+            
+            do v=1,n_obs_variables
+                output%variables(v)%name = training_obs%variables(v)%name
+                do j=1,ny
+                    do i=1,nx
+                        call transform_data(options%obs%input_Xforms(v), training_obs%variables(v)%data(:,i,j), 1, nobs)
+                    enddo
+                enddo
+            enddo
+            
             call System_Clock(timetwo)
             timers(7) = timetwo - timeone
 
             call System_Clock(master_timeone)
-            write(*,*), "Entering Parallel Region and Normalizing"
+            
             !$omp parallel default(shared)                  &
             !$omp private(train_data, pred_data, i, j, v, timeone, timetwo)   &
             !$omp firstprivate(nx,ny,n_atm_variables, n_obs_variables, noutput, ntrain, nobs, ntimes) &
@@ -88,17 +104,25 @@ contains
             pred_data(:,1) = 1
             train_data(:,1) = 1
             
+            
             do v=1,n_atm_variables
                 ! does not need to be normalized if it is transformed to match training_atm anyway
-                if (options%prediction%transformations(v) /= kQUANTILE_MAPPING) then
-                    !$omp do
-                    do j=1, size(predictors%variables(v)%data,3)
-                        call normalize(predictors%variables(v), j)
-                    enddo
-                    !$omp end do
-                endif
                 !$omp do
-                do j=1, size(training_atm%variables(v)%data,3)
+                do j=1,size(predictors%variables(v)%data,3)
+                    do i=1,size(predictors%variables(v)%data,2)
+                        call transform_data(options%prediction%input_Xforms(v), predictors%variables(v)%data(:,i,j), 1, ntimes)
+                    enddo
+                    if (options%prediction%transformations(v) /= kQUANTILE_MAPPING) then
+                        call normalize(predictors%variables(v), j)
+                    endif
+                enddo
+                !$omp end do
+
+                !$omp do
+                do j=1,size(training_atm%variables(v)%data,3)
+                    do i=1,size(training_atm%variables(v)%data,2)
+                        call transform_data(options%training%input_Xforms(v), training_atm%variables(v)%data(:,i,j), 1, ntrain)
+                    enddo
                     call normalize(training_atm%variables(v), j)
                 enddo
                 !$omp end do
@@ -110,6 +134,7 @@ contains
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             !$omp single
             write(*,*), "Downscaling..."
+            call System_Clock(master_time_post_init)
             !$omp end single
             ! parallelization could be over x and y, (do n=1,ny*nx; j=n/nx; i=mod(n,nx)) and use schedule(dynamic)
             !$omp do schedule(static, 1)
@@ -119,7 +144,9 @@ contains
                     if (training_obs%mask(i,j)) then
                         
                         ! index 1 is the constant for the regression code... should be moved into regression code...?
-                        output%variables(1)%predictors(:,i,j,1) = pred_data( p_start   : p_end,    1)
+                        if (options%debug) then
+                            output%variables(1)%predictors(:,i,j,1) = pred_data( p_start   : p_end,    1)
+                        endif
                         do v=1,n_atm_variables
                             call System_Clock(timeone)
                             call read_point( predictors%variables(v)%data,   pred_data(:,v+1),  i,j, predictors%geoLUT,   options%prediction%interpolation_method)
@@ -133,9 +160,11 @@ contains
                                                 pred_data(:,v+1),  predictors%transform_start,   predictors%transform_stop,    &
                                                 train_data(:,v+1), training_atm%transform_start, training_atm%transform_stop)
                             
-                            ! save these data for output debugging / algorithm development while we are at it. 
-                            output%variables(1)%predictors(:,i,j,v+1) = pred_data( p_start   : p_end,    v+1)
-                            output%variables(1)%training  (:,i,j,v+1) = train_data(t_tr_start: t_tr_stop,v+1)
+                            if (options%debug) then
+                                ! save these data for output debugging / algorithm development while we are at it. 
+                                output%variables(1)%predictors(:,i,j,v+1) = pred_data( p_start   : p_end,    v+1)
+                                output%variables(1)%training  (:,i,j,v+1) = train_data(t_tr_start: t_tr_stop,v+1)
+                            endif
                             call System_Clock(timetwo)
                             timers(6) = timers(6) + (timetwo-timeone)
                         enddo
@@ -149,6 +178,7 @@ contains
                                 write(*,*) "   Downscaling point: ",i,j
                                 write(*,*) "   For variable     : ", trim(training_obs%variables(v)%name)
                                 !$omp end critical (print_lock)
+                                output%variables(v)%obs(:,i,j) = training_obs%variables(v)%data(o_tr_start:o_tr_stop, i, j)
                             endif
                             
                             ! As tempting as it may be, associate statements are not threadsafe!!!
@@ -161,8 +191,9 @@ contains
                                                     output%variables(v)%logistic    (           :,           i, j),    &
                                                     output%variables(v)%logistic_threshold,                            &
                                                     options, timers )
-                                                          
-                            output%variables(v)%obs(:,i,j) = training_obs%variables(v)%data(o_tr_start:o_tr_stop, i, j)
+
+                            call transform_data(options%obs%input_Xforms(v), output%variables(v)%data(:,i,j), 1, noutput, reverse=.True.)
+
 
                         enddo
                     else ! this is a masked point in the observations
@@ -194,20 +225,27 @@ contains
             !$omp end critical
             !$omp end parallel
             call System_Clock(master_timetwo)
-            master_timers(5) = master_timers(5) + (master_timetwo-master_timeone)*16
+            master_timers(8) = master_timers(8) + (master_time_post_init - master_timeone) * 16
+            master_timers(5) = master_timers(5) + (master_timetwo-master_timeone) * 16
             print*, ""
             print*, "---------------------------------------------------"
             print*, "           Time profiling information "
             print*, "---------------------------------------------------"
-            print*, "Total Time : ",  nint(100.0),                     "%    ",  nint(0.01*master_timers(5))
+            print*, "Total Time : ",  nint(100.0),                     "%    "!,  nint(0.01*master_timers(5))
             print*, "---------------------------------------------------"
-            print*, "Allocation : ",  nint((100.d0 * master_timers(7))/master_timers(5)),  "%    ", nint(0.01*master_timers(7))
-            print*, "GeoInterp  : ",  nint((100.d0 * master_timers(4))/master_timers(5)),  "%    ", nint(0.01*master_timers(4))
-            print*, "Transform  : ",  nint((100.d0 * master_timers(6))/master_timers(5)),  "%    ", nint(0.01*master_timers(6))
-            print*, "Analog     : ",  nint((100.d0 * master_timers(1))/master_timers(5)),  "%    ", nint(0.01*master_timers(1))
-            print*, "Regression : ",  nint((100.d0 * master_timers(2))/master_timers(5)),  "%    ", nint(0.01*master_timers(2))
-            print*, "Log.Regres : ",  nint((100.d0 * master_timers(3))/master_timers(5)),  "%    ", nint(0.01*master_timers(3))
-            print*, "Log.Analog : ",  nint((100.d0 * master_timers(9))/master_timers(5)),  "%    ", nint(0.01*master_timers(9))
+            print*, "Allocation : ",  nint((100.d0 * master_timers(7))/master_timers(5)),  "%    "!, nint(0.01*master_timers(7))
+            print*, "Data Init  : ",  nint((100.d0 * master_timers(8))/master_timers(5)),  "%    "!, nint(0.01*master_timers(9))
+            print*, "GeoInterp  : ",  nint((100.d0 * master_timers(4))/master_timers(5)),  "%    "!, nint(0.01*master_timers(4))
+            print*, "Transform  : ",  nint((100.d0 * master_timers(6))/master_timers(5)),  "%    "!, nint(0.01*master_timers(6))
+            print*, "Analog     : ",  nint((100.d0 * master_timers(1))/master_timers(5)),  "%    "!, nint(0.01*master_timers(1))
+            print*, "Regression : ",  nint((100.d0 * master_timers(2))/master_timers(5)),  "%    "!, nint(0.01*master_timers(2))
+            print*, "Log.Regres : ",  nint((100.d0 * master_timers(3))/master_timers(5)),  "%    "!, nint(0.01*master_timers(3))
+            print*, "Log.Analog : ",  nint((100.d0 * master_timers(9))/master_timers(5)),  "%    "!, nint(0.01*master_timers(9))
+            print*, "---------------------------------------------------"
+            print*, "Parallelization overhead (?)"
+            print*, "Residual   : ",  100-nint((100.0 * (master_timers(1)+master_timers(2)+master_timers(3)+master_timers(4)+master_timers(6)+master_timers(8)+master_timers(9))) / master_timers(5)),"%    "
+            print*, "---------------------------------------------------"
+            
 
     end function downscale
     
@@ -221,9 +259,6 @@ contains
         real, dimension(:),     intent(inout) :: output
         integer :: k,x,y
         real    :: w
-        
-        ! create the output to be the same length as first dimension of the input 
-        ! allocate( output( size(input_data,1) ) )
         
         ! interpolation is performed using the bilinear weights computing in the geolut
         select case (method)
@@ -252,20 +287,28 @@ contains
     subroutine transform_data(transform_type, pred_data,  &
                             p_xf_start, p_xf_stop,      &
                             train_data,                 &
-                            t_xf_start, t_xf_stop)
+                            t_xf_start, t_xf_stop,      &
+                            reverse)
         implicit none
         integer,            intent(in)    :: transform_type
         real, dimension(:), intent(inout) :: pred_data
         integer,            intent(in)    :: p_xf_start, p_xf_stop
         real, dimension(:), intent(in), optional :: train_data
         integer,            intent(in), optional :: t_xf_start, t_xf_stop
+        logical,            intent(in), optional :: reverse
+        
         
         ! local variables needed by the quantile mapping transform
         type(qm_correction_type) :: qm
         real, dimension(:), allocatable :: temporary
+        logical :: reverse_internal
+        
+        reverse_internal = .False.
+        if (present(reverse)) reverse_internal = reverse
         ! transform the relevant data (e.g. quantile map or other)
 
         select case (transform_type)
+            
         case (kQUANTILE_MAPPING)
             
             allocate( temporary( size(pred_data)) )
@@ -279,10 +322,29 @@ contains
             pred_data = temporary
             
         case (kLOG_TRANSFORM)
-            pred_data = log(pred_data)
+            
+            if (reverse_internal) then
+                pred_data = exp(pred_data)
+                where(pred_data <= LOG_FILL_VALUE) pred_data = 0
+            else
+                where(pred_data <= 0) pred_data = LOG_FILL_VALUE
+                pred_data = log(pred_data)
+            endif
+            
         case (kCUBE_ROOT)
-            ! this may get optimized as a cube root by most compilers.
-            pred_data = pred_data ** 1/3.0
+            if (reverse_internal) then
+                pred_data = pred_data ** 3
+            else
+                ! this may get optimized as a cube root by most compilers.
+                pred_data = pred_data ** (1/3.0)
+            endif
+            
+        case (kFIFTH_ROOT)
+            if (reverse_internal) then
+                pred_data = pred_data ** 5
+            else
+                pred_data = pred_data ** (1/5.0)
+            endif
         end select
 
         
@@ -307,33 +369,38 @@ contains
         
         integer*8 :: timeone, timetwo
         integer :: i, j, n, nvars
-        integer :: a, n_analogs, selected_analog
-        real    :: rand
-        integer :: omp_get_thread_num
+        integer :: a, n_analogs, selected_analog, real_analogs
+        real    :: rand, analog_threshold
         
         n_analogs = options%n_analogs
+        analog_threshold = options%analog_threshold
         nvars = size(atm,2)
         n = size(predictor,1)
         
         allocate(coefficients(nvars))
         allocate(output(n))
-        allocate(analogs(n_analogs))
-        
-        call System_Clock(timeone)
-        if (options%analog_regression) then
-            allocate(regression_data(n_analogs, nvars))
-            allocate(obs_analogs(n_analogs))
+        if (n_analogs > 0) then
+            allocate(analogs(n_analogs))
         endif
-        call System_Clock(timetwo)
-        timers(1) = timers(1) + (timetwo-timeone)
+        
+        if (options%analog_regression) then
+            if (n_analogs > 0) then
+                ! if we are using a constant number of analogs just allocate data once
+                ! could also allocate a LARGE size and only use the bottom n...? 
+                allocate(regression_data(n_analogs, nvars))
+                allocate(obs_analogs(n_analogs))
+            endif
+        endif
 
         if (options%pure_regression) then
             call System_Clock(timeone)
             output(1)  = compute_regression(predictor(1,:), atm, obs, coefficients, errors(1))
             errors(2:) = errors(1)
-            do i=1,nvars
-                output_coeff(i,:) = coefficients(i)
-            enddo
+            if (options%debug) then
+                do i=1,nvars
+                    output_coeff(i,:) = coefficients(i)
+                enddo
+            endif
             call System_Clock(timetwo)
             timers(2) = timers(2) + (timetwo-timeone)
 
@@ -341,9 +408,11 @@ contains
             if (logistic_threshold/=kFILL_VALUE) then
                 logistic(1) = compute_logistic_regression(predictor(1,:), atm, obs, coefficients, logistic_threshold)
                 
-                do i = 1,nvars
-                    output_coeff(i+nvars,:) = coefficients(i)
-                enddo
+                if (options%debug) then
+                    do i = 1,nvars
+                        output_coeff(i+nvars,:) = coefficients(i)
+                    enddo
+                endif
             endif
             call System_Clock(timetwo)
             timers(3) = timers(3) + (timetwo-timeone)
@@ -352,30 +421,61 @@ contains
         
         do i = 1, n
             if (options%pure_analog) then
+                call System_Clock(timeone)
+                call find_analogs(analogs, predictor(i,:), atm, n_analogs, analog_threshold)
+                real_analogs = size(analogs)
+                call System_Clock(timetwo)
+                timers(1) = timers(1) + (timetwo-timeone)
                 
-                analogs = find_analogs(predictor(i,:), atm, n_analogs)
-                
+                call System_Clock(timeone)
                 if (options%sample_analog) then
                     call random_number(rand)
-                    selected_analog = floor(rand * n_analogs)+1
+                    selected_analog = floor(rand * real_analogs)+1
                     
                     output(i) = obs( analogs(selected_analog) )
+                    if (options%debug) then
+                        output_coeff(1:nvars,i) = atm(analogs(selected_analog), :)
+                    endif
                 else
                     output(i) = compute_analog_mean(obs, analogs)
+                    
+                    if (options%debug) then
+                        do j=1,nvars
+                            output_coeff(j,i) = compute_analog_mean(atm(:, j), analogs)
+                        enddo
+                    endif
                 endif
                 
                 errors(i) = compute_analog_error(obs, analogs, output(i))
+                call System_Clock(timetwo)
+                timers(2) = timers(2) + (timetwo-timeone)
                 
-                output_coeff(1:nvars,i) = atm(analogs(selected_analog), :)
-
+                call System_Clock(timeone)
                 if (logistic_threshold/=kFILL_VALUE) then
                     logistic(i) = compute_analog_exceedance(obs, analogs, logistic_threshold)
                 endif
+                call System_Clock(timetwo)
+                timers(3) = timers(3) + (timetwo-timeone)
+
                 
             elseif (options%analog_regression) then
                 call System_Clock(timeone)
-                analogs = find_analogs(predictor(i,:), atm, n_analogs)
-                do a=1,n_analogs
+                call find_analogs(analogs, predictor(i,:), atm, n_analogs, analog_threshold)
+                real_analogs = size(analogs)
+
+                if (real_analogs /= n_analogs) then
+                    if (allocated(obs_analogs)) then
+                        if (size(obs_analogs) /= real_analogs) then
+                            deallocate(regression_data, obs_analogs)
+                            allocate(regression_data(real_analogs, nvars))
+                            allocate(obs_analogs(real_analogs))
+                        endif
+                    else
+                        allocate(regression_data(real_analogs, nvars))
+                        allocate(obs_analogs(real_analogs))
+                    endif
+                endif
+                do a=1,real_analogs
                     obs_analogs(a) = obs(analogs(a))
                     regression_data(a,:) = atm(analogs(a),:)
                 enddo
@@ -384,7 +484,9 @@ contains
 
                 call System_Clock(timeone)
                 output(i) = compute_regression(predictor(i,:), regression_data, obs_analogs, coefficients, errors(i))
-                output_coeff(1:nvars,i) = coefficients
+                if (options%debug) then
+                    output_coeff(1:nvars,i) = coefficients
+                endif
                 call System_Clock(timetwo)
                 timers(2) = timers(2) + (timetwo-timeone)
 
@@ -393,25 +495,34 @@ contains
                     if (options%logistic_from_analog_exceedance) then
                         
                         ! if the user specified using fewer analogs specifically for the logistic component, find them here
-                        if (options%n_log_analogs /= n_analogs) then
-                            analogs(1:options%n_log_analogs) = find_analogs(predictor(i,:), atm, options%n_log_analogs)
+                        if ((options%n_log_analogs /= real_analogs).and.(options%n_log_analogs > 0)) then
+                            
+                            ! if the number of logistic analogs is greater than the real number of analogs, then reallocate analogs
+                            if (real_analogs < options%n_log_analogs) then
+                                deallocate(analogs)
+                                allocate(analogs(options%n_log_analogs))
+                            endif
+                            
+                            ! find the logistic analogs
+                            call find_analogs(analogs, predictor(i,:), atm, options%n_log_analogs, -1.0)
                             call System_Clock(timetwo)
                             timers(9) = timers(9) + (timetwo-timeone)
                             
+                            ! compute the logistic as the probability of threshold exceedance in the analog population
                             call System_Clock(timeone)
                             logistic(i) = compute_analog_exceedance(obs, analogs(1:options%n_log_analogs), logistic_threshold)
                         else
+                            ! compute the logistic as the probability of threshold exceedance in the analog population
                             logistic(i) = compute_analog_exceedance(obs, analogs, logistic_threshold)
                         endif
-                            
-                        do j = 1,nvars
-                            output_coeff(j+nvars,i) = analogs(j)
-                        enddo
+                        
                     else
                         logistic(i) = compute_logistic_regression(predictor(i,:), regression_data, obs_analogs, coefficients, logistic_threshold)
-                        do j = 1,nvars
-                            output_coeff(j+nvars,i) = coefficients(j)
-                        enddo
+                        if (options%debug) then
+                            do j = 1,nvars
+                                output_coeff(j+nvars,i) = coefficients(j)
+                            enddo
+                        endif
                     endif
                 endif
                 call System_Clock(timetwo)
@@ -419,15 +530,18 @@ contains
                 
             elseif (options%pure_regression) then
                 !  test matmul(predictor, output_coeff(:,1)) should provide all time values efficiently?
-                ! output(i) = dot_product(predictor(i,:), output_coeff(:,1))
-                output(i) = 0
-                do j=1,nvars
-                    output(i) = output(i) + predictor(i,j) * output_coeff(j,1)
-                enddo
 
+                call System_Clock(timeone)
+                output(i) = dot_product(predictor(i,:), output_coeff(:,1))
+                call System_Clock(timetwo)
+                timers(2) = timers(2) + (timetwo-timeone)
+
+                call System_Clock(timeone)
                 if (logistic_threshold/=kFILL_VALUE) then
                     logistic(i) = 1.0 / (1.0 + exp(-dot_product(predictor(i,:), output_coeff(nvars+1:nvars*2,1))))
                 endif
+                call System_Clock(timetwo)
+                timers(3) = timers(3) + (timetwo-timeone)
                 
             endif
         end do
@@ -506,16 +620,27 @@ contains
                 allocate(output%variables(v)%coefficients(n_atm_variables+1, noutput, nx, ny))
             endif
             
-            allocate(output%variables(v)%obs         (tr_size, nx, ny))
-            allocate(output%variables(v)%training    (tr_size, nx, ny, n_atm_variables+1))
-            allocate(output%variables(v)%predictors  (noutput, nx, ny, n_atm_variables+1))
-            
+            output%variables(v)%data            = 0
+            output%variables(v)%logistic        = 0
             
             output%variables(v)%logistic_threshold = options%logistic_threshold
-            output%variables(v)%data        = 0
-            output%variables(v)%predictors  = 0
-            output%variables(v)%training    = 0
-            output%variables(v)%obs         = 0
+            
+            if (options%obs%input_Xforms(v) == kLOG_TRANSFORM) then
+                if (options%logistic_threshold<=0) then
+                    output%variables(v)%logistic_threshold = log(LOG_FILL_VALUE)
+                endif
+            endif
+            output%variables(v)%coefficients    = 0
+                        
+            if (options%debug) then
+                allocate(output%variables(v)%obs         (tr_size, nx, ny))
+                allocate(output%variables(v)%training    (tr_size, nx, ny, n_atm_variables+1))
+                allocate(output%variables(v)%predictors  (noutput, nx, ny, n_atm_variables+1))
+                output%variables(v)%predictors  = 0
+                output%variables(v)%training    = 0
+                output%variables(v)%obs         = 0
+            endif
+            
         end do
 
         

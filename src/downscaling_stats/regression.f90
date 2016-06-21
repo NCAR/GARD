@@ -13,7 +13,7 @@ contains
         
         real :: y
         
-        integer :: nvars, ntimes, i
+        integer :: nvars, ntimes, i, info
         
         nvars  = size(x)
         ntimes = size(training_x,1)
@@ -26,15 +26,27 @@ contains
         
         if (maxval(training_y) == 0) then
             y=0
+            coefficients = 0
+            if (present(error)) error=0
             return
         endif
         
         if (any(maxval(abs(training_x),dim=1) == 0.0)) then
-            y=0
+            y = 0
+            coefficients = 0
+            if (present(error)) error=0
             return
         endif
         
-        call lapack_least_squares(training_x_lp, training_y_lp, coefficients)
+        call lapack_least_squares(training_x_lp, training_y_lp, coefficients, info=info)
+        if (info/=0) then
+            y = sum(training_y)/size(training_y)
+            ! !$omp critical (print_lock)
+            ! print*, "Regression error, using value:",y
+            ! !$omp end critical (print_lock)
+            coefficients(1) = y
+            coefficients(2:)= 0
+        endif
         
         y = 0
         if (maxval(abs(coefficients)) == 0) then
@@ -63,16 +75,18 @@ contains
     ! Output: 
     !   B  = An n-element vector.
     !
-    subroutine lapack_least_squares(X, Y, B, working_space)
+    subroutine lapack_least_squares(X, Y, B, working_space, info)
         implicit none
-        real, intent(inout), dimension(:,:) :: X
-        real, intent(inout), dimension(:)   :: Y
+        real,    intent(inout), dimension(:,:) :: X
+        real,    intent(inout), dimension(:)   :: Y
         real(8), intent(inout), dimension(:)   :: B
-        real, intent(inout), dimension(:), optional :: working_space ! temporary working space
-        ! it could be more efficient to keep one space allocated and pass it in every time, 
+        real,    intent(inout), dimension(:), optional :: working_space ! temporary working space
+        integer, intent(inout),               optional :: info
+        
+        ! it could be more efficient to keep one space allocated and pass it in every time (working_space), 
         ! in practice, having a modest "WORK" allocated on the stack seems to be at least as fast. 
         real, dimension(1000) :: WORK
-        integer :: n, m, nrhs, LDX, LDY, LWORK, INFO
+        integer :: n, m, nrhs, LDX, LDY, LWORK, innerINFO
         
         m = size(X,1)
         LDX = m
@@ -85,27 +99,33 @@ contains
         if (present(working_space)) then
             ! First find the optimal work size (LWORK)
             LWORK = -1
-            CALL SGELS( 'N', M, N, NRHS, X, LDX, Y, LDY, working_space, LWORK, INFO )
+            CALL SGELS( 'N', M, N, NRHS, X, LDX, Y, LDY, working_space, LWORK, innerINFO )
             LWORK = MIN( size(working_space), INT( working_space( 1 ) ) )
             
             ! Now solve the equations X*B = Y
-            CALL SGELS( 'N', M, N, NRHS, X, LDX, Y, LDY, working_space, LWORK, INFO )
+            CALL SGELS( 'N', M, N, NRHS, X, LDX, Y, LDY, working_space, LWORK, innerINFO )
         else
             ! First find the optimal work size (LWORK)
             LWORK = -1
-            CALL SGELS( 'N', M, N, NRHS, X, LDX, Y, LDY, WORK, LWORK, INFO )
+            CALL SGELS( 'N', M, N, NRHS, X, LDX, Y, LDY, WORK, LWORK, innerINFO )
             LWORK = MIN( 1000, INT( WORK( 1 ) ) )
             
             ! Now solve the equations X*B = Y
-            CALL SGELS( 'N', M, N, NRHS, X, LDX, Y, LDY, WORK, LWORK, INFO )
+            CALL SGELS( 'N', M, N, NRHS, X, LDX, Y, LDY, WORK, LWORK, innerINFO )
         endif
-        if (INFO/=0) then
-            !$omp critical (print_lock)
-            write(*,*) "ERROR in SGELS with argument:", 0-INFO
-            !$omp end critical (print_lock)
-            Y = 0
+        if (innerINFO/=0) then
+            ! !$omp critical (print_lock)
+            ! if (innerINFO<0) then
+            !     write(*,*) "ERROR in SGELS with argument:", 0-innerINFO
+            ! else
+            !     write(*,*) "ERROR in SGELS A does not have full rank, position:",innerINFO
+            ! endif
+            ! !$omp end critical (print_lock)
+            Y(1) = sum(Y)/size(Y)
+            Y(2:)= 0
         endif
-
+        
+        if (present(info)) info = innerINFO
         B(1:n) = Y(1:n)
 
     end subroutine lapack_least_squares
@@ -190,6 +210,7 @@ contains
         
         integer :: nvars, ntimes, i, t, f, it
         real :: d
+        integer :: info
         
         if (all(Y > 0)) then
             B(1) = 88
@@ -238,7 +259,16 @@ contains
                     V(t,t) = P(t)*(1.0-P(t))
                 enddo
                 XV = matmul(V,X)
-                call lapack_least_squares(XV, YN, BN)
+                call lapack_least_squares(XV, YN, BN, info=info)
+                if (info /= 0) then
+                    B(1) = -1 * log( (1.0 / (sum(Y)/size(Y))) - 1.0)
+                    B(2:)= 0
+                    ! !$omp critical (print_lock)
+                    ! print*, B(1)
+                    ! !$omp end critical (print_lock)
+                    return
+                endif
+                    
 
                 f = 1
                 do i = 1, nvars+1, 1

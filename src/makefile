@@ -435,7 +435,7 @@ $(BUILD)regression.o: downscaling_stats/regression.f90
 # 					$(BUILD)model_constants.o
 # 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
-$(BUILD)atmosphere_io.o: io/atmosphere_io.f90 $(BUILD)data_structures.o $(BUILD)geo_reader.o \
+$(BUILD)atmosphere_io.o: io/atmosphere_io.f90 $(BUILD)data_structures.o  \
 					$(BUILD)gcm_io.o $(BUILD)gefs_io.o $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
@@ -443,13 +443,13 @@ $(BUILD)downscaling.o: downscaling_stats/downscaling.f90 $(BUILD)data_structures
 					$(BUILD)quantile_mapping.o $(BUILD)regression.o $(BUILD)analogs.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
-$(BUILD)analogs.o: downscaling_stats/analogs.f90
+$(BUILD)analogs.o: downscaling_stats/analogs.f90 $(BUILD)string.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 
 $(BUILD)main.o: main/main.f90 $(BUILD)atmosphere_io.o $(BUILD)configuration.o \
 					$(BUILD)init.o $(BUILD)model_constants.o $(BUILD)io_routines.o \
-					$(BUILD)downscaling.o $(BUILD)output.o
+					$(BUILD)downscaling.o $(BUILD)output.o $(BUILD)geo_reader.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 
