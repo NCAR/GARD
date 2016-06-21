@@ -19,6 +19,7 @@
 
 FC=gfortran
 NCDF_PATH = /usr/local
+LAPACK_PATH = /usr/local
 INSTALL_DIR = ~/bin
 RM=/bin/rm
 CP=/bin/cp
