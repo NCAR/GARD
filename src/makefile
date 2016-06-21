@@ -270,7 +270,6 @@ OBJS =  \
 	$(BUILD)analogs.o       	\
 	$(BUILD)downscaling.o       \
 	$(BUILD)regression.o		\
-	$(BUILD)nr.o				\
 	$(BUILD)output.o    		\
 	$(BUILD)main.o
 	# $(BUILD)reanalysis.o    	\
@@ -302,7 +301,6 @@ QM_TEST_OBJS = 					\
 
 REGRESSION_TEST_OBJS = 			\
 	$(BUILD)regression.o		\
-	$(BUILD)nr.o				\
 	$(BUILD)test_regression.o
 
 	
@@ -352,7 +350,7 @@ test_config : $(CONFIG_TEST_OBJS)
 # specify specific builds and dependencies. 
 
 # unit tests
-$(BUILD)test_regression.o: tests/test_regression.f90 $(BUILD)nr.o $(BUILD)regression.o
+$(BUILD)test_regression.o: tests/test_regression.f90 $(BUILD)regression.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)test_calendar.o: tests/test_calendar.f90 $(BUILD)time.o $(BUILD)model_constants.o
@@ -429,10 +427,7 @@ $(BUILD)obs_io.o: io/obs_io.f90 $(BUILD)data_structures.o $(BUILD)string.o $(BUI
 $(BUILD)output.o: io/output.f90 $(BUILD)data_structures.o $(BUILD)io_routines.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 	
-$(BUILD)regression.o: downscaling_stats/regression.f90 $(BUILD)nr.o
-	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
-
-$(BUILD)nr.o: downscaling_stats/numrec.f90
+$(BUILD)regression.o: downscaling_stats/regression.f90
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 # $(BUILD)reanalysis.o: objects/reanalysis.f90 $(BUILD)data_structures.o $(BUILD)geo_reader.o \
