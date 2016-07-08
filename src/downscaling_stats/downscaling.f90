@@ -192,6 +192,7 @@ contains
                                                     output%variables(v)%logistic_threshold,                            &
                                                     options, timers )
 
+                            ! if the input data were transformed with e.g. a cube root or log transform, then reverse that transformation for the output
                             call transform_data(options%obs%input_Xforms(v), output%variables(v)%data(:,i,j), 1, noutput, reverse=.True.)
 
 
@@ -421,42 +422,9 @@ contains
         
         do i = 1, n
             if (options%pure_analog) then
-                call System_Clock(timeone)
-                call find_analogs(analogs, predictor(i,:), atm, n_analogs, analog_threshold)
-                real_analogs = size(analogs)
-                call System_Clock(timetwo)
-                timers(1) = timers(1) + (timetwo-timeone)
-                
-                call System_Clock(timeone)
-                if (options%sample_analog) then
-                    call random_number(rand)
-                    selected_analog = floor(rand * real_analogs)+1
-                    
-                    output(i) = obs( analogs(selected_analog) )
-                    if (options%debug) then
-                        output_coeff(1:nvars,i) = atm(analogs(selected_analog), :)
-                    endif
-                else
-                    output(i) = compute_analog_mean(obs, analogs)
-                    
-                    if (options%debug) then
-                        do j=1,nvars
-                            output_coeff(j,i) = compute_analog_mean(atm(:, j), analogs)
-                        enddo
-                    endif
-                endif
-                
-                errors(i) = compute_analog_error(obs, analogs, output(i))
-                call System_Clock(timetwo)
-                timers(2) = timers(2) + (timetwo-timeone)
-                
-                call System_Clock(timeone)
-                if (logistic_threshold/=kFILL_VALUE) then
-                    logistic(i) = compute_analog_exceedance(obs, analogs, logistic_threshold)
-                endif
-                call System_Clock(timetwo)
-                timers(3) = timers(3) + (timetwo-timeone)
-
+                call downscale_pure_analog(predictor(i,:), atm, obs, output_coeff(:,i),     &
+                                           output(i), errors(i), logistic(i),               &
+                                           options, timers)
                 
             elseif (options%analog_regression) then
                 call System_Clock(timeone)
@@ -529,24 +497,103 @@ contains
                 timers(3) = timers(3) + (timetwo-timeone)
                 
             elseif (options%pure_regression) then
-                !  test matmul(predictor, output_coeff(:,1)) should provide all time values efficiently?
-
-                call System_Clock(timeone)
-                output(i) = dot_product(predictor(i,:), output_coeff(:,1))
-                call System_Clock(timetwo)
-                timers(2) = timers(2) + (timetwo-timeone)
-
-                call System_Clock(timeone)
-                if (logistic_threshold/=kFILL_VALUE) then
-                    logistic(i) = 1.0 / (1.0 + exp(-dot_product(predictor(i,:), output_coeff(nvars+1:nvars*2,1))))
-                endif
-                call System_Clock(timetwo)
-                timers(3) = timers(3) + (timetwo-timeone)
+                ! to test matmul(predictor, output_coeff(:,1)) should provide all time values efficiently?
+                call apply_pure_regression(output(i), predictor(i,:), output_coeff(:,1), logistic(i), logistic_threshold, timers)
                 
             endif
         end do
 
     end function downscale_point
+
+
+    subroutine downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, options, timers)
+        implicit none
+        real,           intent(in),     dimension(:,:)  :: atm
+        real,           intent(in),     dimension(:)    :: x, obs
+        real,           intent(inout),  dimension(:)    :: output_coeff
+        real,           intent(inout)                   :: output, logistic, error
+        type(config),   intent(in)                      :: options
+        integer*8,      intent(inout),  dimension(:)    :: timers
+        
+        real        :: analog_threshold, logistic_threshold
+        integer*8   :: timeone, timetwo
+        integer     :: real_analogs, selected_analog, nvars, n_analogs
+        integer, dimension(:), allocatable :: analogs
+        real        :: rand
+        integer     :: j
+        
+        n_analogs           = options%n_analogs
+        analog_threshold    = options%analog_threshold
+        logistic_threshold  = options%logistic_threshold
+        nvars               = size(x)
+        
+        if (n_analogs > 0) then
+            allocate(analogs(n_analogs))
+        endif
+        
+        call System_Clock(timeone)
+        ! find the best n_analog matching analog days in atm to match x
+        call find_analogs(analogs, x, atm, n_analogs, analog_threshold)
+        real_analogs = size(analogs)
+        call System_Clock(timetwo)
+        timers(1) = timers(1) + (timetwo-timeone)
+        
+        call System_Clock(timeone)
+        if (options%sample_analog) then
+            call random_number(rand)
+            selected_analog = floor(rand * real_analogs)+1
+            
+            output = obs( analogs(selected_analog) )
+            if (options%debug) then
+                output_coeff(1:nvars) = atm(analogs(selected_analog), :)
+            endif
+        else
+            output = compute_analog_mean(obs, analogs)
+            
+            if (options%debug) then
+                do j=1,nvars
+                    output_coeff(j) = compute_analog_mean(atm(:, j), analogs)
+                enddo
+            endif
+        endif
+        
+        error = compute_analog_error(obs, analogs, output)
+        call System_Clock(timetwo)
+        timers(2) = timers(2) + (timetwo-timeone)
+        
+        call System_Clock(timeone)
+        if (logistic_threshold/=kFILL_VALUE) then
+            logistic = compute_analog_exceedance(obs, analogs, logistic_threshold)
+        endif
+        call System_Clock(timetwo)
+        timers(3) = timers(3) + (timetwo-timeone)
+        
+    end subroutine downscale_pure_analog
+
+    subroutine apply_pure_regression(output, x, B, logistic, threshold, timers)
+        implicit none
+        real,       intent(in),     dimension(:)    :: x, B
+        real,       intent(inout)                   :: output, logistic
+        real,       intent(in)                      :: threshold
+        integer*8,  intent(inout),  dimension(:)    :: timers
+        
+        integer*8   :: timeone, timetwo
+        integer     :: nvars
+        
+        nvars = size(x)
+        call System_Clock(timeone)
+        output = dot_product(x, B(1:nvars))
+        call System_Clock(timetwo)
+        timers(2) = timers(2) + (timetwo-timeone)
+
+        call System_Clock(timeone)
+        if (threshold/=kFILL_VALUE) then
+            logistic = 1.0 / (1.0 + exp(-dot_product(x, B(nvars+1:nvars*2))))
+        endif
+        call System_Clock(timetwo)
+        timers(3) = timers(3) + (timetwo-timeone)
+
+    end subroutine apply_pure_regression
     
     
     ! normalize an atmospheric variable by subtracting the mean and dividing by the standard deviation
