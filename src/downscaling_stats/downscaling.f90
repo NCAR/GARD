@@ -360,7 +360,7 @@ contains
         real,    dimension(:),   intent(inout):: logistic
         real,                    intent(in)   :: logistic_threshold
         type(config),            intent(in)   :: options
-        integer*8, dimension(:), intent(inout) :: timers
+        integer(8),dimension(:), intent(inout):: timers
         
         real,    dimension(:),   allocatable :: output
         real,    dimension(:),   allocatable :: obs_analogs
@@ -368,10 +368,15 @@ contains
         integer, dimension(:),   allocatable :: analogs
         real(8), dimension(:),   allocatable :: coefficients
         
-        integer*8 :: timeone, timetwo
-        integer :: i, j, n, nvars
-        integer :: a, n_analogs, selected_analog, real_analogs
-        real    :: rand, analog_threshold
+        integer(8)  :: timeone, timetwo
+        integer     :: i, j, n, nvars
+        integer     :: a, n_analogs, selected_analog, real_analogs
+        real        :: rand, analog_threshold
+        
+        real,    dimension(:,:),allocatable :: threshold_atm 
+        real,    dimension(:),  allocatable :: threshold_obs
+        logical, dimension(:),  allocatable :: threshold_packing
+        integer :: n_packed
         
         n_analogs = options%n_analogs
         analog_threshold = options%analog_threshold
@@ -437,10 +442,16 @@ contains
                             deallocate(regression_data, obs_analogs)
                             allocate(regression_data(real_analogs, nvars))
                             allocate(obs_analogs(real_analogs))
+                            if (logistic_threshold/=kFILL_VALUE) then
+                                allocate(threshold_packing(real_analogs))
+                            endif
                         endif
                     else
                         allocate(regression_data(real_analogs, nvars))
                         allocate(obs_analogs(real_analogs))
+                        if (logistic_threshold/=kFILL_VALUE) then
+                            allocate(threshold_packing(real_analogs))
+                        endif
                     endif
                 endif
                 do a=1,real_analogs
@@ -451,7 +462,33 @@ contains
                 timers(1) = timers(1) + (timetwo-timeone)
 
                 call System_Clock(timeone)
-                output(i) = compute_regression(predictor(i,:), regression_data, obs_analogs, coefficients, errors(i))
+                if (logistic_threshold==kFILL_VALUE) then
+                    output(i) = compute_regression(predictor(i,:), regression_data, obs_analogs, coefficients, errors(i))
+                else
+                    threshold_packing = obs_analogs > logistic_threshold
+                    n_packed = count(threshold_packing)
+                    
+                    if (n_packed > nvars) then
+                        if (allocated(threshold_atm)) deallocate(threshold_atm)
+                        allocate(threshold_atm(n_packed, nvars))
+                        do j=1,nvars
+                            threshold_atm(:,j) = pack(regression_data(:,j), threshold_packing)
+                        enddo
+                        
+                        if (allocated(threshold_obs)) deallocate(threshold_obs)
+                        allocate(threshold_obs(n_packed))
+                        threshold_obs = pack(obs_analogs, threshold_packing)
+                        
+                        output(i) = compute_regression(predictor(i,:), threshold_atm, threshold_obs, coefficients, errors(i))
+                        
+                    elseif (n_packed>0) then
+                        output(i) = sum(pack(obs_analogs, threshold_packing))/n_packed
+                        
+                    else
+                        output(i) = compute_regression(predictor(i,:), regression_data, obs_analogs, coefficients, errors(i))
+                    endif
+                    
+                endif
                 if (options%debug) then
                     output_coeff(1:nvars,i) = coefficients
                 endif
