@@ -41,12 +41,12 @@ program stat_down
     
     ! read in the training atmospheric data (e.g. reanalysis or GEFS)
     print*, ""
-    print*, "=========================================="
+    print*, "------------------------------------------"
     print*, "Reading training"
     training_atm = read_atm(options%training)
     ! read in the training surface data (e.g. Maurer et al., Newman et al., Livneh et al., DAYMET )
     print*, ""
-    print*, "=========================================="
+    print*, "------------------------------------------"
     print*, "Reading obs"
     training_obs = read_obs(options%obs)
     
