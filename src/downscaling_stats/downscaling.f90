@@ -386,7 +386,7 @@ contains
     
     function downscale_point(predictor, atm, obs, errors, output_coeff, logistic, logistic_threshold, options, timers) result(output)
         implicit none
-        real,    dimension(:,:), intent(in)   :: predictor, atm ! (ntimes, nvars)
+        real,    dimension(:,:), intent(inout):: predictor, atm ! (ntimes, nvars)
         real,    dimension(:),   intent(in)   :: obs
         real,    dimension(:),   intent(inout):: errors
         real,    dimension(:,:), intent(inout):: output_coeff
@@ -413,7 +413,10 @@ contains
         
         allocate(coefficients(nvars))
         allocate(output(n))
-        
+
+        ! This just prevents any single points that were WAY out (most likely due to the QM?)
+        where(predictor < -10) predictor = -10
+        where(predictor >  10) predictor =  10
 
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         !!

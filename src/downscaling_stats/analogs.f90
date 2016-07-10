@@ -17,21 +17,17 @@ contains
         real,    intent(in)                    :: threshold
         
         real,    dimension(:), allocatable :: distances
-        logical, dimension(:), allocatable :: mask
+        ! logical, dimension(:), allocatable :: mask
         integer, dimension(1) :: min_location
         integer :: i, n_inputs, nvars
         
-        ! if (match==0) then
-        !     analogs = pick_n_random_zeros(input, n)
-        ! else
-            
         n_inputs = size(input,1)
         nvars    = size(input,2)
 
-        allocate(mask(n_inputs))
+        ! allocate(mask(n_inputs))
         allocate(distances(n_inputs))
         distances = 0
-        mask = .True.
+        ! mask = .True.
         
         do i=1,nvars
             distances = distances + (input(:,i) - match(i))**2
@@ -50,8 +46,15 @@ contains
             stop "No number of or threshold for analog selection supplied"
             !$omp end critical (print_lock)
         endif
-            
-        ! endif
+        
+        if (minval(analogs)<1) then
+            !$omp critical (print_lock)
+            print*, n, minval(analogs)
+            print*, analogs(1:4)
+            print*, maxval(distances), minval(distances)
+            stop "ERROR selecting analogs"
+            !$omp end critical (print_lock)
+        endif
         
     end subroutine find_analogs
     
@@ -136,7 +139,7 @@ contains
         
         do i = 1, n_dists
            inv_dist = 0-distances(i)
-           ! top_dists is a minheap, if inv_dist < top_dists(1) then we need to replace it with inv_dist
+           ! top_dists is a minheap, if inv_dist > top_dists(1) then we need to replace it with inv_dist
            ! analogs is an index to the positions of each element of distances, and is
            ! maintained along with top_dsts by heapify
            if (inv_dist > heap(1)) then
