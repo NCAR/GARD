@@ -42,6 +42,16 @@ contains
         write(*,*) "   The National Center for Atmospheric Research "
         write(*,*) "   NCAR is supported by the National Science Foundation "
         write(*,*) " ------------------------------------------------------ "
+        write(*,*) " ------------------------------------------------------ "
+        write(*,*) ""
+        write(*,*) "  WARNING WARNING WARNING WARNING WARNING WARNING "
+        write(*,*) ""
+        write(*,*) "    This is pre-release not-even-beta code. "
+        write(*,*) ""
+        write(*,*) "  WARNING WARNING WARNING WARNING WARNING WARNING "
+        write(*,*) ""
+        write(*,*) " ------------------------------------------------------ "
+        write(*,*) " ------------------------------------------------------ "
         write(*,*) ""
 
         if (options%debug) then

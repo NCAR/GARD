@@ -17,7 +17,7 @@ module config_mod
     private
     
     character(len=MAXFILELENGTH), parameter :: kDEFAULT_OPTIONS_FILENAME = "downscale_options.txt"
-    character(len=MAXFILELENGTH), parameter :: kVERSION_STRING = "0.1"
+    character(len=MAXFILELENGTH), parameter :: kVERSION_STRING = "0.3"
     
     logical :: module_debug
     public :: read_config
