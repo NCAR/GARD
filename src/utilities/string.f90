@@ -8,6 +8,7 @@
 !!------------------------------------------------------------
 module string
 
+    use model_constants
     implicit none
     interface str
         module procedure str_d
@@ -15,7 +16,6 @@ module string
         module procedure str_i
     end interface
     
-    integer,parameter::MAXSTRINGLENGTH=100
 contains
     
     ! could this be done with index(name(start:),token)?

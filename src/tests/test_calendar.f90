@@ -11,12 +11,13 @@
 !!------------------------------------------------------------
 module calendar_test_module
     use time
-    integer, parameter :: STRING_LENGTH = 255
+    use model_constants
+    
     real, parameter :: MAX_ERROR = 1e-5 ! allow less than 1 second error (over a 2100 yr period)
 contains
     logical function calendar_test(calendar_name,error)
-        character(len=STRING_LENGTH), intent(in) :: calendar_name
-        character(len=STRING_LENGTH), intent(out) :: error
+        character(len=MAXSTRINGLENGTH), intent(in) :: calendar_name
+        character(len=MAXSTRINGLENGTH), intent(out) :: error
         
         double precision :: mjd_input, mjd_output
         double precision :: min_mjd, max_mjd, mjd_step
@@ -93,7 +94,7 @@ contains
     end function calendar_test
     
     subroutine detailed_tests(calendar_name)
-        character(len=STRING_LENGTH), intent(in) :: calendar_name
+        character(len=MAXSTRINGLENGTH), intent(in) :: calendar_name
         
         double precision :: mjd_input, mjd_output
         double precision :: min_mjd, max_mjd, mjd_step
@@ -135,14 +136,16 @@ end module calendar_test_module
 program test_calendar
     use calendar_test_module
     integer, parameter :: NCALENDARS=5
-    character(len=STRING_LENGTH),dimension(NCALENDARS) :: calendars_to_test
-    character(len=STRING_LENGTH) :: calendar_error
-    character(len=STRING_LENGTH) :: options
+    character(len=MAXSTRINGLENGTH),dimension(NCALENDARS) :: calendars_to_test
+    character(len=MAXSTRINGLENGTH) :: calendar_error
+    character(len=MAXSTRINGLENGTH) :: options
     
     integer :: current_calendar
     integer :: error
+    type(Time_type) :: time_data
+    logical :: test
     
-    calendars_to_test=[character(len=STRING_LENGTH) :: "gregorian","standard","365-day","noleap","360-day"]
+    calendars_to_test=[character(len=MAXSTRINGLENGTH) :: "gregorian","standard","365-day","noleap","360-day"]
     options=""
     
     if (command_argument_count()>0) then
@@ -168,6 +171,22 @@ program test_calendar
             print*, trim(calendar_error)
             call detailed_tests(calendars_to_test(current_calendar))
         endif
+        
     end do
+
+    call time_data%init("gregorian", 1970)
+    call time_data%set(365.d0)
+    
+    print*, "Testing year_zero offset in gregorian calendar"
+    test=.True.
+    test = test .and. (trim(time_data%as_string()) == trim("1971/01/01 00:00:00"))
+    test = test .and. (time_data%year_zero == 1970)
+    test = test .and. (time_data%current_date_time == 365.0)
+    if (test) then
+        print*, " PASSED"
+    else
+        print*, " FAILED "
+    endif
+    
 end program test_calendar
     

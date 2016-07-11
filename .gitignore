@@ -14,6 +14,9 @@
 *.dSYM
 *.dll
 
+# Debug Symbols
+*.dSYM
+
 # Fortran module files
 *.mod
 
@@ -27,6 +30,9 @@
 *.exe
 *.out
 *.app
+test_sort
+test_regression
 test_calendar
-test_master_file
+test_qm
+test_config
 downscale

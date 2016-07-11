@@ -11,7 +11,9 @@ addons:
     packages:
       - gfortran
       - libnetcdf-dev
+      - liblapack-dev
 script:
-  - sed -i "s|NCDF_PATH = /usr/local|NCDF_PATH = /usr|" makefile
-  - make test -j4
-  - make -j4
+  - sed -i "s|NCDF_PATH = /usr/local|NCDF_PATH = /usr|" src/makefile
+  - sed -i "s|LAPACK_PATH = /usr/local|LAPACK_PATH = /usr|" src/makefile
+  - make -C src -j4 test
+  - make -C src -j4

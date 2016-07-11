@@ -16,18 +16,17 @@
 !!------------------------------------------------------------
 module io_routines
     use netcdf
-
+    use model_constants
+    
     implicit none
     ! maximum number of dimensions for a netCDF file
     integer,parameter::io_maxDims=10
-    ! maximum length of a dimension name not this could be in data_structures, but that simply adds
-    ! one more dependency on data_structures and prevents this being compiled in parallel
-    integer,parameter::MAXDIMLENGTH=255
+
     !>------------------------------------------------------------
     !! Generic interface to the netcdf read routines
     !!------------------------------------------------------------
     interface io_read
-        module procedure io_read2d, io_read3d, io_read6d, io_read2di, io_read1d
+        module procedure io_read2d, io_read3d, io_read6d, io_read2di, io_read1d, io_read4d, io_read1dd
     end interface
 
     !>------------------------------------------------------------
@@ -199,6 +198,7 @@ contains
         endif
 
         ! Read the dimension lengths
+        diminfo = 1
         call io_getdims(filename,varname,diminfo)
         allocate(data_in(diminfo(2),diminfo(3),diminfo(4),diminfo(5),diminfo(6),diminfo(7)))
         ! Open the file. NF90_NOWRITE tells netCDF we want read-only access to the file.
@@ -222,6 +222,66 @@ contains
         call check( nf90_close(ncid),filename)
 
     end subroutine io_read6d
+
+    !>------------------------------------------------------------
+    !! Same as io_read6d but for 4-dimensional data
+    !!
+    !! Reads in a variable from a netcdf file, allocating memory in data_in for it.
+    !!
+    !! if extradim is provided specifies this index for any extra dimensions (dims>3)
+    !!   e.g. we may only want one time slice from a 3d variable
+    !!
+    !! @param   filename    Name of NetCDF file to look at
+    !! @param   varname     Name of the NetCDF variable to read
+    !! @param[out] data_in     Allocatable 4-dimensional array to store output
+    !! @param   extradim    OPTIONAL: specify the position to read for any extra (e.g. time) dimension
+    !! @retval data_in     Allocated 3-dimensional array with the netCDF data
+    !!
+    !!------------------------------------------------------------
+    subroutine io_read4d(filename,varname,data_in,extradim)
+        implicit none
+        ! This is the name of the data_in file and variable we will read.
+        character(len=*), intent(in) :: filename, varname
+        real,intent(out),allocatable :: data_in(:,:,:,:)
+        integer, intent(in),optional :: extradim
+        integer, dimension(io_maxDims)  :: diminfo !will hold dimension lengths
+        integer, dimension(io_maxDims)  :: dimstart
+        ! This will be the netCDF ID for the file and data_in variable.
+        integer :: ncid, varid,i
+
+        if (present(extradim)) then
+            dimstart=extradim
+            dimstart(1:4)=1
+        else
+            dimstart=1
+        endif
+
+        ! Read the dimension lengths
+        diminfo = 1
+        call io_getdims(filename,varname,diminfo)
+        allocate(data_in(diminfo(2),diminfo(3),diminfo(4),diminfo(5)))
+        ! Open the file. NF90_NOWRITE tells netCDF we want read-only access to
+        ! the file.
+        call check(nf90_open(filename, NF90_NOWRITE, ncid),filename)
+        ! Get the varid of the data_in variable, based on its name.
+        call check(nf90_inq_varid(ncid, varname, varid),trim(filename)//":"//trim(varname))
+
+        ! Read the data_in. skip the slowest varying indices if there are more than 3 dimensions (typically this will be time)
+        if (diminfo(1)>4) then
+            diminfo(6:diminfo(1)+1)=1 ! set count for extra dims to 1
+            call check(nf90_get_var(ncid, varid, data_in,&
+                                    dimstart(1:diminfo(1)), &               ! start  = 1 or extradim
+                                    [ (diminfo(i+1), i=1,diminfo(1)) ],&    ! count=n or 1 created through an implied do loop
+                                    [ (1,            i=1,diminfo(1)) ]),&   ! for all dims, stride = 1     "  implied do loop
+                                    trim(filename)//":"//trim(varname)) !pass file:var to check so it can give us more info
+        else
+            call check(nf90_get_var(ncid, varid, data_in),trim(filename)//":"//trim(varname))
+        endif
+        ! Close the file, freeing all resources.
+        call check( nf90_close(ncid),filename)
+
+    end subroutine io_read4d
+
 
     !>------------------------------------------------------------
     !! Same as io_read6d but for 3-dimensional data
@@ -257,6 +317,7 @@ contains
         endif
 
         ! Read the dimension lengths
+        diminfo = 1
         call io_getdims(filename,varname,diminfo)
         allocate(data_in(diminfo(2),diminfo(3),diminfo(4)))
         ! Open the file. NF90_NOWRITE tells netCDF we want read-only access to
@@ -316,6 +377,7 @@ contains
         endif
 
         ! Read the dimension lengths
+        diminfo = 1
         call io_getdims(filename,varname,diminfo)
         allocate(data_in(diminfo(2),diminfo(3)))
         ! Open the file. NF90_NOWRITE tells netCDF we want read-only access to
@@ -375,6 +437,7 @@ contains
         endif
 
         ! Read the dimension lengths
+        diminfo = 1
         call io_getdims(filename,varname,diminfo)
         allocate(data_in(diminfo(2),diminfo(3)))
         ! Open the file. NF90_NOWRITE tells netCDF we want read-only access to
@@ -434,6 +497,7 @@ contains
         endif
 
         ! Read the dimension lengths
+        diminfo = 1
         call io_getdims(filename,varname,diminfo)
         allocate(data_in(diminfo(2)))
         ! Open the file. NF90_NOWRITE tells netCDF we want read-only access to
@@ -458,6 +522,67 @@ contains
         call check( nf90_close(ncid),filename)
 
     end subroutine io_read1d
+
+    !>------------------------------------------------------------
+    !! Same as io_read1d but for double precision data
+    !!
+    !! Reads in a variable from a netcdf file, allocating memory in data_in for it.
+    !!
+    !! if extradim is provided specifies this index for any extra dimensions (dims>1)
+    !!   e.g. we may only want one time slice from a 1d variable
+    !!
+    !! @param   filename    Name of NetCDF file to look at
+    !! @param   varname     Name of the NetCDF variable to read
+    !! @param[out] data_in     Allocatable 1-dimensional array to store output
+    !! @param   extradim    OPTIONAL: specify the position to read for any extra (e.g. time) dimension
+    !! @retval data_in     Allocated 1-dimensional array with the netCDF data
+    !!
+    !!------------------------------------------------------------
+    subroutine io_read1dd(filename,varname,data_in,extradim)
+        implicit none
+        ! This is the name of the data_in file and variable we will read.
+        character(len=*), intent(in) :: filename, varname
+        double precision,intent(out),allocatable :: data_in(:)
+        integer, intent(in),optional :: extradim
+        integer, dimension(io_maxDims)  :: diminfo ! will hold dimension lengths
+        integer, dimension(io_maxDims)  :: dimstart
+        ! This will be the netCDF ID for the file and data_in variable.
+        integer :: ncid, varid,i
+
+        if (present(extradim)) then
+            dimstart=extradim
+            dimstart(1)=1
+        else
+            dimstart=1
+        endif
+
+        ! Read the dimension lengths
+        diminfo = 1
+        call io_getdims(filename,varname,diminfo)
+        allocate(data_in(diminfo(2)))
+        ! Open the file. NF90_NOWRITE tells netCDF we want read-only access to
+        ! the file.
+        call check(nf90_open(filename, NF90_NOWRITE, ncid),filename)
+        ! Get the varid of the data_in variable, based on its name.
+        call check(nf90_inq_varid(ncid, varname, varid),trim(filename)//":"//trim(varname))
+
+        ! Read the data_in. skip the slowest varying indices if there are more than 1 dimensions (typically this will be time)
+        if (diminfo(1)>1) then
+            diminfo(3:diminfo(1)+1)=1 ! set count for extra dims to 1
+            call check(nf90_get_var(ncid, varid, data_in,&
+                                    dimstart(1:diminfo(1)), &               ! start  = 1 or extradim
+                                    [ (diminfo(i+1), i=1,diminfo(1)) ],&    ! count=n or 1 created through an implied do loop
+                                    [ (1,            i=1,diminfo(1)) ] ), & ! for all dims, stride = 1      " implied do loop
+                                    trim(filename)//":"//trim(varname)) !pass varname to check so it can give us more info
+        else
+            call check(nf90_get_var(ncid, varid, data_in),trim(filename)//":"//trim(varname))
+        endif
+
+        ! Close the file, freeing all resources.
+        call check( nf90_close(ncid),filename)
+
+    end subroutine io_read1dd
+
 
 
     !>------------------------------------------------------------
@@ -794,12 +919,13 @@ contains
     !! @param   var_name    OPTIONAL name of variable to read attribute from
     !!
     !!------------------------------------------------------------
-    subroutine io_read_attribute_r(filename, att_name, att_value, var_name)
+    subroutine io_read_attribute_r(filename, att_name, att_value, var_name, error)
         implicit none
         character(len=*), intent(in) :: filename
         character(len=*), intent(in) :: att_name
         real*4, intent(out) :: att_value
         character(len=*), intent(in), optional :: var_name
+        integer,          intent(out),optional :: error
 
         integer :: ncid, varid
 
@@ -815,7 +941,7 @@ contains
         endif
 
         ! Finally get the attribute data
-        call check(nf90_get_att(ncid, varid, att_name, att_value),att_name)
+        error = nf90_get_att(ncid, varid, att_name, att_value)
 
         call check( nf90_close(ncid), "closing:"//trim(filename))
     end subroutine  io_read_attribute_r
@@ -832,12 +958,13 @@ contains
     !! @param   var_name    OPTIONAL name of variable to read attribute from
     !!
     !!------------------------------------------------------------
-    subroutine io_read_attribute_i(filename, att_name, att_value, var_name)
+    subroutine io_read_attribute_i(filename, att_name, att_value, var_name, error)
         implicit none
         character(len=*), intent(in) :: filename
         character(len=*), intent(in) :: att_name
         integer, intent(out) :: att_value
         character(len=*), intent(in), optional :: var_name
+        integer,          intent(out),optional :: error
 
         integer :: ncid, varid
 
@@ -853,7 +980,7 @@ contains
         endif
 
         ! Finally get the attribute data
-        call check(nf90_get_att(ncid, varid, att_name, att_value),att_name)
+        error = nf90_get_att(ncid, varid, att_name, att_value)
 
         call check( nf90_close(ncid), "closing:"//trim(filename))
     end subroutine  io_read_attribute_i
@@ -870,12 +997,13 @@ contains
     !! @param   var_name    OPTIONAL name of variable to read attribute from
     !!
     !!------------------------------------------------------------
-    subroutine io_read_attribute_c(filename, att_name, att_value, var_name)
+    subroutine io_read_attribute_c(filename, att_name, att_value, var_name, error)
         implicit none
         character(len=*), intent(in) :: filename
         character(len=*), intent(in) :: att_name
         character(len=*), intent(out) :: att_value
         character(len=*), intent(in), optional :: var_name
+        integer,          intent(out),optional :: error
 
         integer :: ncid, varid
 
@@ -891,7 +1019,7 @@ contains
         endif
 
         ! Finally get the attribute data
-        call check(nf90_get_att(ncid, varid, att_name, att_value),att_name)
+        error = nf90_get_att(ncid, varid, att_name, att_value)
 
         call check( nf90_close(ncid), "closing:"//trim(filename))
     end subroutine  io_read_attribute_c
@@ -1041,7 +1169,7 @@ contains
             print *, trim(nf90_strerror(status))
             if(present(extra)) then
                 ! print any optionally provided context
-                print*, trim(extra)
+                write(*,*), trim(extra)
             endif
             ! STOP the program execute
             stop "Stopped"
