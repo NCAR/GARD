@@ -708,10 +708,13 @@ contains
             if (var%stddev(i,j) /= 0) then
                 var%data(:,i,j) = var%data(:,i,j) / var%stddev(i,j)
             else
-                !$omp critical (print_lock)
-                write(*,*) "ERROR Normalizing:", trim(var%name)
-                write(*,*) "  For point: ", i, j
-                !$omp end critical (print_lock)
+                if (maxval(abs(var%data(:,i,j))) > 0) then
+                    !$omp critical (print_lock)
+                    write(*,*) "ERROR Normalizing:", trim(var%name)
+                    write(*,*) "  For point: ", i, j
+                    write(*,*) "  Should this point have been masked?", var%data(1,i,j)
+                    !$omp end critical (print_lock)
+                endif
             endif
         enddo
         
