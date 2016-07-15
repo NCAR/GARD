@@ -49,9 +49,10 @@ contains
         
         if (minval(analogs)<1) then
             !$omp critical (print_lock)
-            print*, n, minval(analogs)
+            print*, n, minval(analogs), maxval(analogs)
             print*, analogs(1:4)
             print*, maxval(distances), minval(distances)
+            print*, match
             stop "ERROR selecting analogs"
             !$omp end critical (print_lock)
         endif
