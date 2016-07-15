@@ -58,8 +58,10 @@ contains
                 call io_write(filename, "data", output_data_4d)
                 
                 filename = trim(options%output_file)//trim(output%variables(i)%name)//"_coef.nc"
-                call shift_z_dim(output%variables(i)%coefficients, output_data_4d)
-                call io_write(filename, "data", output_data_4d)
+                ! note other 4d vars are nt, nx, ny, nv, but coeff is nv, nt, nx, ny
+                ! call shift_z_dim(output%variables(i)%coefficients, output_data_4d)
+                ! for now skip the shift and just output as is. 
+                call io_write(filename, "data", output%variables(i)%coefficients)
             endif
         enddo
         
@@ -69,7 +71,7 @@ contains
     subroutine shift_z_dim_3d(input, output)
         implicit none
         real, intent(in), dimension(:,:,:) :: input
-        real, intent(inout), dimension(:,:,:) :: output
+        real, intent(inout), dimension(:,:,:), allocatable :: output
         integer :: i,j,k
         integer :: nx,ny,nt
 
@@ -77,8 +79,13 @@ contains
         nx = size(input, 2)
         ny = size(input, 3)
 
-        do i=1,nx
-            do j=1,ny
+        if ((size(output,1) /= nx).or.(size(output,2) /= ny).or.(size(output,3) /= nt)) then
+            deallocate(output)
+            allocate(output(nx,ny,nt))
+        endif
+
+        do j=1,ny
+            do i=1,nx
                 output(i,j,:) = input(:,i,j)
             enddo
         enddo
@@ -88,7 +95,7 @@ contains
     subroutine shift_z_dim_4d(input, output)
         implicit none
         real, intent(in), dimension(:,:,:,:) :: input
-        real, intent(inout), dimension(:,:,:,:) :: output
+        real, intent(inout), dimension(:,:,:,:), allocatable :: output
         integer :: i,j,k
         integer :: nx,ny,nt, nv
 
@@ -97,10 +104,15 @@ contains
         ny = size(input, 3)
         nv = size(input, 4)
 
+        if ((size(output,1) /= nx).or.(size(output,2) /= ny).or.(size(output,3) /= nt).or.(size(output,4) /= nv)) then
+            deallocate(output)
+            allocate(output(nx,ny,nt,nv))
+        endif
+
         do k=1,nv
-            do i=1,nx
-                do j=1,ny
-                    output(i,j,:,k) = input(:,i,j,k)
+            do j=1,ny
+                do i=1,nx
+                    output(i,j,1:nt,k) = input(:,i,j,k)
                 enddo
             enddo
         enddo
