@@ -20,8 +20,10 @@ contains
             gain = 1/24.0
         else if ((units(1:3)=="sec").or.(units(1:3)=="Sec")) then
             gain = 1/86400.0D0
+        else if ((units(1:3)=="min").or.(units(1:3)=="Min")) then
+            gain = 1/1440.0D0
         else
-            write(*,*) units
+            write(*,*) trim(units)
             stop "Error: unknown units"
         endif
         
