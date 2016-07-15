@@ -685,11 +685,11 @@ contains
         ! define the dimensions
         call check( nf90_def_dim(ncid, "x", nx, temp_dimid) )
         dimids(1)=temp_dimid
-        call check( nf90_def_dim(ncid, "z", nz, temp_dimid) )
+        call check( nf90_def_dim(ncid, "y", nz, temp_dimid) )
         dimids(2)=temp_dimid
-        call check( nf90_def_dim(ncid, "y", ny, temp_dimid) )
+        call check( nf90_def_dim(ncid, "z", ny, temp_dimid) )
         dimids(3)=temp_dimid
-        call check( nf90_def_dim(ncid, "r", nr, temp_dimid) )
+        call check( nf90_def_dim(ncid, "t", nr, temp_dimid) )
         dimids(4)=temp_dimid
 
         ! Create the variable returns varid of the data variable
@@ -739,11 +739,11 @@ contains
         ! define the dimensions
         call check( nf90_def_dim(ncid, "x", nx, temp_dimid) )
         dimids(1)=temp_dimid
-        call check( nf90_def_dim(ncid, "z", nz, temp_dimid) )
+        call check( nf90_def_dim(ncid, "y", nz, temp_dimid) )
         dimids(2)=temp_dimid
-        call check( nf90_def_dim(ncid, "y", ny, temp_dimid) )
+        call check( nf90_def_dim(ncid, "z", ny, temp_dimid) )
         dimids(3)=temp_dimid
-        call check( nf90_def_dim(ncid, "r", nr, temp_dimid) )
+        call check( nf90_def_dim(ncid, "t", nr, temp_dimid) )
         dimids(4)=temp_dimid
 
         ! Create the variable returns varid of the data variable
@@ -793,9 +793,9 @@ contains
         ! define the dimensions
         call check( nf90_def_dim(ncid, "x", nx, temp_dimid) )
         dimids(1)=temp_dimid
-        call check( nf90_def_dim(ncid, "z", nz, temp_dimid) )
+        call check( nf90_def_dim(ncid, "y", nz, temp_dimid) )
         dimids(2)=temp_dimid
-        call check( nf90_def_dim(ncid, "y", ny, temp_dimid) )
+        call check( nf90_def_dim(ncid, "t", ny, temp_dimid) )
         dimids(3)=temp_dimid
 
         ! Create the variable returns varid of the data variable
@@ -844,9 +844,9 @@ contains
         ! define the dimensions
         call check( nf90_def_dim(ncid, "x", nx, temp_dimid) )
         dimids(1)=temp_dimid
-        call check( nf90_def_dim(ncid, "z", nz, temp_dimid) )
+        call check( nf90_def_dim(ncid, "y", nz, temp_dimid) )
         dimids(2)=temp_dimid
-        call check( nf90_def_dim(ncid, "y", ny, temp_dimid) )
+        call check( nf90_def_dim(ncid, "t", ny, temp_dimid) )
         dimids(3)=temp_dimid
 
         ! Create the variable returns varid of the data variable
