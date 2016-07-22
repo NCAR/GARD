@@ -34,8 +34,14 @@ contains
         
         call read_base_options(options)
         
+        
+        if (options%debug) print*, "Reading Prediction Namelist"
         options%prediction  = read_prediction_options(  options%prediction_file,    options%debug)
+        
+        if (options%debug) print*, "Reading Training Namelist"
         options%training    = read_training_options(    options%training_file,      options%debug)
+        
+        if (options%debug) print*, "Reading Observation Namelist"
         options%obs         = read_obs_options(         options%observation_file,   options%debug)
     end function read_config
 
