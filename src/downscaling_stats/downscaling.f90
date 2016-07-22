@@ -263,25 +263,28 @@ contains
             !$omp end critical
             !$omp end parallel
             call System_Clock(master_timetwo)
+            ! should be * omp_num_threads(), but if no OPENMP, it won't work...
             master_timers(8) = master_timers(8) + (master_time_post_init - master_timeone) * 16
             master_timers(5) = master_timers(5) + (master_timetwo-master_timeone) * 16
             print*, ""
             print*, "---------------------------------------------------"
             print*, "           Time profiling information "
             print*, "---------------------------------------------------"
-            print*, "Total Time : ",  nint(100.0),                     "%    "!,  nint(0.01*master_timers(5))
+            print*, "Total Time : ",  nint(100.0),                     "%    "
             print*, "---------------------------------------------------"
-            print*, "Allocation : ",  nint((100.d0 * master_timers(7))/master_timers(5)),  "%    "!, nint(0.01*master_timers(7))
-            print*, "Data Init  : ",  nint((100.d0 * master_timers(8))/master_timers(5)),  "%    "!, nint(0.01*master_timers(9))
-            print*, "GeoInterp  : ",  nint((100.d0 * master_timers(4))/master_timers(5)),  "%    "!, nint(0.01*master_timers(4))
-            print*, "Transform  : ",  nint((100.d0 * master_timers(6))/master_timers(5)),  "%    "!, nint(0.01*master_timers(6))
-            print*, "Analog     : ",  nint((100.d0 * master_timers(1))/master_timers(5)),  "%    "!, nint(0.01*master_timers(1))
-            print*, "Regression : ",  nint((100.d0 * master_timers(2))/master_timers(5)),  "%    "!, nint(0.01*master_timers(2))
-            print*, "Log.Regres : ",  nint((100.d0 * master_timers(3))/master_timers(5)),  "%    "!, nint(0.01*master_timers(3))
-            print*, "Log.Analog : ",  nint((100.d0 * master_timers(9))/master_timers(5)),  "%    "!, nint(0.01*master_timers(9))
+            print*, "Allocation : ",  nint((100.d0 * master_timers(7))/master_timers(5)),  "%    "
+            print*, "Data Init  : ",  nint((100.d0 * master_timers(8))/master_timers(5)),  "%    "
+            print*, "GeoInterp  : ",  nint((100.d0 * master_timers(4))/master_timers(5)),  "%    "
+            print*, "Transform  : ",  nint((100.d0 * master_timers(6))/master_timers(5)),  "%    "
+            print*, "Analog     : ",  nint((100.d0 * master_timers(1))/master_timers(5)),  "%    "
+            print*, "Regression : ",  nint((100.d0 * master_timers(2))/master_timers(5)),  "%    "
+            print*, "Log.Regres : ",  nint((100.d0 * master_timers(3))/master_timers(5)),  "%    "
+            print*, "Log.Analog : ",  nint((100.d0 * master_timers(9))/master_timers(5)),  "%    "
             print*, "---------------------------------------------------"
-            print*, "Parallelization overhead (?)"
-            print*, "Residual   : ",  100-nint((100.0 * (master_timers(1)+master_timers(2)+master_timers(3)+master_timers(4)+master_timers(6)+master_timers(8)+master_timers(9))) / master_timers(5)),"%    "
+            print*, "Parallelization overhead (assumes the use of 16 processors)"
+            print*, "Residual   : ",  100-nint((100.0 * &
+                    (sum(master_timers(1:4))+master_timers(6)+sum(master_timers(8:9)))) &
+                    / master_timers(5)),"%    "
             print*, "---------------------------------------------------"
             
 
