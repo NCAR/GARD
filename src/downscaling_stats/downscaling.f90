@@ -34,6 +34,7 @@ contains
             ! variables to store timing data for profiling code
             integer*8 :: timeone, timetwo, master_timeone, master_timetwo, master_time_post_init
             integer*8, dimension(10) :: timers
+            integer*8 :: COUNT_RATE
             
             integer :: total_number_of_gridcells, current_completed_gridcells
             
@@ -41,7 +42,7 @@ contains
             master_timers = 0
             current_completed_gridcells = 0
             
-            call System_Clock(timeone)
+            call System_Clock(timeone, COUNT_RATE)
             ! should this be done outside of "downscale" ? 
             call setup_timing(training_atm, training_obs, predictors, options)
             ! simple local variables to make code more legible later
@@ -216,7 +217,7 @@ contains
                                                     output%variables(v)%coefficients(           :,  :,       i, j),    &
                                                     output%variables(v)%logistic    (           :,           i, j),    &
                                                     output%variables(v)%logistic_threshold,                            &
-                                                    options, timers )
+                                                    options, timers, i,j)
 
                             ! if the input data were transformed with e.g. a cube root or log transform, then reverse that transformation for the output
                             call transform_data(options%obs%input_Xforms(v), output%variables(v)%data(:,i,j), 1, noutput, reverse=.True.)
@@ -265,14 +266,14 @@ contains
             call System_Clock(master_timetwo)
             ! should be * omp_num_threads(), but if no OPENMP, it won't work...
             master_timers(8) = master_timers(8) + (master_time_post_init - master_timeone) * 16
-            master_timers(5) = master_timers(5) + (master_timetwo-master_timeone) * 16
+            master_timers(5) = master_timers(5) + (master_timetwo-master_timeone) * 16 + master_timers(7)
             print*, ""
             print*, "---------------------------------------------------"
             print*, "           Time profiling information "
             print*, "---------------------------------------------------"
-            print*, "Total Time : ",  nint(100.0),                     "%    "
+            print*, "Total Time : ",  nint(master_timers(5) / real(COUNT_RATE)),                     " s  (CPU time) "
             print*, "---------------------------------------------------"
-            print*, "Allocation : ",  nint((100.d0 * master_timers(7))/master_timers(5)),  "%    "
+            print*, "Allocation : ",  nint((100.d0 * master_timers(7)/16.0)/master_timers(5)),  "%    "
             print*, "Data Init  : ",  nint((100.d0 * master_timers(8))/master_timers(5)),  "%    "
             print*, "GeoInterp  : ",  nint((100.d0 * master_timers(4))/master_timers(5)),  "%    "
             print*, "Transform  : ",  nint((100.d0 * master_timers(6))/master_timers(5)),  "%    "
@@ -387,7 +388,7 @@ contains
         end select
     end subroutine transform_data
     
-    function downscale_point(predictor, atm, obs, errors, output_coeff, logistic, logistic_threshold, options, timers) result(output)
+    function downscale_point(predictor, atm, obs, errors, output_coeff, logistic, logistic_threshold, options, timers, xptn, ypnt) result(output)
         implicit none
         real,    dimension(:,:), intent(inout):: predictor, atm ! (ntimes, nvars)
         real,    dimension(:),   intent(in)   :: obs
@@ -397,6 +398,7 @@ contains
         real,                    intent(in)   :: logistic_threshold
         type(config),            intent(in)   :: options
         integer(8),dimension(:), intent(inout):: timers
+        integer, intent(in) :: xptn, ypnt
         
         real,    dimension(:),   allocatable :: output
         real(8), dimension(:),   allocatable :: coefficients
@@ -477,7 +479,7 @@ contains
             elseif (options%analog_regression) then
                 call downscale_analog_regression(predictor(i,:), atm, obs, output_coeff(:,i),     &
                                                  output(i), errors(i), logistic(i),               &
-                                                 options, timers)
+                                                 options, timers, [xptn,ypnt,i])
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             !!
             !!  Pure regression downscaling
@@ -492,7 +494,7 @@ contains
 
     end function downscale_point
 
-    subroutine downscale_analog_regression(x, atm, obs, output_coeff, output, error, logistic, options, timers)
+    subroutine downscale_analog_regression(x, atm, obs, output_coeff, output, error, logistic, options, timers, cur_point)
         implicit none
         real,           intent(in),     dimension(:,:)  :: atm
         real,           intent(in),     dimension(:)    :: x, obs
@@ -500,6 +502,9 @@ contains
         real,           intent(inout)                   :: output, logistic, error
         type(config),   intent(in)                      :: options
         integer*8,      intent(inout),  dimension(:)    :: timers
+        
+        integer,        intent(in),     dimension(3)    :: cur_point
+        integer     :: test
         
         real,    dimension(:),   allocatable :: obs_analogs
         real,    dimension(:,:), allocatable :: regression_data
@@ -547,7 +552,7 @@ contains
             threshold_packing = obs_analogs > logistic_threshold
             n_packed = count(threshold_packing)
             
-            if (n_packed > nvars) then
+            if (n_packed > (nvars*5)) then
                 allocate(threshold_atm(n_packed, nvars))
                 allocate(threshold_obs(n_packed))
                 do j=1,nvars
@@ -557,13 +562,34 @@ contains
                 
                 output = compute_regression(x, threshold_atm, threshold_obs, coefficients, error)
                 
+                if ((output>maxval(threshold_obs)*1.1)      &
+                    .or.(output<(-2))                       &
+                    .or.(abs(coefficients(1))>(maxval(threshold_obs)*2))) then
+                    
+                    ! !$omp critical (print_lock)
+                    ! print*, "WARNING: Reverting to analog for a point"
+                    ! print*, "x,y,t",cur_point
+                    ! print*, "ERROR: ", output**3, (output+error)**3 - output**3, coefficients(1)
+                    ! !$omp end critical (print_lock)
+                    call System_Clock(timetwo)
+                    timers(2) = timers(2) + (timetwo-timeone)
+                    call downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, options, timers, analogs)
+                    call System_Clock(timeone)
+                endif
+                ! if the regression picked a vaguely valid value <0 then just set it to 0?
+                if (output<0) then
+                    output=0
+                endif
+                
             elseif (n_packed > 0) then
                 output = sum(pack(obs_analogs, threshold_packing)) / n_packed
             else
+                ! note, for precip (and a 0 threshold), this could just be setting output, error, logistic, and coefficients to 0
                 output = compute_regression(x, regression_data, obs_analogs, coefficients, error)
             endif
             
         endif
+        
         if (options%debug) then
             output_coeff(1:nvars) = coefficients
         endif
@@ -604,7 +630,7 @@ contains
         timers(3) = timers(3) + (timetwo-timeone)
     end subroutine downscale_analog_regression
 
-    subroutine downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, options, timers)
+    subroutine downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, options, timers, input_analogs)
         implicit none
         real,           intent(in),     dimension(:,:)  :: atm
         real,           intent(in),     dimension(:)    :: x, obs
@@ -612,6 +638,7 @@ contains
         real,           intent(inout)                   :: output, logistic, error
         type(config),   intent(in)                      :: options
         integer*8,      intent(inout),  dimension(:)    :: timers
+        integer,        intent(in),     dimension(:),   optional    :: input_analogs
         
         real        :: analog_threshold, logistic_threshold
         integer*8   :: timeone, timetwo
@@ -625,13 +652,17 @@ contains
         logistic_threshold  = options%logistic_threshold
         nvars               = size(x)
         
-        if (n_analogs > 0) then
-            allocate(analogs(n_analogs))
-        endif
-        
         call System_Clock(timeone)
         ! find the best n_analog matching analog days in atm to match x
-        call find_analogs(analogs, x, atm, n_analogs, analog_threshold)
+        if (.not.present(input_analogs)) then
+            if (n_analogs > 0) then
+                allocate(analogs(n_analogs))
+            endif
+            call find_analogs(analogs, x, atm, n_analogs, analog_threshold)
+        else
+            allocate(analogs(size(input_analogs)))
+            analogs = input_analogs
+        endif
         real_analogs = size(analogs)
         call System_Clock(timetwo)
         timers(1) = timers(1) + (timetwo-timeone)
