@@ -563,7 +563,7 @@ contains
                 output = compute_regression(x, threshold_atm, threshold_obs, coefficients, error)
                 
                 if ((output>maxval(threshold_obs)*1.1)      &
-                    .or.(output<(-2))                       &
+                    .or.(output<(logistic_threshold-2))                       &
                     .or.(abs(coefficients(1))>(maxval(threshold_obs)*2))) then
                     
                     ! !$omp critical (print_lock)
