@@ -8,14 +8,15 @@ module analog_mod
     
 contains
 
-    subroutine find_analogs(analogs, match, input, n, threshold)
+    subroutine find_analogs(analogs, match, input, n, threshold, weights)
         implicit none
         integer, intent(inout), dimension(:), allocatable  :: analogs
         real,    intent(in),    dimension(:)   :: match
         real,    intent(in),    dimension(:,:) :: input
         integer, intent(in)                    :: n
         real,    intent(in)                    :: threshold
-        
+        real,    intent(inout), dimension(:), allocatable, optional :: weights
+                
         real,    dimension(:), allocatable :: distances
         ! logical, dimension(:), allocatable :: mask
         integer, dimension(1) :: min_location
@@ -57,35 +58,62 @@ contains
             !$omp end critical (print_lock)
         endif
         
+        if (present(weights)) then
+            if (allocated(weights)) then
+                if (size(weights)/=size(analogs)) then
+                    deallocate(weights)
+                    allocate( weights(size(analogs)) )
+                endif
+            else
+                allocate( weights(size(analogs)) )
+            endif
+            do i=1,size(analogs)
+                if (distances(analogs(i)) > (1e-2)) then
+                    weights(i) = 1 / distances(analogs(i))
+                else
+                    weights(i) = 1 / (1e-2)
+                endif
+            enddo
+            weights = weights / sum(weights)
+        endif
     end subroutine find_analogs
     
     ! compute the mean of input[analogs]
-    function compute_analog_mean(input, analogs) result(mean)
+    function compute_analog_mean(input, analogs, weights) result(mean)
         implicit none
         real,    intent(in), dimension(:) :: input
         integer, intent(in), dimension(:) :: analogs
+        real,    intent(in), dimension(:), optional :: weights
         real                              :: mean
         
-        double precision :: internal_mean
+        double precision :: internal_mean ! use double precision internally to avoid errors when summing many numbers
         integer :: i, n
         
         n = size(analogs)
         internal_mean = 0
         
-        do i=1,n
-            internal_mean = internal_mean + input( analogs(i) )
-        enddo
+        if (present(weights)) then
+            do i=1, n
+                internal_mean = internal_mean + input( analogs(i) ) * weights(i)
+            enddo
+            mean = internal_mean
+        else
+            do i=1, n
+                internal_mean = internal_mean + input( analogs(i) )
+            enddo
+            mean = internal_mean / n
+        endif 
         
-        mean = internal_mean / n
         
     end function compute_analog_mean
     
     ! compute the root mean square error between input[analogs] and y_hat
-    function compute_analog_error(input, analogs, y_hat) result(error)
+    function compute_analog_error(input, analogs, y_hat, weights) result(error)
         implicit none
         real,    intent(in), dimension(:) :: input
         integer, intent(in), dimension(:) :: analogs
         real,    intent(in)               :: y_hat
+        real,    intent(in), dimension(:), optional :: weights
         real                              :: error
         
         double precision :: mean
@@ -94,32 +122,48 @@ contains
         n = size(analogs)
         mean = 0
         
-        do i=1,n
-            mean = mean + (input( analogs(i) ) - y_hat)**2
-        enddo
-        
-        error = sqrt(mean / n)
+        if (present(weights)) then
+            do i=1, n
+                mean = mean + input( analogs(i) ) * weights(i)
+            enddo
+            error = sqrt(mean)
+        else
+            do i=1,n
+                mean = mean + (input( analogs(i) ) - y_hat)**2
+            enddo
+            
+            error = sqrt(mean / n)
+        endif
         
     end function compute_analog_error
     
     
-    function compute_analog_exceedance(input, analogs, threshold) result(probability)
+    function compute_analog_exceedance(input, analogs, threshold, weights) result(probability)
         implicit none
         real,    intent(in), dimension(:) :: input
         integer, intent(in), dimension(:) :: analogs
         real,    intent(in)               :: threshold
+        real,    intent(in), dimension(:), optional :: weights
         real                              :: probability
         integer :: i, n
         
         n = size(analogs)
         probability = 0
-        do i = 1, n
-            if (input(analogs(i)) > threshold) then
-                probability = probability + 1
-            endif
-        end do
-        
-        probability = probability / n
+        if (present(weights)) then
+            do i = 1, n
+                if (input(analogs(i)) > threshold) then
+                    probability = probability + weights(i)
+                endif
+            end do
+        else
+            do i = 1, n
+                if (input(analogs(i)) > threshold) then
+                    probability = probability + 1
+                endif
+            end do
+            
+            probability = probability / n
+        endif
         
     end function compute_analog_exceedance
 
@@ -257,8 +301,5 @@ contains
             end if  
         end do      
     end subroutine heapify
-
-
-    
 
 end module analog_mod

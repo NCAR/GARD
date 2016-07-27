@@ -519,6 +519,7 @@ contains
         real,    dimension(:,:),allocatable :: threshold_atm 
         real,    dimension(:),  allocatable :: threshold_obs
         logical, dimension(:),  allocatable :: threshold_packing
+        real,    dimension(:),  allocatable :: weights
         integer :: n_packed
         
         n_analogs           = options%n_analogs
@@ -527,7 +528,12 @@ contains
         nvars               = size(x)
                 
         call System_Clock(timeone)
-        call find_analogs(analogs, x, atm, n_analogs, analog_threshold)
+        if (options%analog_weights) then
+            call find_analogs(analogs, x, atm, n_analogs, analog_threshold, weights)
+        else
+            call find_analogs(analogs, x, atm, n_analogs, analog_threshold)
+        endif
+
         real_analogs = size(analogs)
 
         allocate(coefficients(nvars))
@@ -612,8 +618,13 @@ contains
                     call System_Clock(timeone)
                     logistic = compute_analog_exceedance(obs, analogs(1:options%n_log_analogs), logistic_threshold)
                 else
-                    ! compute the logistic as the probability of threshold exceedance in the analog population
-                    logistic = compute_analog_exceedance(obs, analogs, logistic_threshold)
+
+                    if (options%analog_weights) then
+                        logistic = compute_analog_exceedance(obs, analogs, logistic_threshold, weights)
+                    else
+                        ! compute the logistic as the probability of threshold exceedance in the analog population
+                        logistic = compute_analog_exceedance(obs, analogs, logistic_threshold)
+                    endif
                 endif
                 
             else
@@ -644,6 +655,7 @@ contains
         integer*8   :: timeone, timetwo
         integer     :: real_analogs, selected_analog, nvars, n_analogs
         integer, dimension(:), allocatable :: analogs
+        real,    dimension(:), allocatable :: weights
         real        :: rand
         integer     :: j
         
@@ -658,7 +670,11 @@ contains
             if (n_analogs > 0) then
                 allocate(analogs(n_analogs))
             endif
-            call find_analogs(analogs, x, atm, n_analogs, analog_threshold)
+            if (options%analog_weights) then
+                call find_analogs(analogs, x, atm, n_analogs, analog_threshold, weights)
+            else
+                call find_analogs(analogs, x, atm, n_analogs, analog_threshold)
+            endif
         else
             allocate(analogs(size(input_analogs)))
             analogs = input_analogs
@@ -677,7 +693,11 @@ contains
                 output_coeff(1:nvars) = atm(analogs(selected_analog), :)
             endif
         else
-            output = compute_analog_mean(obs, analogs)
+            if (options%analog_weights) then
+                output = compute_analog_mean(obs, analogs, weights)
+            else
+                output = compute_analog_mean(obs, analogs)
+            endif
             
             if (options%debug) then
                 do j=1,nvars
@@ -686,13 +706,22 @@ contains
             endif
         endif
         
-        error = compute_analog_error(obs, analogs, output)
+        if (options%analog_weights) then
+            error = compute_analog_error(obs, analogs, output, weights)
+        else
+            error = compute_analog_error(obs, analogs, output)
+        endif
+        
         call System_Clock(timetwo)
         timers(2) = timers(2) + (timetwo-timeone)
         
         call System_Clock(timeone)
         if (logistic_threshold/=kFILL_VALUE) then
-            logistic = compute_analog_exceedance(obs, analogs, logistic_threshold)
+            if (options%analog_weights) then
+                logistic = compute_analog_exceedance(obs, analogs, logistic_threshold, weights)
+            else
+                logistic = compute_analog_exceedance(obs, analogs, logistic_threshold)
+            endif
         endif
         call System_Clock(timetwo)
         timers(3) = timers(3) + (timetwo-timeone)

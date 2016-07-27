@@ -209,6 +209,10 @@ module data_structures
         logical :: analog_regression
         logical :: pure_regression
         
+        ! when computing mean, error, or logistic probabilities, weight analogs according to how
+        ! similar they are to the current time periods
+        logical :: analog_weights
+        
         ! for analog regression, determine whether to compute the logistic regresion (if False), 
         ! or just the exceedance probability of the selected analogs (if True)
         logical :: logistic_from_analog_exceedance

@@ -55,7 +55,7 @@ contains
         character(len=MAXSTRINGLENGTH)  :: start_transform, end_transform
         character(len=MAXFILELENGTH)    :: training_file, prediction_file, observation_file, output_file
         logical :: pure_analog, analog_regression, pure_regression, debug
-        logical :: sample_analog, logistic_from_analog_exceedance
+        logical :: sample_analog, logistic_from_analog_exceedance, weight_analogs
         real    :: logistic_threshold, analog_threshold
         
         ! setup the namelist
@@ -67,7 +67,7 @@ contains
                                 n_analogs, n_log_analogs, logistic_threshold,       &
                                 pure_analog, analog_regression, pure_regression,    &
                                 sample_analog, logistic_from_analog_exceedance,     &
-                                analog_threshold
+                                analog_threshold, weight_analogs
 
         options%version = kVERSION_STRING
         options%options_filename = get_options_file()
@@ -93,6 +93,7 @@ contains
         logistic_threshold= kFILL_VALUE
         sample_analog    = .False.
         logistic_from_analog_exceedance = .False.
+        weight_analogs   = .True.
         
         options%name = options%options_filename
         
@@ -130,6 +131,7 @@ contains
         options%analog_regression   = analog_regression
         options%pure_regression     = pure_regression
         
+        options%analog_weights      = weight_analogs
         options%logistic_threshold  = logistic_threshold
         options%sample_analog       = sample_analog
         options%logistic_from_analog_exceedance  = logistic_from_analog_exceedance
