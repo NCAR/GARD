@@ -1,0 +1,111 @@
+&parameters
+    ! if set, separate files can be used to supply the namelist data for each of these namelists
+    ! training_file       = "downscale_options.nml"
+    ! observation_file    = "downscale_options.nml"
+    ! prediction_file     = "downscale_options.nml"
+
+    output_file     = "log_reg_output/"
+    
+    start_date       = "2000-01-01 00:00:00"    ! start time for the output data (only needs to exist in the prediction dataset)
+    end_date         = "2000-01-31 23:00:00"    ! end time for the output data
+    
+    start_train      = "1980-01-01 00:00:00"    ! start time for the training period (must exist in training and observed datasets)
+    end_train        = "1999-12-31 23:00:00"    ! end time for the training period
+    
+    start_transform  = "1990-01-01 00:00:00"    ! start time for any transformations (e.g. quantile mapping) (must exist in both the training and the prediction datasets)
+    end_transform    = "1999-01-01 23:00:00"    ! end time for the transformation period
+    
+    ! model types
+    pure_regression   = False       ! set to true (and others to false) to compute a single regression (no analogs) between training variables and observations to be applied to all predictor data
+    pure_analog       = False       ! set to true (and others to false) to use the selected analogs (no regression) to predict the output 
+    analog_regression = True        ! set to true (and others to false) to perform a regression only on the selected analog days when predicting the output
+    
+    ! analog selection parameters
+    n_analogs       = 200           ! set the number of analogs to find for each time step
+    ! n_log_analogs   = 20          ! set to the number of analogs to use for the logistic_from_analog_exceedance calculation if using something other than n_analogs
+    ! analog_threshold  = 0.25      ! set to use a threshold distance when selecting analogs instead of a fixed number (in units of standard deviations averaged across input variables)
+    
+    ! model options
+    sample_analog = False                       ! when using pure_analog this will sample randomly from the selection of analogs instead of using the mean
+    logistic_from_analog_exceedance = False     ! when true the logistic probability is calculated from the number of analogs that exceed the threshold instead of from a logistic regression
+    logistic_threshold = 0                      ! when set, the probability of exceeding this value will be calculated and the standard output will be trained only for the data that exceed this value
+    weight_analogs = True                       ! when calculating analog_mean, analog_error, or logistic_from_analog, weight each analog by it's inverse square distance from the current input
+    
+    debug = False           ! prints more output at runtime and outputs files including the coefficients used in each analog regression (or analog values) as well as the predictor data
+/
+
+! read but not really used at the moment?
+&transformation_parameters
+    ! should this be per variable? 
+    ! distinct for training, obs, and predict?
+    ! transform_type = "quantile"
+    ! alt: normalize, debias, sqrt? cuberoot?, log, ...? 
+/
+
+
+! define the input atmospheric model data to be used when training the model
+&training_parameters
+    name = "ERA-interim"                ! name
+    preloaded = "preloaded/training_"   ! set to a location to store the data to make future runs faster (most important for GEFS data)
+    interpolation_method = 2            ! interpolation method to use (nearest neighbor = 1, bilinear interpolation = 2)
+    nvars     = 4                       ! number of variables to read
+    data_type = "GCM"                   ! type of input data (GEFS or GCM)
+    lat_name  = "XLAT"                  ! name of a variable in the input data that contains the latitude of each grid cell (can be a 1D or 2D variable)
+    lon_name  = "XLONG"                 ! name of a variable in the input data that contains the longitude of each grid cell (can be a 1D or 2D variable)
+    time_name = "XTIME"                 ! name of a variable in the input data that contains the time data (must be a number ideally with a units attribute such as "days since YYYY-MM-DD hh:mm:ss")
+    nfiles    = 21                      ! the number of files to be read
+    
+    ! the following are arrays with one element for each input variable
+    input_transformations = 0, 0, 3, 3  ! transformations to apply to each input variable (0=none, 1=qm?, 2=log, 3=cuberoot, 4=fifthroot)
+    ! variable name in the input file
+    var_names = "T2",                            "PSFC",                          "PREC_ACC_NC",                   "PREC_ACC_C"
+    ! name of a text file containing a list of nfiles that contain the input data
+    file_list = "filelists/erai_files_19xx.txt", "filelists/erai_files_19xx.txt", "filelists/erai_files_19xx.txt", "filelists/erai_files_19xx.txt"
+    
+    ! calendar to be used when interpretting the time variable, "gregorian", "standard", "noleap", "365-day","360-day" all work
+    calendar  = "gregorian"
+/
+
+! Define the input atmospheric model data to be used when applying the model for future predictions
+! This can be the same format or different from training data, but must have matching variables
+&prediction_parameters
+    name = "ERA-interim"
+    preloaded = "preloaded/predict_"
+    interpolation_method = 2
+    nvars     = 4
+    data_type = "GCM"
+    lat_name  = "XLAT"
+    lon_name  = "XLONG"
+    time_name = "XTIME"
+    nfiles    = 10
+
+    input_transformations = 0, 0, 3, 3
+    
+    ! this is the main difference between training and prediction data, permits an additional transformation to e.g. quantile map (transformation=1) each variable to match the training data
+    transformations = 0, 0, 0, 0
+    
+    var_names = "T2",                            "PSFC",                          "PREC_ACC_NC",                   "PREC_ACC_C"
+    file_list = "filelists/erai_files_200x.txt", "filelists/erai_files_200x.txt", "filelists/erai_files_200x.txt", "filelists/erai_files_200x.txt"
+
+    calendar  = "gregorian"
+/
+
+! Define the input observation data to be used when training the model
+! most parameters as in the atmospheric input namelists
+&obs_parameters
+    name = "Maurer data"
+    
+    nvars     = 1           ! theoretically this might work with more variables, but it hasn't been fully implemented yet
+    nfiles    = 20 
+    data_type = "obs"
+    lat_name  = "lat"
+    lon_name  = "lon"
+    time_name = "time"
+    
+    ! this transformation will be applied to the obs before e.g. performing regressions, and the inverse transformation will be applied to the model output
+    input_transformations = 3
+    var_names = "pr"
+    file_list = "filelists/obs_files_complete.txt"
+    
+    calendar  = "gregorian"
+/
