@@ -62,7 +62,7 @@
     ! name of a text file containing a list of nfiles that contain the input data
     file_list = "filelists/erai_files_19xx.txt", "filelists/erai_files_19xx.txt", "filelists/erai_files_19xx.txt", "filelists/erai_files_19xx.txt"
     
-    ! calendar to be used when interpretting the time variable, "gregorian", "standard", "noleap", "365-day","360-day" all work
+    ! calendar to be used when interpreting the time variable, "gregorian", "standard", "noleap", "365-day","360-day" all work
     calendar  = "gregorian"
 /
 
