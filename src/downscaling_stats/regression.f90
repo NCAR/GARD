@@ -13,55 +13,87 @@ contains
         
         real :: y
         
-        integer :: nvars, ntimes, i, info
+        integer :: nvars, ntimes, i, info, useable_vars, thisvar
+        integer, dimension(:), allocatable :: varlist
+        real,    dimension(:), allocatable :: useful_x
+        
+        if (maxval(training_y) == minval(training_y)) then
+            y = training_y(1)
+            coefficients = 0
+            if (present(error)) error=0
+            return
+        endif
         
         nvars  = size(x)
         ntimes = size(training_x,1)
         
-        allocate(training_x_lp(ntimes, nvars))
-        training_x_lp = training_x
+        allocate(varlist(nvars))
+        varlist = -1
+        useable_vars = 0
+        
+        ! find all non-zero vars
+        do i=1,nvars
+            if (maxval(abs(training_x(:,i)))>0) then
+                useable_vars = useable_vars + 1
+                varlist(i) = i
+            endif
+        enddo
+
+        ! if there are no useable training variables other than the constant, just return (this should never happen?)
+        if (useable_vars <= 1) then
+            y = 1e20 ! error value so it will recompute from analogs if possible
+            coefficients = 0
+            if (present(error)) error=0
+            return
+        endif
+        
+        allocate(useful_x(useable_vars))
+        allocate(training_x_lp(ntimes, useable_vars))
+        
+        thisvar=1
+        do i=1,nvars
+            if (varlist(i) /= -1) then
+                training_x_lp(:,thisvar) = training_x(:,i)
+                useful_x(thisvar) = x(i)
+                thisvar = thisvar + 1
+            endif
+        enddo
         
         allocate(training_y_lp(ntimes))
         training_y_lp = training_y
         
-        if (maxval(training_y) == 0) then
-            y=0
-            coefficients = 0
-            if (present(error)) error=0
-            return
-        endif
-        
-        if (any(maxval(abs(training_x),dim=1) == 0.0)) then
-            y = 0
-            coefficients = 0
-            if (present(error)) error=0
-            return
-        endif
         
         call lapack_least_squares(training_x_lp, training_y_lp, coefficients, info=info)
         if (info/=0) then
-            y = sum(training_y)/size(training_y)
+            y = 1e20 ! error value so it will recompute from analogs
             ! !$omp critical (print_lock)
             ! print*, "Regression error, using value:",y
             ! !$omp end critical (print_lock)
-            coefficients(1) = y
-            coefficients(2:)= 0
+            coefficients = 0
+            return
+        endif
+        
+        if (maxval(abs(coefficients)) == 0) then
+            y = 1e20
+            return
         endif
         
         y = 0
-        if (maxval(abs(coefficients)) == 0) then
-            y = sum(training_y) / size(training_y)
-        endif
-        do i=1,nvars
-            y = y + coefficients(i) * x(i)
+        do i=1,useable_vars
+            y = y + coefficients(i) * useful_x(i)
         end do
         
         if (present(error)) then
             training_y_lp = 0
+            thisvar=1
             do i=1,nvars
-                training_y_lp = training_y_lp + coefficients(i) * training_x(:,i)
+                if (varlist(i) /= -1) then
+                    training_y_lp = training_y_lp + coefficients(thisvar) * training_x(:,i)
+                    thisvar = thisvar + 1
+                endif
             enddo
             ! root mean square error
+            ! this is the regression error
             error = sqrt( sum((training_y_lp - training_y)**2) / ntimes )
         endif
         
