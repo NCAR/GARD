@@ -13,7 +13,7 @@ contains
         
         real :: y
         
-        integer :: nvars, ntimes, i, info, useable_vars, thisvar
+        integer :: nvars, ntimes, i, j, info, useable_vars, thisvar, nonzero_count
         integer, dimension(:), allocatable :: varlist
         real,    dimension(:), allocatable :: useful_x
         
@@ -33,10 +33,16 @@ contains
         
         ! find all non-zero vars
         do i=1,nvars
-            if (maxval(abs(training_x(:,i)))>0) then
+            nonzero_count = 0
+            do j=1,ntimes
+                if (abs(training_x(j,i))>0) then
+                    nonzero_count = nonzero_count + 1
+                endif
+            enddo
+            if ( nonzero_count > nvars ) then
                 useable_vars = useable_vars + 1
                 varlist(i) = i
-            endif
+            end if
         enddo
 
         ! if there are no useable training variables other than the constant, just return (this should never happen?)
@@ -85,11 +91,11 @@ contains
         
         if (present(error)) then
             training_y_lp = 0
-            thisvar=1
-            do i=1,nvars
+            thisvar       = 1
+            do i=1, nvars
                 if (varlist(i) /= -1) then
                     training_y_lp = training_y_lp + coefficients(thisvar) * training_x(:,i)
-                    thisvar = thisvar + 1
+                    thisvar       = thisvar + 1
                 endif
             enddo
             ! root mean square error
