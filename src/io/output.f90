@@ -17,6 +17,7 @@ contains
         real, dimension(:,:,:), allocatable :: output_data
         real, dimension(:,:,:,:), allocatable :: output_data_4d
         integer :: nvars, i, nx, ny, nt, nv
+        integer :: Mem_Error
         
         nvars = size(output%variables)
         
@@ -25,8 +26,13 @@ contains
         ny = size(output%variables(1)%data, 3)
         nv = size(output%variables(1)%predictors, 4)
 
-        allocate( output_data(nx,ny,nt) )
-        allocate( output_data_4d(nx,ny,nt,nv) )
+        allocate( output_data(nx,ny,nt), stat=Mem_Error )
+        if (Mem_Error /= 0) call memory_error(Mem_Error, "output_data", [nx,ny,nt])
+
+        if (options%debug) then
+            allocate( output_data_4d(nx,ny,nt,nv), stat=Mem_Error )
+            if (Mem_Error /= 0) call memory_error(Mem_Error, "output_data_4d", [nx,ny,nt,nv])
+        endif
 
         do i=1,nvars
             
@@ -54,8 +60,10 @@ contains
                 call io_write(filename, "data", output_data)
 
                 filename = trim(options%output_file)//trim(output%variables(i)%name)//"_training.nc"
-                call shift_z_dim(output%variables(i)%training, output_data_4d)
-                call io_write(filename, "data", output_data_4d)
+                call io_write(filename, "data", output%variables(i)%training)
+                ! this quickly takes too much memory, so we won't bother swapping dimensions
+                ! call shift_z_dim(output%variables(i)%training, output_data_4d)
+                ! call io_write(filename, "data", output_data_4d)
                 
                 filename = trim(options%output_file)//trim(output%variables(i)%name)//"_coef.nc"
                 ! note other 4d vars are nt, nx, ny, nv, but coeff is nv, nt, nx, ny
@@ -74,6 +82,7 @@ contains
         real, intent(inout), dimension(:,:,:), allocatable :: output
         integer :: i,j,k
         integer :: nx,ny,nt
+        integer :: Mem_Error
 
         nt = size(input, 1)
         nx = size(input, 2)
@@ -81,7 +90,8 @@ contains
 
         if ((size(output,1) /= nx).or.(size(output,2) /= ny).or.(size(output,3) /= nt)) then
             deallocate(output)
-            allocate(output(nx,ny,nt))
+            allocate(output(nx,ny,nt), stat=Mem_Error)
+            if (Mem_Error /= 0) call memory_error(Mem_Error, "output (shift_z)", [nx,ny,nt])
         endif
 
         do j=1,ny
@@ -98,6 +108,7 @@ contains
         real, intent(inout), dimension(:,:,:,:), allocatable :: output
         integer :: i,j,k
         integer :: nx,ny,nt, nv
+        integer :: Mem_Error
 
         nt = size(input, 1)
         nx = size(input, 2)
@@ -106,7 +117,8 @@ contains
 
         if ((size(output,1) /= nx).or.(size(output,2) /= ny).or.(size(output,3) /= nt).or.(size(output,4) /= nv)) then
             deallocate(output)
-            allocate(output(nx,ny,nt,nv))
+            allocate(output(nx,ny,nt,nv), stat=Mem_Error)
+            if (Mem_Error /= 0) call memory_error(Mem_Error, "output_4d (shift_z)", [nx,ny,nt,nv])
         endif
 
         do k=1,nv
@@ -118,5 +130,20 @@ contains
         enddo
 
     end subroutine shift_z_dim_4d
+
+    subroutine memory_error(error, variable_name, dims)
+        implicit none
+        integer,          intent(in)                :: error
+        character(len=*), intent(in)                :: variable_name
+        integer,          intent(in), dimension(:)  :: dims
+
+        write(*,*), "Error allocating memory for variable: ", trim(variable_name)
+        write(*,*), "  ERROR        = ", error
+        write(*,*), "  Dimensions   = ", dims
+
+        stop "MEMORY ALLOCATION ERROR"
+
+    end subroutine memory_error
+
 
 end module output_mod
