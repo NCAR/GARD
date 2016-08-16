@@ -7,6 +7,7 @@ module downscaling_mod
     use model_constants
     use quantile_mapping,   only : develop_qm, apply_qm
     use time_util,          only : setup_time_indices
+    use basic_stats_mod,    only : stddev
     implicit none
     
     integer*8, dimension(10) :: master_timers
@@ -14,18 +15,19 @@ module downscaling_mod
 
     
 contains
-    function downscale(training_atm, training_obs, predictors, options) result(output)
+    subroutine downscale(training_atm, training_obs, predictors, output, options)
             implicit none
             type(atm),    intent(inout) :: training_atm, predictors
             type(obs),    intent(inout) :: training_obs
+            type(results),intent(out)   :: output
             type(config), intent(in)    :: options
             
-            type(results) :: output
             type(qm_correction_type) :: qm
             real, dimension(:,:), allocatable :: train_data, pred_data
             integer :: nx, ny, ntimes, ntrain, nobs, noutput
             integer :: n_obs_variables, n_atm_variables
             integer :: i, j, l, x, y, v
+            integer :: Mem_Error
             real :: w
             ! prediction period index variables
             integer :: p_start, p_end
@@ -108,8 +110,12 @@ contains
             !!  Set up the data structures used in downscaling
             !!
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            allocate( train_data( ntrain, n_atm_variables+1 ) )
-            allocate( pred_data(  ntimes, n_atm_variables+1 ) )
+            allocate( train_data( ntrain, n_atm_variables+1 ), STAT = Mem_Error )
+            if (Mem_Error /= 0) call memory_error(Mem_Error, "train_data", [ntrain, n_atm_variables+1])
+                
+            allocate( pred_data(  ntimes, n_atm_variables+1 ), STAT = Mem_Error )
+            if (Mem_Error /= 0) call memory_error(Mem_Error, "pred_data", [ntimes, n_atm_variables+1])
+            
             train_data=0
             pred_data=0
             ! constant coefficient for regressions... might be better to keep this in the point downscaling section? 
@@ -124,23 +130,31 @@ contains
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             do v=1,n_atm_variables
                 !$omp do
-                do j=1,size(predictors%variables(v)%data,3)
-                    do i=1,size(predictors%variables(v)%data,2)
-                        call transform_data(options%prediction%input_Xforms(v), predictors%variables(v)%data(:,i,j), 1, ntimes)
-                    enddo
-                    ! does not need to be normalized if it is transformed to match training_atm anyway
-                    if (options%prediction%transformations(v) /= kQUANTILE_MAPPING) then
-                        call normalize(predictors%variables(v), j)
-                    endif
-                enddo
-                !$omp end do
-
-                !$omp do
                 do j=1,size(training_atm%variables(v)%data,3)
                     do i=1,size(training_atm%variables(v)%data,2)
                         call transform_data(options%training%input_Xforms(v), training_atm%variables(v)%data(:,i,j), 1, ntrain)
                     enddo
+                    if (options%training%input_Xforms(v) /= kNO_TRANSFORM) then
+                        call update_statistics(training_atm%variables(v), j)
+                    endif
+
                     call normalize(training_atm%variables(v), j)
+                enddo
+                !$omp end do
+                
+                !$omp do
+                do j=1,size(predictors%variables(v)%data,3)
+                    do i=1,size(predictors%variables(v)%data,2)
+                        call transform_data(options%prediction%input_Xforms(v), predictors%variables(v)%data(:,i,j), 1, ntimes)
+                    enddo
+                    if (options%prediction%input_Xforms(v) /= kNO_TRANSFORM) then
+                        call update_statistics(predictors%variables(v), j)
+                    endif
+                    
+                    ! does not need to be normalized if it will be transformed to match training_atm anyway
+                    if (abs(options%prediction%transformations(v)) /= kQUANTILE_MAPPING) then
+                        call normalize(predictors%variables(v), j)
+                    endif
                 enddo
                 !$omp end do
             enddo
@@ -289,7 +303,7 @@ contains
             print*, "---------------------------------------------------"
             
 
-    end function downscale
+    end subroutine downscale
     
     subroutine read_point(input_data, output, i, j, geolut, method)
         implicit none
@@ -346,8 +360,7 @@ contains
         reverse_internal = .False.
         if (present(reverse)) reverse_internal = reverse
         ! transform the relevant data (e.g. quantile map or other)
-
-        select case (transform_type)
+        select case (abs(transform_type))
             
         case (kQUANTILE_MAPPING)
             
@@ -402,9 +415,10 @@ contains
         
         real,    dimension(:),   allocatable :: output
         real(8), dimension(:),   allocatable :: coefficients
+        real,    dimension(:),   allocatable :: coefficients_r4
         
         integer(8)  :: timeone, timetwo
-        integer     :: i, n, nvars
+        integer     :: i, n, nvars, v
         !integer     :: a, n_analogs, selected_analog, real_analogs
         !real        :: rand, analog_threshold
         
@@ -417,6 +431,7 @@ contains
         n = size(predictor,1)
         
         allocate(coefficients(nvars))
+        allocate(coefficients_r4(nvars*2))
         allocate(output(n))
 
         ! This just prevents any single points that were WAY out (most likely due to the QM?)
@@ -433,8 +448,8 @@ contains
             output(1)  = compute_regression(predictor(1,:), atm, obs, coefficients, errors(1))
             errors(2:) = errors(1)
             if (options%debug) then
-                do i=1,nvars
-                    output_coeff(i,:) = coefficients(i)
+                do v=1,nvars
+                    output_coeff(v,:) = coefficients(v)
                 enddo
             endif
             call System_Clock(timetwo)
@@ -445,8 +460,8 @@ contains
                 logistic(1) = compute_logistic_regression(predictor(1,:), atm, obs, coefficients, logistic_threshold)
                 
                 if (options%debug) then
-                    do i = 1,nvars
-                        output_coeff(i+nvars,:) = coefficients(i)
+                    do v = 1,nvars
+                        output_coeff(v+nvars,:) = coefficients(v)
                     enddo
                 endif
             endif
@@ -467,19 +482,33 @@ contains
             !!
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             if (options%pure_analog) then
-                call downscale_pure_analog(predictor(i,:), atm, obs, output_coeff(:,i),     &
+                call downscale_pure_analog(predictor(i,:), atm, obs, coefficients_r4,     &
                                            output(i), errors(i), logistic(i),               &
                                            options, timers)
                 
+                if (options%debug) then
+                    do v=1,nvars
+                       output_coeff(v,i) = coefficients_r4(v)
+                    enddo
+                endif
+
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             !!
             !!  Analog Regression Downscaling
             !!
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             elseif (options%analog_regression) then
-                call downscale_analog_regression(predictor(i,:), atm, obs, output_coeff(:,i),     &
+                call downscale_analog_regression(predictor(i,:), atm, obs, coefficients_r4,     &
                                                  output(i), errors(i), logistic(i),               &
                                                  options, timers, [xptn,ypnt,i])
+                                                 
+                if (options%debug) then
+                    do v=1,nvars
+                        output_coeff(v,i) = coefficients_r4(v)
+                    enddo
+                endif
+
+                                                 
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             !!
             !!  Pure regression downscaling
@@ -570,7 +599,7 @@ contains
                 
                 if ((output>maxval(threshold_obs)*1.1)      &
                     .or.(output<(logistic_threshold-2))                       &
-                    .or.(abs(coefficients(1))>(maxval(threshold_obs)*2))) then
+                    .or.(abs(coefficients(1))>(maxval(threshold_obs) * 1.5))) then
                     
                     ! !$omp critical (print_lock)
                     ! print*, "WARNING: Reverting to analog for a point"
@@ -580,6 +609,8 @@ contains
                     call System_Clock(timetwo)
                     timers(2) = timers(2) + (timetwo-timeone)
                     call downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, options, timers, analogs)
+                    coefficients(1:nvars) = output_coeff(1:nvars)
+                    coefficients(1) = 1e32
                     call System_Clock(timeone)
                 endif
                 ! if the regression picked a vaguely valid value <0 then just set it to 0?
@@ -760,9 +791,9 @@ contains
     subroutine normalize(var, j)
         implicit none
         class(atm_variable_type), intent(inout) :: var
-        integer, intent(in) :: j
+        integer, intent(in)                     :: j
         integer :: i, n
-        
+
         n = size(var%mean,1)
         
         do i=1,n
@@ -779,9 +810,30 @@ contains
                     !$omp end critical (print_lock)
                 endif
             endif
+            ! shift to a 0-based range so that variables such as precip have a testable non-value
+            var%data(:,i,j) = var%data(:,i,j) - minval(var%data(:,i,j))
+            where(abs(var%data(:,i,j)) < 1e-10) var%data(:,i,j)=0
         enddo
         
+        
     end subroutine normalize
+    
+    subroutine update_statistics(input_var, j)
+        implicit none
+        class(variable_type), intent(inout) :: input_var
+        integer, intent(in) :: j
+        
+        integer :: ntimes, nx, i
+        
+        ntimes = size(input_var%data,1)
+        nx     = size(input_var%data,2)
+        
+        do i=1,nx
+            input_var%mean(i,j) = sum(input_var%data(:,i,j)) / ntimes
+            input_var%stddev(i,j) = stddev(input_var%data(:,i,j), input_var%mean(i,j))
+        enddo
+        
+    end subroutine update_statistics
     
     
     subroutine setup_timing(training_atm, training_obs, predictors, options)
@@ -808,24 +860,31 @@ contains
         integer,        intent(in)      :: n_obs_variables, noutput, nx, ny, n_atm_variables, tr_size
         type(config),   intent(in)      :: options
         
-        integer :: v
+        integer :: v, Mem_Error
         
         write(*,*), "Allocating Memory"
+        write(*,*), "  N output times:", noutput
+        write(*,*), "  nx:", nx, "        ny:",ny
+        write(*,*), "  Training size:",  tr_size
+        write(*,*), "  N atm variables:",n_atm_variables
         
-        allocate(output%variables(n_obs_variables))
+        allocate(output%variables(n_obs_variables), stat=Mem_Error)
+        if (Mem_Error /= 0) call memory_error(Mem_Error, "out%variables", [n_obs_variables])
         
         do v = 1,n_obs_variables
-            allocate(output%variables(v)%data        (noutput, nx, ny))
-            allocate(output%variables(v)%errors      (noutput, nx, ny))
+            allocate(output%variables(v)%data        (noutput, nx, ny), stat=Mem_Error)
+            if (Mem_Error /= 0) call memory_error(Mem_Error, "out%variables(v)%data v="//trim(str(v)), [noutput,nx,ny])
+            allocate(output%variables(v)%errors      (noutput, nx, ny), stat=Mem_Error)
+            if (Mem_Error /= 0) call memory_error(Mem_Error, "out%variables(v)%errors v="//trim(str(v)), [noutput,nx,ny])
             
             if (options%logistic_threshold/=kFILL_VALUE) then
-                allocate(output%variables(v)%logistic    (noutput, nx, ny))
-                allocate(output%variables(v)%coefficients((n_atm_variables+1)*2, noutput, nx, ny))
+                allocate(output%variables(v)%logistic    (noutput, nx, ny), stat=Mem_Error)
+                if (Mem_Error /= 0) call memory_error(Mem_Error, "out%variables(v)%logistic v="//trim(str(v)), [noutput,nx,ny])
             else
                 ! unfortunately logistic has to be allocated even if it is not used because it is indexed 
                 ! however, it does not need a complete time sequence because time is never indexed
-                allocate(output%variables(v)%logistic    (2, nx, ny))
-                allocate(output%variables(v)%coefficients(n_atm_variables+1, noutput, nx, ny))
+                allocate(output%variables(v)%logistic    (2, nx, ny), stat=Mem_Error)
+                if (Mem_Error /= 0) call memory_error(Mem_Error, "out%variables(v)%logistic v="//trim(str(v)), [2,nx,ny])
             endif
             
             output%variables(v)%data            = 0
@@ -838,18 +897,50 @@ contains
                     output%variables(v)%logistic_threshold = log(LOG_FILL_VALUE)
                 endif
             endif
-            output%variables(v)%coefficients    = 0
                         
             if (options%debug) then
-                allocate(output%variables(v)%obs         (tr_size, nx, ny))
-                allocate(output%variables(v)%training    (tr_size, nx, ny, n_atm_variables+1))
-                allocate(output%variables(v)%predictors  (noutput, nx, ny, n_atm_variables+1))
-                output%variables(v)%predictors  = 0
-                output%variables(v)%training    = 0
-                output%variables(v)%obs         = 0
+                allocate(output%variables(v)%obs         (tr_size, nx, ny), stat=Mem_Error)
+                if (Mem_Error /= 0) call memory_error(Mem_Error, "out%variables(v)%obs v="//trim(str(v)), [tr_size,nx,ny])
+                allocate(output%variables(v)%training    (tr_size, nx, ny, n_atm_variables+1), stat=Mem_Error)
+                if (Mem_Error /= 0) call memory_error(Mem_Error, "out%variables(v)%training v="//trim(str(v)), [tr_size,nx,ny, n_atm_variables+1])
+                allocate(output%variables(v)%predictors  (noutput, nx, ny, n_atm_variables+1), stat=Mem_Error)
+                if (Mem_Error /= 0) call memory_error(Mem_Error, "out%variables(v)%predictors v="//trim(str(v)), [noutput,nx,ny, n_atm_variables+1])
+                
+                if (options%logistic_threshold/=kFILL_VALUE) then
+                    allocate(output%variables(v)%coefficients((n_atm_variables+1)*2, noutput, nx, ny), stat=Mem_Error)
+                    if (Mem_Error /= 0) call memory_error(Mem_Error, "out%variables(v)%coefficients v="//trim(str(v)), [(n_atm_variables+1)*2,noutput,nx,ny])
+                else
+                    allocate(output%variables(v)%coefficients(n_atm_variables+1, noutput, nx, ny), stat=Mem_Error)
+                    if (Mem_Error /= 0) call memory_error(Mem_Error, "out%variables(v)%coefficients v="//trim(str(v)), [n_atm_variables+1,noutput,nx,ny])
+                endif
+                
+                output%variables(v)%predictors   = 0
+                output%variables(v)%training     = 0
+                output%variables(v)%obs          = 0
+                output%variables(v)%coefficients = 0
+            else
+                ! unfortunately coefficients has to be allocated even if it is not used because it is indexed 
+                ! however, it does not need a complete time sequence or variable size because they are never indexed
+                allocate(output%variables(v)%coefficients(n_atm_variables+1, 2, nx, ny), stat=Mem_Error)
+                if (Mem_Error /= 0) call memory_error(Mem_Error, "out%variables(v)%coefficients v="//trim(str(v)), [2,2,nx,ny])
             endif
             
         end do
     end subroutine allocate_data
+
+    subroutine memory_error(error, variable_name, dims)
+        implicit none
+        integer,          intent(in)                :: error
+        character(len=*), intent(in)                :: variable_name
+        integer,          intent(in), dimension(:)  :: dims
+        
+        write(*,*), "Error allocating memory for variable: ", trim(variable_name)
+        write(*,*), "  ERROR        = ", error
+        write(*,*), "  Dimensions   = ", dims
+        
+        stop "MEMORY ALLOCATION ERROR"
+        
+    end subroutine memory_error
+
 
 end module downscaling_mod

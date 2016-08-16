@@ -90,7 +90,7 @@ program stat_down
     print*, "=========================================="
     print*, ""
     print*, "Running Downscaling Code"
-    output = downscale(training_atm, training_obs, predictions, options)
+    call downscale(training_atm, training_obs, predictions, output, options)
     
     print*, "=========================================="
     print*, ""
