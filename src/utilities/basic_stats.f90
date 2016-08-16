@@ -75,8 +75,8 @@ contains
     
     function stddev(input, mean_in)
         implicit none
-        real, dimension(:) :: input
-        real, intent(in), optional :: mean_in
+        real, intent(inout), dimension(:) :: input
+        real, intent(in),    optional     :: mean_in
         real :: stddev
         
         real :: mean
