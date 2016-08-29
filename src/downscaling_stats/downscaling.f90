@@ -100,9 +100,9 @@ contains
             !!  Begin parallelization                !!
             !!                                       !!
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            !$omp parallel default(shared)                  &
-            !$omp private(train_data, pred_data, i, j, v, timeone, timetwo)   &
-            !$omp firstprivate(nx,ny,n_atm_variables, n_obs_variables, noutput, ntrain, nobs, ntimes) &
+            !$omp parallel default(shared)                                                              &
+            !$omp private(train_data, pred_data, i, j, v, timeone, timetwo, Mem_Error)                  &
+            !$omp firstprivate(nx,ny,n_atm_variables, n_obs_variables, noutput, ntrain, nobs, ntimes)   &
             !$omp firstprivate(p_start, p_end, t_tr_start, t_tr_stop, o_tr_start, o_tr_stop, timers)
             
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -142,6 +142,8 @@ contains
                 enddo
                 !$omp end do
                 
+                !$omp barrier
+                
                 !$omp do
                 do j=1,size(predictors%variables(v)%data,3)
                     do i=1,size(predictors%variables(v)%data,2)
@@ -157,6 +159,9 @@ contains
                     endif
                 enddo
                 !$omp end do
+                
+                !$omp barrier
+
             enddo
             
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -448,6 +453,8 @@ contains
             output(1)  = compute_regression(predictor(1,:), atm, obs, coefficients, errors(1))
             errors(2:) = errors(1)
             if (options%debug) then
+                where( coefficients >  1e20 ) coefficients =  1e20
+                where( coefficients < -1e20 ) coefficients = -1e20
                 do v=1,nvars
                     output_coeff(v,:) = coefficients(v)
                 enddo
@@ -460,6 +467,8 @@ contains
                 logistic(1) = compute_logistic_regression(predictor(1,:), atm, obs, coefficients, logistic_threshold)
                 
                 if (options%debug) then
+                    where( coefficients >  1e20 ) coefficients =  1e20
+                    where( coefficients < -1e20 ) coefficients = -1e20
                     do v = 1,nvars
                         output_coeff(v+nvars,:) = coefficients(v)
                     enddo
@@ -608,9 +617,9 @@ contains
                     ! !$omp end critical (print_lock)
                     call System_Clock(timetwo)
                     timers(2) = timers(2) + (timetwo-timeone)
-                    call downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, options, timers, analogs)
+                    call downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, options, timers, analogs, weights)
                     coefficients(1:nvars) = output_coeff(1:nvars)
-                    coefficients(1) = 1e32
+                    coefficients(1) = 1e20
                     call System_Clock(timeone)
                 endif
                 ! if the regression picked a vaguely valid value <0 then just set it to 0?
@@ -628,6 +637,8 @@ contains
         endif
         
         if (options%debug) then
+            where( coefficients >  1e20 ) coefficients =  1e20
+            where( coefficients < -1e20 ) coefficients = -1e20
             output_coeff(1:nvars) = coefficients
         endif
         call System_Clock(timetwo)
@@ -661,6 +672,8 @@ contains
             else
                 logistic = compute_logistic_regression(x, regression_data, obs_analogs, coefficients, logistic_threshold)
                 if (options%debug) then
+                    where( coefficients >  1e20 ) coefficients =  1e20
+                    where( coefficients < -1e20 ) coefficients = -1e20
                     do j = 1,nvars
                         output_coeff(j+nvars) = coefficients(j)
                     enddo
@@ -672,7 +685,7 @@ contains
         timers(3) = timers(3) + (timetwo-timeone)
     end subroutine downscale_analog_regression
 
-    subroutine downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, options, timers, input_analogs)
+    subroutine downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, options, timers, input_analogs, input_weights)
         implicit none
         real,           intent(in),     dimension(:,:)  :: atm
         real,           intent(in),     dimension(:)    :: x, obs
@@ -681,6 +694,7 @@ contains
         type(config),   intent(in)                      :: options
         integer*8,      intent(inout),  dimension(:)    :: timers
         integer,        intent(in),     dimension(:),   optional    :: input_analogs
+        real,           intent(in),     dimension(:),   optional    :: input_weights
         
         real        :: analog_threshold, logistic_threshold
         integer*8   :: timeone, timetwo
@@ -697,7 +711,7 @@ contains
         
         call System_Clock(timeone)
         ! find the best n_analog matching analog days in atm to match x
-        if (.not.present(input_analogs)) then
+        if ((.not.present(input_analogs)).or.((options%analog_weights).and.(.not.present(input_weights)))) then
             if (n_analogs > 0) then
                 allocate(analogs(n_analogs))
             endif
@@ -709,7 +723,12 @@ contains
         else
             allocate(analogs(size(input_analogs)))
             analogs = input_analogs
+            if (options%analog_weights) then
+                allocate(weights(size(input_weights)))
+                weights = input_weights
+            endif
         endif
+        
         real_analogs = size(analogs)
         call System_Clock(timetwo)
         timers(1) = timers(1) + (timetwo-timeone)
