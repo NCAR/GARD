@@ -77,12 +77,18 @@ contains
                 endif
                 ! then compute grid mean and stddev statistics for re-normalization
                 ! could also add a standard normal transformation?
+                if (var_idx == options%mask_variable) then
+                    call create_variable_mask(obs_data%mask, var%data, options%mask_value)
+                endif
+                
+                where( var%data > 1e10 ) var%data = 1
                 call compute_grid_stats(var)
+                ! prevent possible divide by 0 in normalization?
+                where( var%stddev == 0 ) var%stddev = 1e-10
+                where( var%mean   == 0 ) var%mean   = 1e-10
+
             end associate
         enddo
-        
-        var_idx = options%mask_variable
-        call create_variable_mask(obs_data%mask, obs_data%variables(var_idx)%data, options%mask_value)
         
         allocate(obs_data%times(ntimesteps))
         call read_times(options, obs_data%times)
