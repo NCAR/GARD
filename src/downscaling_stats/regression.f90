@@ -1,13 +1,15 @@
 module  regression_mod
 contains
     
-    function compute_regression(x, training_x, training_y, coefficients, error) result(y)
+    function compute_regression(x, training_x, training_y, coefficients, error, weights) result(y)
         implicit none
         real,    intent(in),    dimension(:)   :: x
         real,    intent(in),    dimension(:,:) :: training_x
         real,    intent(in),    dimension(:)   :: training_y
         real(8), intent(inout), dimension(:)   :: coefficients
-        real,    intent(inout), optional       :: error
+        real,    intent(inout),                             optional :: error
+        real,    intent(inout), dimension(:),  allocatable, optional :: weights
+        
         real,    allocatable,   dimension(:,:) :: training_x_lp
         real,    allocatable,   dimension(:)   :: training_y_lp
         
@@ -100,7 +102,22 @@ contains
             enddo
             ! root mean square error
             ! this is the regression error
-            error = sqrt( sum((training_y_lp - training_y)**2) / ntimes )
+            
+            ! optionally use the weights computed in analog_weights to weight the error calculation
+            ! weights should sum to 1, but just in case, we divide by sum(weights)
+            if (present(weights)) then
+                if (allocated(weights)) then
+                    if (size(weights)/=size(training_y_lp)) then
+                        write(*,*) "ERROR size of weights /= data"
+                        write(*,*), shape(weights), shape(training_y_lp)
+                    endif
+                    error = sqrt( sum(((training_y_lp - training_y)*weights)**2) / sum(weights) )
+                else
+                    error = sqrt( sum((training_y_lp - training_y)**2) / ntimes )
+                endif
+            else
+                error = sqrt( sum((training_y_lp - training_y)**2) / ntimes )
+            endif
         endif
         
     end function compute_regression
@@ -287,7 +304,9 @@ contains
             P = max(-80.0, matmul(X, B))
             P = 1.0 / (1.0 + exp(-P))
             if (ANY(P > 0.9999999)) then
-                !print *, "WARNING: logistic regression diverging"
+                ! !$omp critical (print_lock)
+                !print*, "WARNING: logistic regression diverging"
+                ! !$omp end critical (print_lock)
                 f = 1
             else
 
@@ -315,7 +334,9 @@ contains
                     end if
                 end do
                 if(it > 8) then
-                    !print *, "WARNING: logistic regression failed to converge"
+                    ! !$omp critical (print_lock)
+                    !print*, "WARNING: logistic regression failed to converge"
+                    ! !$omp end critical (print_lock)
                     f = 1
                 endif
 

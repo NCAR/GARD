@@ -557,7 +557,7 @@ contains
         real,    dimension(:,:),allocatable :: threshold_atm 
         real,    dimension(:),  allocatable :: threshold_obs
         logical, dimension(:),  allocatable :: threshold_packing
-        real,    dimension(:),  allocatable :: weights
+        real,    dimension(:),  allocatable :: weights, packed_weights
         integer :: n_packed
         
         n_analogs           = options%n_analogs
@@ -590,48 +590,51 @@ contains
 
         call System_Clock(timeone)
         if (logistic_threshold==kFILL_VALUE) then
-            output = compute_regression(x, regression_data, obs_analogs, coefficients, error)
+            output = compute_regression(x, regression_data, obs_analogs, coefficients, error, weights)
         else
             
             threshold_packing = obs_analogs > logistic_threshold
             n_packed = count(threshold_packing)
             
-            if (n_packed > (nvars*5)) then
+            if (n_packed > (nvars*2)) then
                 allocate(threshold_atm(n_packed, nvars))
                 allocate(threshold_obs(n_packed))
                 do j=1,nvars
                     threshold_atm(:,j) = pack(regression_data(:,j), threshold_packing)
                 enddo
                 threshold_obs = pack(obs_analogs, threshold_packing)
+                if (options%analog_weights) then
+                    allocate(packed_weights(n_packed))
+                    packed_weights = pack(weights, threshold_packing)
+                endif
                 
-                output = compute_regression(x, threshold_atm, threshold_obs, coefficients, error)
+                output = compute_regression(x, threshold_atm, threshold_obs, coefficients, error, packed_weights)
                 
-                if ((output>maxval(threshold_obs)*1.1)      &
+                if ((output>maxval(threshold_obs)*1.2)                        &
                     .or.(output<(logistic_threshold-2))                       &
                     .or.(abs(coefficients(1))>(maxval(threshold_obs) * 1.5))) then
                     
-                    ! !$omp critical (print_lock)
-                    ! print*, "WARNING: Reverting to analog for a point"
-                    ! print*, "x,y,t",cur_point
-                    ! print*, "ERROR: ", output**3, (output+error)**3 - output**3, coefficients(1)
-                    ! !$omp end critical (print_lock)
                     call System_Clock(timetwo)
                     timers(2) = timers(2) + (timetwo-timeone)
+                    ! revert to a pure analog approach.  By passing analogs and weights, it will not recompute which analogs to use
+                    ! it will just compute the analog mean, pop, and error statistics
                     call downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, options, timers, analogs, weights)
                     coefficients(1:nvars) = output_coeff(1:nvars)
                     coefficients(1) = 1e20
                     call System_Clock(timeone)
                 endif
                 ! if the regression picked a vaguely valid value <0 then just set it to 0?
-                if (output<0) then
-                    output=0
-                endif
+                ! But since this is just the mean expected value, it can have a positive error term added to it resulting
+                ! in a net positive value, so for now we will accept "negative" precipitation amounts
+                ! if (output<0) then
+                !     output=0
+                ! endif
                 
             elseif (n_packed > 0) then
                 output = sum(pack(obs_analogs, threshold_packing)) / n_packed
             else
                 ! note, for precip (and a 0 threshold), this could just be setting output, error, logistic, and coefficients to 0
-                output = compute_regression(x, regression_data, obs_analogs, coefficients, error)
+                output = compute_regression(x, regression_data, obs_analogs, coefficients, error, weights)
             endif
             
         endif
