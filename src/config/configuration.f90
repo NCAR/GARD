@@ -16,9 +16,6 @@ module config_mod
     implicit none
     private
     
-    character(len=MAXFILELENGTH), parameter :: kDEFAULT_OPTIONS_FILENAME = "downscale_options.txt"
-    character(len=MAXFILELENGTH), parameter :: kVERSION_STRING = "0.3"
-    
     logical :: module_debug
     public :: read_config
     public :: read_files_list, read_data_type, get_options_file ! only need to be public for test_config
@@ -43,6 +40,16 @@ contains
         
         if (options%debug) print*, "Reading Observation Namelist"
         options%obs         = read_obs_options(         options%observation_file,   options%debug)
+        
+
+        write(*,*) ""
+        write(*,*) "Downscaling for the period : ", trim(options%first_time%as_string())
+        write(*,*) "                        to : ", trim(options%last_time%as_string())
+        write(*,*) ""
+        write(*,*) "   Training for the period : ", trim(options%training_start%as_string())
+        write(*,*) "                        to : ", trim(options%training_stop%as_string())
+        write(*,*) ""
+        
     end function read_config
 
 
@@ -583,6 +590,7 @@ contains
         integer :: file_unit
         integer :: i, error
         character(len=MAXFILELENGTH) :: temporary_file
+        logical :: nfiles_warning_printed=.False. ! This variable will be saved between calls so that the warning is only printed once. 
         
         if (module_debug) print*, "Reading: ",trim(filename)
         open(unit=io_newunit(file_unit), file=filename)
@@ -601,12 +609,22 @@ contains
                 
                 forcing_files(i) = temporary_file
             endif
-            
         enddo
         
         close(file_unit)
         
         nfiles = i
+        if (nfiles > size(file_list,1)) then
+            if (.not.nfiles_warning_printed) then
+                write(*,*) ""
+                write(*,*) "WARNING: More files in file_list than being used"
+                write(*,*) "        Files in list : ", nfiles
+                write(*,*) "        Nfiles to use : ", size(file_list,1)
+                write(*,*) ""
+                nfiles_warning_printed=.True.
+            endif
+            nfiles = size(file_list,1)
+        endif
         
         file_list(1:nfiles) = forcing_files(1:nfiles)
 
