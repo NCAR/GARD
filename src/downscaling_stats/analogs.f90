@@ -8,7 +8,7 @@ module analog_mod
     
 contains
 
-    subroutine find_analogs(analogs, match, input, n, threshold, weights)
+    subroutine find_analogs(analogs, match, input, n, threshold, weights, skip_analog)
         implicit none
         integer, intent(inout), dimension(:), allocatable  :: analogs
         real,    intent(in),    dimension(:)   :: match
@@ -16,6 +16,7 @@ contains
         integer, intent(in)                    :: n
         real,    intent(in)                    :: threshold
         real,    intent(inout), dimension(:), allocatable, optional :: weights
+        integer, intent(in),    optional       :: skip_analog ! specify an element of the input data to skip
                 
         real,    dimension(:), allocatable :: distances
         ! logical, dimension(:), allocatable :: mask
@@ -33,6 +34,11 @@ contains
         do i=1,nvars
             distances = distances + (input(:,i) - match(i))**2
         enddo
+        if (present(skip_analog)) then
+            if ((skip_analog > 0).and.(skip_analog < size(distances))) then
+                distances(skip_analog) = distances(skip_analog) + 1000 ! 1 would be a large value
+            endif
+        endif
         
         ! fast selection (O(n_inputs log(nanalogs)) worst case, typically closer to O(n_inputs))
         if (n>0) then
@@ -124,7 +130,7 @@ contains
         
         if (present(weights)) then
             do i=1, n
-                mean = mean + input( analogs(i) ) * weights(i)
+                mean = mean + (input( analogs(i) ) - y_hat)**2 * weights(i)
             enddo
             error = sqrt(mean)
         else

@@ -493,7 +493,7 @@ contains
             if (options%pure_analog) then
                 call downscale_pure_analog(predictor(i,:), atm, obs, coefficients_r4,     &
                                            output(i), errors(i), logistic(i),               &
-                                           options, timers)
+                                           options, timers, cur_time=i)
                 
                 if (options%debug) then
                     do v=1,nvars
@@ -508,8 +508,8 @@ contains
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             elseif (options%analog_regression) then
                 call downscale_analog_regression(predictor(i,:), atm, obs, coefficients_r4,     &
-                                                 output(i), errors(i), logistic(i),               &
-                                                 options, timers, [xptn,ypnt,i])
+                                                 output(i), errors(i), logistic(i),             &
+                                                 options, timers, [xptn,ypnt,i], cur_time=i)
                                                  
                 if (options%debug) then
                     do v=1,nvars
@@ -532,7 +532,7 @@ contains
 
     end function downscale_point
 
-    subroutine downscale_analog_regression(x, atm, obs, output_coeff, output, error, logistic, options, timers, cur_point)
+    subroutine downscale_analog_regression(x, atm, obs, output_coeff, output, error, logistic, options, timers, cur_point, cur_time)
         implicit none
         real,           intent(in),     dimension(:,:)  :: atm
         real,           intent(in),     dimension(:)    :: x, obs
@@ -542,6 +542,7 @@ contains
         integer*8,      intent(inout),  dimension(:)    :: timers
         
         integer,        intent(in),     dimension(3)    :: cur_point
+        integer,        intent(in),     optional        :: cur_time
         integer     :: test
         
         real,    dimension(:),   allocatable :: obs_analogs
@@ -567,9 +568,9 @@ contains
                 
         call System_Clock(timeone)
         if (options%analog_weights) then
-            call find_analogs(analogs, x, atm, n_analogs, analog_threshold, weights)
+            call find_analogs(analogs, x, atm, n_analogs, analog_threshold, weights, skip_analog=cur_time)
         else
-            call find_analogs(analogs, x, atm, n_analogs, analog_threshold)
+            call find_analogs(analogs, x, atm, n_analogs, analog_threshold, skip_analog=cur_time)
         endif
 
         real_analogs = size(analogs)
@@ -688,7 +689,7 @@ contains
         timers(3) = timers(3) + (timetwo-timeone)
     end subroutine downscale_analog_regression
 
-    subroutine downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, options, timers, input_analogs, input_weights)
+    subroutine downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, options, timers, input_analogs, input_weights, cur_time)
         implicit none
         real,           intent(in),     dimension(:,:)  :: atm
         real,           intent(in),     dimension(:)    :: x, obs
@@ -698,7 +699,8 @@ contains
         integer*8,      intent(inout),  dimension(:)    :: timers
         integer,        intent(in),     dimension(:),   optional    :: input_analogs
         real,           intent(in),     dimension(:),   optional    :: input_weights
-        
+        integer,        intent(in),     optional        :: cur_time
+                
         real        :: analog_threshold, logistic_threshold
         integer*8   :: timeone, timetwo
         integer     :: real_analogs, selected_analog, nvars, n_analogs
@@ -719,9 +721,9 @@ contains
                 allocate(analogs(n_analogs))
             endif
             if (options%analog_weights) then
-                call find_analogs(analogs, x, atm, n_analogs, analog_threshold, weights)
+                call find_analogs(analogs, x, atm, n_analogs, analog_threshold, weights, skip_analog=cur_time)
             else
-                call find_analogs(analogs, x, atm, n_analogs, analog_threshold)
+                call find_analogs(analogs, x, atm, n_analogs, analog_threshold, skip_analog=cur_time)
             endif
         else
             allocate(analogs(size(input_analogs)))

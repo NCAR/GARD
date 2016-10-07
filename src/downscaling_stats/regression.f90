@@ -111,7 +111,7 @@ contains
                         write(*,*) "ERROR size of weights /= data"
                         write(*,*), shape(weights), shape(training_y_lp)
                     endif
-                    error = sqrt( sum(((training_y_lp - training_y)*weights)**2) / sum(weights) )
+                    error = sqrt( sum(((training_y_lp - training_y)**2)*weights) / sum(weights) )
                 else
                     error = sqrt( sum((training_y_lp - training_y)**2) / ntimes )
                 endif
