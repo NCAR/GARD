@@ -78,11 +78,13 @@ contains
             ! print*, "Regression error, using value:",y
             ! !$omp end critical (print_lock)
             coefficients = 0
+            if (present(error)) error=0
             return
         endif
         
         if (maxval(abs(coefficients)) == 0) then
             y = 1e20
+            if (present(error)) error=0
             return
         endif
         
