@@ -1,6 +1,9 @@
 module model_constants
 
     implicit none
+
+    ! Model source code version number
+    character(len=*),public,parameter :: kVERSION_STRING = "0.3"
     
     ! ------------------------------------------------
     ! String constants
@@ -48,6 +51,8 @@ module model_constants
     ! Other Constants
     ! ------------------------------------------------
     integer,public,parameter :: kFILL_VALUE       = -9999
+    character(len=*),public,parameter :: kDEFAULT_OPTIONS_FILENAME = "downscale_options.txt"
     
+
 
 end module model_constants

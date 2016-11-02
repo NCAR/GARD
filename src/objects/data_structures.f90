@@ -77,6 +77,8 @@ module data_structures
         integer                             :: data_type ! Type of data.  e.g. precip, temperature, or other. 
         character(len=MAXVARLENGTH), allocatable, dimension(:) :: attributes_names
         character(len=MAXVARLENGTH), allocatable, dimension(:) :: attributes_values
+        
+        real, allocatable, dimension(:,:) :: mean, stddev ! per gridpoint mean and standard deviation (for normalization)
     end type variable_type
     
     ! ------------------------------------------------
@@ -84,20 +86,17 @@ module data_structures
     ! ------------------------------------------------
     type, extends(variable_type) :: atm_variable_type
         type(qm_correction_type), allocatable, dimension(:,:,:) :: qm ! per gridpoint (per month? or DOY?) QM
-        real, allocatable, dimension(:,:) :: mean, stddev ! per gridpoint mean and standard deviation (for normalization)
     end type atm_variable_type
     
     ! ------------------------------------------------
-    ! adds mean and stddev statistics
+    ! adds threshold and transformation
     ! ------------------------------------------------
     type, extends(variable_type) :: obs_variable_type
-        real, allocatable, dimension(:,:) :: mean, stddev ! per gridpoint mean and standard deviation (for normalization?)
         integer :: transformation                         ! type of transformation applied to data (e.g. sqrt, log, ???)
         real :: logistic_threshold                        ! threshold to use in logistic regression
     end type obs_variable_type
 
     type, extends(variable_type) :: output_variable_type
-        real, allocatable, dimension(:,:)       :: mean, stddev ! per gridpoint mean and standard deviation (for normalization?)
         real, allocatable, dimension(:,:,:)     :: errors       ! store pre grid point expected errors from the downscaling code
         real, allocatable, dimension(:,:,:,:)   :: coefficients ! store pre grid point regression coefficients
         real, allocatable, dimension(:,:,:)     :: obs
@@ -208,6 +207,10 @@ module data_structures
         logical :: pure_analog
         logical :: analog_regression
         logical :: pure_regression
+        
+        ! when computing mean, error, or logistic probabilities, weight analogs according to how
+        ! similar they are to the current time periods
+        logical :: analog_weights
         
         ! for analog regression, determine whether to compute the logistic regresion (if False), 
         ! or just the exceedance probability of the selected analogs (if True)

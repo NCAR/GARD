@@ -71,12 +71,18 @@ contains
             qm%start_idx(i) = input_data_sorted( int(input_i) )
             qm%end_idx(i)   = input_data_sorted( int(input_i + input_step) )
             qm%offset(i)    = data_to_match_sorted( int(match_i) )
-            denominator     = max(SMALL_VALUE, qm%end_idx(i) - qm%start_idx(i))
-            qm%slope(i)     = (data_to_match_sorted( int(match_i + match_step) ) - qm%offset(i)) &
-                            / denominator
+            
+            denominator     = qm%end_idx(i) - qm%start_idx(i)
+            if (denominator < SMALL_VALUE) then
+                qm%slope(i) = 0
+            else
+                qm%slope(i)     = (data_to_match_sorted( int(match_i + match_step) ) - qm%offset(i)) &
+                                / denominator
+            endif
             
             input_i = input_i + input_step
             match_i = match_i + match_step
+
         end do
         
         ! For the last segment, make sure it finishes at the final value
@@ -134,7 +140,7 @@ contains
         endif
         
         output = qm%offset(i) + qm%slope(i) * (input - qm%start_idx(i))
-        
+
     end function qm_value
     
     !>----------------------------------------------

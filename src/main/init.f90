@@ -18,7 +18,7 @@ module init_mod
     
     implicit none
     private
-    public :: model_init
+    public :: model_init, print_model_init
 contains
     
     !>------------------------------------------------
@@ -28,15 +28,14 @@ contains
     !! Only prints configuration info if debug == true
     !!
     !!------------------------------------------------
-    subroutine print_model_init(options)
+    subroutine print_model_init()
         implicit none
-        type(config), intent(in) :: options
         
         write(*,*) ""
         write(*,*) " ====================================================== "
         write(*,*) ""
         write(*,*) "          Downscaling Model           "
-        write(*,*) "          Version : "//trim(options%version)
+        write(*,*) "          Version : "//trim(kVERSION_STRING)
         write(*,*) ""
         write(*,*) "  Developed at NCAR: "
         write(*,*) "   The National Center for Atmospheric Research "
@@ -55,14 +54,6 @@ contains
         write(*,*) " ====================================================== "
         write(*,*) ""
 
-        if (options%debug) then
-            write(*,*) "Downscaling for the period : ", trim(options%first_time%as_string())
-            write(*,*) "                        to : ", trim(options%last_time%as_string())
-            write(*,*) "   Training for the period : ", trim(options%training_start%as_string())
-            write(*,*) "                        to : ", trim(options%training_stop%as_string())
-            write(*,*) ""
-        endif
-        
     end subroutine print_model_init
     
     
@@ -75,8 +66,6 @@ contains
     subroutine model_init(options)
         implicit none
         type(config), intent(in) :: options
-        
-        call print_model_init(options)
         
         call init_gefs_io(options)
         call init_gcm_io(options)

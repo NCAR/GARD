@@ -1,68 +1,125 @@
 module  regression_mod
 contains
     
-    function compute_regression(x, training_x, training_y, coefficients, error) result(y)
+    function compute_regression(x, training_x, training_y, coefficients, error, weights) result(y)
         implicit none
         real,    intent(in),    dimension(:)   :: x
         real,    intent(in),    dimension(:,:) :: training_x
         real,    intent(in),    dimension(:)   :: training_y
         real(8), intent(inout), dimension(:)   :: coefficients
-        real,    intent(inout), optional       :: error
+        real,    intent(inout),                             optional :: error
+        real,    intent(inout), dimension(:),  allocatable, optional :: weights
+        
         real,    allocatable,   dimension(:,:) :: training_x_lp
         real,    allocatable,   dimension(:)   :: training_y_lp
         
         real :: y
         
-        integer :: nvars, ntimes, i, info
+        integer :: nvars, ntimes, i, j, info, useable_vars, thisvar, nonzero_count
+        integer, dimension(:), allocatable :: varlist
+        real,    dimension(:), allocatable :: useful_x
+        
+        if (maxval(training_y) == minval(training_y)) then
+            y = training_y(1)
+            coefficients = 0
+            if (present(error)) error=0
+            return
+        endif
         
         nvars  = size(x)
         ntimes = size(training_x,1)
         
-        allocate(training_x_lp(ntimes, nvars))
-        training_x_lp = training_x
+        allocate(varlist(nvars))
+        varlist = -1
+        useable_vars = 0
+        
+        ! find all non-zero vars
+        do i=1,nvars
+            nonzero_count = 0
+            do j=1,ntimes
+                if (abs(training_x(j,i))>0) then
+                    nonzero_count = nonzero_count + 1
+                endif
+            enddo
+            if ( nonzero_count > nvars ) then
+                useable_vars = useable_vars + 1
+                varlist(i) = i
+            end if
+        enddo
+
+        ! if there are no useable training variables other than the constant, just return (this should never happen?)
+        if (useable_vars <= 1) then
+            y = 1e20 ! error value so it will recompute from analogs if possible
+            coefficients = 0
+            if (present(error)) error=0
+            return
+        endif
+        
+        allocate(useful_x(useable_vars))
+        allocate(training_x_lp(ntimes, useable_vars))
+        
+        thisvar=1
+        do i=1,nvars
+            if (varlist(i) /= -1) then
+                training_x_lp(:,thisvar) = training_x(:,i)
+                useful_x(thisvar) = x(i)
+                thisvar = thisvar + 1
+            endif
+        enddo
         
         allocate(training_y_lp(ntimes))
         training_y_lp = training_y
         
-        if (maxval(training_y) == 0) then
-            y=0
-            coefficients = 0
-            if (present(error)) error=0
-            return
-        endif
-        
-        if (any(maxval(abs(training_x),dim=1) == 0.0)) then
-            y = 0
-            coefficients = 0
-            if (present(error)) error=0
-            return
-        endif
         
         call lapack_least_squares(training_x_lp, training_y_lp, coefficients, info=info)
         if (info/=0) then
-            y = sum(training_y)/size(training_y)
+            y = 1e20 ! error value so it will recompute from analogs
             ! !$omp critical (print_lock)
             ! print*, "Regression error, using value:",y
             ! !$omp end critical (print_lock)
-            coefficients(1) = y
-            coefficients(2:)= 0
+            coefficients = 0
+            if (present(error)) error=0
+            return
+        endif
+        
+        if (maxval(abs(coefficients)) == 0) then
+            y = 1e20
+            if (present(error)) error=0
+            return
         endif
         
         y = 0
-        if (maxval(abs(coefficients)) == 0) then
-            y = sum(training_y) / size(training_y)
-        endif
-        do i=1,nvars
-            y = y + coefficients(i) * x(i)
+        do i=1,useable_vars
+            y = y + coefficients(i) * useful_x(i)
         end do
         
         if (present(error)) then
             training_y_lp = 0
-            do i=1,nvars
-                training_y_lp = training_y_lp + coefficients(i) * training_x(:,i)
+            thisvar       = 1
+            do i=1, nvars
+                if (varlist(i) /= -1) then
+                    training_y_lp = training_y_lp + coefficients(thisvar) * training_x(:,i)
+                    thisvar       = thisvar + 1
+                endif
             enddo
             ! root mean square error
-            error = sqrt( sum((training_y_lp - training_y)**2) / ntimes )
+            ! this is the regression error
+            
+            ! optionally use the weights computed in analog_weights to weight the error calculation
+            ! weights should sum to 1, but just in case, we divide by sum(weights)
+            if (present(weights)) then
+                if (allocated(weights)) then
+                    if (size(weights)/=size(training_y_lp)) then
+                        write(*,*) "ERROR size of weights /= data"
+                        write(*,*), shape(weights), shape(training_y_lp)
+                    endif
+                    error = sqrt( sum(((training_y_lp - training_y)**2)*weights) / sum(weights) )
+                else
+                    error = sqrt( sum((training_y_lp - training_y)**2) / ntimes )
+                endif
+            else
+                error = sqrt( sum((training_y_lp - training_y)**2) / ntimes )
+            endif
         endif
         
     end function compute_regression
@@ -249,7 +306,9 @@ contains
             P = max(-80.0, matmul(X, B))
             P = 1.0 / (1.0 + exp(-P))
             if (ANY(P > 0.9999999)) then
-                !print *, "WARNING: logistic regression diverging"
+                ! !$omp critical (print_lock)
+                !print*, "WARNING: logistic regression diverging"
+                ! !$omp end critical (print_lock)
                 f = 1
             else
 
@@ -277,7 +336,9 @@ contains
                     end if
                 end do
                 if(it > 8) then
-                    !print *, "WARNING: logistic regression failed to converge"
+                    ! !$omp critical (print_lock)
+                    !print*, "WARNING: logistic regression failed to converge"
+                    ! !$omp end critical (print_lock)
                     f = 1
                 endif
 
