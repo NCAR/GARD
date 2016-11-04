@@ -1,13 +1,13 @@
 ###################################################################
 ###################################################################
 #
-# Basic makefile to compile the circulation downscaling code.  
-# 
+# Basic makefile to compile the circulation downscaling code.
+#
 # To compile this code on your machine, edit the NCDF_PATH variable and the fortran compiler
 #
-# To build the model simply run make.  
-# 
-# The primary user facing rules are: 
+# To build the model simply run make.
+#
+# The primary user facing rules are:
 # 	all		: builds the model, this is the default
 # 	clean	: remove any build objects (not executables)
 #  	allclean: make clean and remove executables
@@ -59,7 +59,7 @@ ifeq ($(NODENAME), hydro-c1)
 		NCDF_PATH = /opt/netcdf4-intel
 		LAPACK_PATH = /usr
 	endif
-	# Not sure this is valid for LAPACK. 
+	# Not sure this is valid for LAPACK.
 	# ifeq ($(FC), gfortran)
 	# 	NCDF_PATH = /opt/netcdf4-gcc
 	# 	LAPACK_PATH = /usr
@@ -198,7 +198,7 @@ ifeq ($(MODE), debugompslow)
 endif
 ifeq ($(MODE), debugomp)
 	ifeq ($(FC), ifort)
-		COMP= -qopenmp -debug -O3 -u -traceback -fpe0 -ftz -fast-transcendentals  -xHost 
+		COMP= -qopenmp -debug -O3 -u -traceback -fpe0 -ftz -fast-transcendentals  -xHost
 		#-check all -check noarg_temp_created -fpe0 -fast-transcendentals -xhost
 		LINK= -liomp5
 	endif
@@ -222,7 +222,7 @@ PROF=
 ifeq ($(MODE), profile)
 	ifeq ($(FC), ifort)
 		PROF=-pg -debug inline-debug-info -shared-intel
-		COMP= -u -qopenmp -O3 -no-prec-div -xHost -ftz #because -fast includes -static 
+		COMP= -u -qopenmp -O3 -no-prec-div -xHost -ftz #because -fast includes -static
 		# not available in ifort <13 -align array64byte
 	endif
 	ifeq ($(FC), gfortran)
@@ -287,7 +287,7 @@ CONFIG_TEST_OBJS =    			\
 CAL_TEST_OBJS =    			\
     $(BUILD)time.o 			\
 	$(BUILD)test_calendar.o
-	
+
 SORT_TEST_OBJS = 			\
 	$(BUILD)sorting.o		\
 	$(BUILD)test_sort.o
@@ -303,33 +303,33 @@ REGRESSION_TEST_OBJS = 			\
 	$(BUILD)regression.o		\
 	$(BUILD)test_regression.o
 
-	
+
 # These are the primary user facing rules
 #
 # make [all, test, install, clean, allclean]
 #
 # "make" builds model
-model: downscale
-	
-all: downscale test
+model: gard
+
+all: gard test
 
 test: test_calendar test_sort test_qm test_config test_regression
 
-install: downscale
-	cp downscale $(INSTALL_DIR)/
+install: gard
+	cp gard $(INSTALL_DIR)/
 
 clean:
 	$(RM) $(BUILD)* 2>/dev/null ||:
 
 allclean:clean
-	$(RM) downscale test_calendar test_sort test_qm test_config test_regression 2>/dev/null ||:
+	$(RM) gard test_calendar test_sort test_qm test_config test_regression 2>/dev/null ||:
 	$(RM) -r *.dSYM 2>/dev/null ||:
 
 # higher level rules
-downscale: $(OBJS)
+gard: $(OBJS)
 	$(FC) -o $@ $^ $(LDFLAGS)
 
-# various unit tests	
+# various unit tests
 test_regression : $(REGRESSION_TEST_OBJS)
 	$(FC) -o $@ $^ $(LDFLAGS)
 
@@ -346,7 +346,7 @@ test_config : $(CONFIG_TEST_OBJS)
 	$(FC) -o $@ $^ $(LDFLAGS)
 
 
-# specify specific builds and dependencies. 
+# specify specific builds and dependencies.
 
 # unit tests
 $(BUILD)test_regression.o: tests/test_regression.f90 $(BUILD)regression.o
@@ -365,7 +365,7 @@ $(BUILD)test_config.o: tests/test_config.f90 $(BUILD)data_structures.o $(BUILD)m
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 
-# Date and time relevant objects	
+# Date and time relevant objects
 $(BUILD)time.o: timing/time.f90 $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
@@ -389,13 +389,13 @@ $(BUILD)basic_stats.o: utilities/basic_stats.f90
 $(BUILD)string.o: utilities/string.f90 $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
-# constants and data structures    
+# constants and data structures
 $(BUILD)model_constants.o: objects/model_constants.f90
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
-    
+
 $(BUILD)data_structures.o: objects/data_structures.f90 $(BUILD)time.o $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
-	
+
 # Input, output / configuration routines
 $(BUILD)io_routines.o: io/io_routines.f90 $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
@@ -425,7 +425,7 @@ $(BUILD)obs_io.o: io/obs_io.f90 $(BUILD)data_structures.o $(BUILD)string.o $(BUI
 
 $(BUILD)output.o: io/output.f90 $(BUILD)data_structures.o $(BUILD)io_routines.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
-	
+
 $(BUILD)regression.o: downscaling_stats/regression.f90
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
