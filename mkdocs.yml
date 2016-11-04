@@ -1,4 +1,6 @@
 site_name: GARD
 pages:
 - Home: index.md
+- Running GARD: running.md
+- Configuring GARD: config.md
 theme: readthedocs
