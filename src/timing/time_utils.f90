@@ -60,6 +60,7 @@ contains
         
         if (nearest == -1) then
             ! we didn't actually find it, we exited because our search region decreased to 0
+            ! this is likely to happen if the times don't line up exactly. 
             if (time_list(search) > match_time) then
                 search = max(1,search - 1)
                 do while ((time_list(search) > match_time).and.(search /= 1))
