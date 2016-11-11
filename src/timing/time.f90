@@ -538,15 +538,12 @@ contains
         endif
         
         
-        ! print*, t1%year, t2%year
         if (t1%year > t2%year) then
             greater_or_eq = .True.
         else if (t1%year == t2%year) then
-            ! print*, t1%month, t2%month
             if (t1%month > t2%month) then
                 greater_or_eq = .True.
             else if (t1%month == t2%month) then
-                ! print*, t1%day, t2%day
                 if (t1%day > t2%day) then
                     greater_or_eq = .True.
                 else if (t1%day == t2%day) then
@@ -579,7 +576,8 @@ contains
         
         ! note if calendars are the same, can just return mjd delta...
         if ((t1%calendar == t2%calendar).and.(t1%year_zero == t2%year_zero)) then
-            equal = (t1%current_date_time < t2%current_date_time)
+            ! if the time delta is < ~one second, then return true
+            equal = (abs(t1%current_date_time - t2%current_date_time) < 1.1575e-05)
             return
         endif
         

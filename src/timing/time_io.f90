@@ -12,12 +12,12 @@ contains
     function time_gain_from_units(units) result(gain)
         implicit none
         character(len=MAXSTRINGLENGTH), intent(in) :: units
-        real :: gain
+        double precision :: gain
         
         if ((units(1:4)=="days").or.(units(1:4)=="Days")) then
             gain = 1.0
         else if ((units(1:4)=="hour").or.(units(1:4)=="Hour")) then
-            gain = 1/24.0
+            gain = 1/24.0D0
         else if ((units(1:3)=="sec").or.(units(1:3)=="Sec")) then
             gain = 1/86400.0D0
         else if ((units(1:3)=="min").or.(units(1:3)=="Min")) then
@@ -78,7 +78,7 @@ contains
         double precision, allocatable, dimension(:) :: temp_times
         integer :: ntimes, file_idx, cur_time, time_idx, error, start_year
         character(len=MAXSTRINGLENGTH) :: calendar, units
-        real :: calendar_gain
+        double precision :: calendar_gain
         integer :: selected_time
         
         ntimes = size(times,1)
@@ -127,7 +127,7 @@ contains
                 
                 cur_time = cur_time + 1
             endif
-            
+
             deallocate(temp_times)
         end do
 
