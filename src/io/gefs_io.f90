@@ -82,10 +82,15 @@ contains
         enddo
         
         allocate(GEFS_data%times(ntimesteps))
-        if (debug) print*, "Reading Time data"
+        if (debug) write(*,*) "Reading Time data"
         call read_times(options, GEFS_data%times)
-        
-        if (debug) print*, "Lat / Lon coordinates"
+        if (debug) then
+            write(*,*) "Times cover the period:"
+            write(*,*) "   "//trim(GEFS_data%times(1)%as_string())
+            write(*,*) "   "//trim(GEFS_data%times(ntimesteps)%as_string())
+            write(*,*) ""
+            write(*,*) "Reading Lat / Lon coordinates"
+        endif
         call io_read(options%file_names(1, 1), options%lat_name, GEFS_data%lat)
         call io_read(options%file_names(1, 1), options%lon_name, GEFS_data%lon)
         
