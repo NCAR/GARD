@@ -2,19 +2,19 @@ program test_config
     use config_mod,     only : read_files_list, read_data_type, get_options_file
     use data_structures
     use model_constants
-    
+
     implicit none
-    
+
     character(len=MAXFILELENGTH) :: opt_file
     character(len=MAXFILELENGTH), dimension(MAX_NUMBER_FILES,3) :: file_list
-    
+
     character(len=MAXFILELENGTH) :: filename
     integer, parameter :: correct_nfiles = 23
     character(len=MAXFILELENGTH), dimension(correct_nfiles) :: correct_file_list
-    
+
     integer :: i, nfiles
     logical :: passing
-    
+
     correct_file_list = [character(len=MAX_NUMBER_FILES) :: &
                             "config/configuration.f90",     &
                             "io/atmosphere_io.f90",         &
@@ -40,7 +40,7 @@ program test_config
                             "utilities/string.f90",         &
                             "utilities/time.f90"            &
     ]
-    
+
 
     passing = .True.
     write(*,*) "--------------------------"
@@ -58,14 +58,14 @@ program test_config
     endif
     call check_passing(passing)
     write(*,*) "--------------------------"
-    
+
 
     passing = .True.
     write(*,*) "--------------------------"
     write(*,*) "Testing read_data_type:"
-    if (read_data_type("GEFS") /= kGEFS_TYPE) passing=.False. 
-    if (read_data_type("GCM") /= kGCM_TYPE)   passing=.False. 
-    if (read_data_type("obs") /= kobs_TYPE)   passing=.False. 
+    if (read_data_type("GEFS") /= kGEFS_TYPE) passing=.False.
+    if (read_data_type("GCM") /= kGCM_TYPE)   passing=.False.
+    if (read_data_type("obs") /= kobs_TYPE)   passing=.False.
     call check_passing(passing)
     write(*,*) "--------------------------"
 
@@ -75,12 +75,12 @@ program test_config
     write(*,*) " Read commandline options file to be : '", trim(opt_file), "'"
     write(*,*) " If this is what you specified on the commandline, then the test passed. "
     write(*,*) "--------------------------"
-    
+
 contains
     subroutine check_passing(passing)
         implicit none
         logical :: passing
-        
+
         if (passing) then
             write(*,*) "  PASSED"
         else
@@ -89,5 +89,5 @@ contains
             write(*,*) "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
         endif
     end subroutine check_passing
-    
+
 end program test_config
