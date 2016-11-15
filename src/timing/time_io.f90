@@ -44,7 +44,7 @@ contains
         year = get_integer(units(year_loc:year_loc+3))
 
     end function year_from_units
-    
+
     function get_selected_time(options) result(selected_time)
         implicit none
         class(input_config), intent(in) :: options
@@ -70,10 +70,11 @@ contains
 
     end function get_selected_time
 
-    subroutine read_times(options, times)
+    subroutine read_times(options, times, timezone_offset)
         implicit none
         class(input_config), intent(in) :: options
         type(Time_type), intent(inout), dimension(:) :: times
+        double precision, optional :: timezone_offset
 
         double precision, allocatable, dimension(:) :: temp_times
         integer :: ntimes, file_idx, cur_time, time_idx, error, start_year
@@ -110,8 +111,12 @@ contains
                 calendar_gain = options%time_gain
             endif
 
+            ! puts the units to days since ...
             ! in case it is in units of e.g. "hours since" or "seconds since"
             temp_times = temp_times * calendar_gain
+            if (present(timezone_offset)) then
+                temp_times = temp_times + timezone_offset / 24.0
+            endif
 
             if (selected_time == -1) then
                 do time_idx = 1, size(temp_times,1)

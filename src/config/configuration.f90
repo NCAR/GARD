@@ -166,6 +166,7 @@ contains
 
         ! namelist variables to be read
         integer :: nfiles, nvars, calendar_start_year, selected_time, interpolation_method
+        double precision :: timezone_offset
         integer, dimension(MAX_NUMBER_TIMES) :: time_indices
         integer, dimension(MAX_NUMBER_VARS)  :: selected_level
         character(len=MAXSTRINGLENGTH)       :: name, data_type, calendar
@@ -182,7 +183,9 @@ contains
                                          calendar, calendar_start_year,   &
                                          selected_time, time_indices,     &
                                          interpolation_method, preloaded, &
-                                         selected_level, input_transformations
+                                         selected_level, input_transformations, &
+                                         timezone_offset
+
         !defaults :
         nfiles      = -1
         nvars       = -1
@@ -201,6 +204,7 @@ contains
         input_transformations = kNO_TRANSFORM
         preloaded   = ""
         selected_level = -1
+        timezone_offset = 0
 
         ! read namelists
         open(io_newunit(name_unit), file=filename)
@@ -243,6 +247,7 @@ contains
         training_options%input_Xforms   = input_transformations(1:nvars)
         training_options%debug          = debug
         training_options%preloaded      = preloaded
+        training_options%timezone_offset = timezone_offset
 
         where(training_options%selected_level == -1) training_options%selected_level = 1
         call check_training_options(training_options)
@@ -293,7 +298,7 @@ contains
         if (trim(opt%lon_name) == "")  stop "Error : lon_name not supplied in training options. "
         if (trim(opt%calendar) == "")  stop "Error : Calendar not supplied in training options. "
         if (trim(opt%time_name) == "") stop "Error : time_name not supplied in training options. "
-
+        if (abs(opt%timezone_offset) > 24) stop "Timezone offset should not be greater than 1 day (24 hours)"
 
         do i = 1, opt%n_variables
             if (trim(opt%var_names(i)) == "") stop "Invalid or not enough variable names specified in training options. "
@@ -319,6 +324,7 @@ contains
 
         ! namelist variables to be read
         integer :: nfiles, nvars, calendar_start_year, selected_time, interpolation_method
+        double precision :: timezone_offset
         integer, dimension(MAX_NUMBER_TIMES) :: time_indices
         integer, dimension(MAX_NUMBER_VARS) :: selected_level
         character(len=MAXSTRINGLENGTH)  :: name, data_type, calendar
@@ -336,7 +342,8 @@ contains
                                          selected_time,                     &
                                          input_transformations, transformations,&
                                          interpolation_method, preloaded,   &
-                                         selected_level, time_indices
+                                         selected_level, time_indices, &
+                                         timezone_offset
 
         !defaults :
         nfiles              = -1

@@ -80,7 +80,7 @@ contains
         enddo
 
         allocate(gcm_data%times(ntimesteps))
-        call read_times(options, gcm_data%times)
+        call read_times(options, gcm_data%times, options%timezone_offset)
 
         call io_read(options%file_names(1, 1), options%lat_name, gcm_data%lat)
         call io_read(options%file_names(1, 1), options%lon_name, gcm_data%lon)
