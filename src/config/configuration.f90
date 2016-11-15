@@ -7,20 +7,20 @@
 !!
 !!------------------------------------------------
 module config_mod
-    
+
     use data_structures
     use model_constants
     use string,      only : str
     use io_routines, only : io_newunit
-    
+
     implicit none
     private
-    
+
     logical :: module_debug
     public :: read_config
     public :: read_files_list, read_data_type, get_options_file ! only need to be public for test_config
 contains
-    
+
     !>------------------------------------------------
     !! Finds the options filename to use and reads the configuration
     !!
@@ -28,19 +28,19 @@ contains
     function read_config() result(options)
         implicit none
         type(config) :: options
-        
+
         call read_base_options(options)
-        
-        
+
+
         if (options%debug) print*, "Reading Prediction Namelist"
         options%prediction  = read_prediction_options(  options%prediction_file,    options%debug)
-        
+
         if (options%debug) print*, "Reading Training Namelist"
         options%training    = read_training_options(    options%training_file,      options%debug)
-        
+
         if (options%debug) print*, "Reading Observation Namelist"
         options%obs         = read_obs_options(         options%observation_file,   options%debug)
-        
+
 
         write(*,*) ""
         write(*,*) "Downscaling for the period : ", trim(options%first_time%as_string())
@@ -49,14 +49,14 @@ contains
         write(*,*) "   Training for the period : ", trim(options%training_start%as_string())
         write(*,*) "                        to : ", trim(options%training_stop%as_string())
         write(*,*) ""
-        
+
     end function read_config
 
 
     subroutine read_base_options(options)
         implicit none
         type(config), intent(inout)     :: options
-        
+
         integer :: name_unit, n_analogs, n_log_analogs
         character(len=MAXSTRINGLENGTH)  :: name, start_date, end_date, start_train, end_train
         character(len=MAXSTRINGLENGTH)  :: start_transform, end_transform
@@ -64,7 +64,7 @@ contains
         logical :: pure_analog, analog_regression, pure_regression, debug
         logical :: sample_analog, logistic_from_analog_exceedance, weight_analogs
         real    :: logistic_threshold, analog_threshold
-        
+
         ! setup the namelist
         namelist /parameters/   name, debug,                                        &
                                 training_file, prediction_file, observation_file,   &
@@ -78,7 +78,7 @@ contains
 
         options%version = kVERSION_STRING
         options%options_filename = get_options_file()
-        
+
         ! defaults
         training_file    = options%options_filename
         prediction_file  = options%options_filename
@@ -101,20 +101,20 @@ contains
         sample_analog    = .False.
         logistic_from_analog_exceedance = .False.
         weight_analogs   = .True.
-        
+
         options%name = options%options_filename
-        
+
         ! read namelists
         open(io_newunit(name_unit), file=trim(options%options_filename))
         read(name_unit,nml=parameters)
         close(name_unit)
-        
+
         ! this is the time to make predictions over
         call options%first_time%init("gregorian")
         call options%first_time%set(start_date)
         call options%last_time%init("gregorian")
         call options%last_time%set(end_date)
-        
+
         ! this it the time period to use for calibration of the regression variables
         call options%training_start%init("gregorian")
         call options%training_start%set(start_train)
@@ -126,7 +126,7 @@ contains
         call options%transform_start%set(start_transform)
         call options%transform_stop%init("gregorian")
         call options%transform_stop%set(end_transform)
-        
+
         options%training_file       = training_file
         options%prediction_file     = prediction_file
         options%observation_file    = observation_file
@@ -137,7 +137,7 @@ contains
         options%pure_analog         = pure_analog
         options%analog_regression   = analog_regression
         options%pure_regression     = pure_regression
-        
+
         options%analog_weights      = weight_analogs
         options%logistic_threshold  = logistic_threshold
         options%sample_analog       = sample_analog
@@ -161,11 +161,11 @@ contains
         character(len=*), intent(in) :: filename
         logical, intent(in)          :: debug
         type(training_config) :: training_options
-        
+
         integer :: name_unit, i
 
         ! namelist variables to be read
-        integer :: nfiles, nvars, calendar_start_year, selected_time, interpolation_method
+        integer :: nfiles, nvars, calendar_start_year, selected_time, interpolation_method, timezone_offset
         integer, dimension(MAX_NUMBER_TIMES) :: time_indices
         integer, dimension(MAX_NUMBER_VARS)  :: selected_level
         character(len=MAXSTRINGLENGTH)       :: name, data_type, calendar
@@ -182,7 +182,9 @@ contains
                                          calendar, calendar_start_year,   &
                                          selected_time, time_indices,     &
                                          interpolation_method, preloaded, &
-                                         selected_level, input_transformations
+                                         selected_level, input_transformations, &
+                                         timezone_offset
+
         !defaults :
         nfiles      = -1
         nvars       = -1
@@ -201,22 +203,23 @@ contains
         input_transformations = kNO_TRANSFORM
         preloaded   = ""
         selected_level = -1
-        
+        timezone_offset = 0
+
         ! read namelists
         open(io_newunit(name_unit), file=filename)
         read(name_unit,nml=training_parameters)
         close(name_unit)
-        
-        
+
+
         if (nfiles <= 0) stop "Number of training files (nfiles) is not valid. "
         if (nvars  <= 0) stop "Number of training variables (nvars) is not valid. "
-        
+
         ! allocate necessary arrays
         allocate(training_options%file_names(nfiles,nvars))
         allocate(training_options%var_names(nvars))
         allocate(training_options%selected_level(nvars))
         allocate(training_options%input_Xforms(nvars))
-        
+
         ! finally, store the data into the config structure
         training_options%name           = name
         training_options%n_variables    = nvars
@@ -243,31 +246,32 @@ contains
         training_options%input_Xforms   = input_transformations(1:nvars)
         training_options%debug          = debug
         training_options%preloaded      = preloaded
-        
+        training_options%timezone_offset = timezone_offset
+
         where(training_options%selected_level == -1) training_options%selected_level = 1
         call check_training_options(training_options)
     end function read_training_options
-    
+
     subroutine copy_array_i(input, output, invalid)
         implicit none
         integer, dimension(:), intent(in)   :: input
         integer, dimension(:), allocatable, intent(inout):: output
         integer, optional :: invalid
         integer :: i,n, invalid_test
-        
+
         if (present(invalid)) then
             invalid_test = invalid
         else
             invalid_test = -1
         endif
-        
+
         !  first find the number of valid entries in the input
         n = 0
         do i = 1, size(input)
             if (input(i) /= invalid_test) n = n+1
         end do
         n = max(1, n)
-        
+
         if (allocated(output)) then
             if (size(output)/=n) then
                 deallocate(output)
@@ -276,10 +280,10 @@ contains
         else
             allocate(output(n))
         endif
-        
+
         output(:n)  = input(:n)
     end subroutine copy_array_i
-    
+
     !>------------------------------------------------
     !!Verify the options read from the training options namelist
     !!
@@ -288,13 +292,13 @@ contains
         implicit none
         type(training_config) :: opt
         integer :: i, j
-        
+
         if (trim(opt%lat_name) == "")  stop "Error : lat_name not supplied in training options. "
         if (trim(opt%lon_name) == "")  stop "Error : lon_name not supplied in training options. "
         if (trim(opt%calendar) == "")  stop "Error : Calendar not supplied in training options. "
         if (trim(opt%time_name) == "") stop "Error : time_name not supplied in training options. "
-        
-        
+        if (abs(opt%timezone_offset) > 24) stop "Timezone offset should not be greater than 1 day (24 hours)"
+
         do i = 1, opt%n_variables
             if (trim(opt%var_names(i)) == "") stop "Invalid or not enough variable names specified in training options. "
             do j = 1, opt%nfiles
@@ -304,7 +308,7 @@ contains
 
     end subroutine check_training_options
 
-    
+
     !>------------------------------------------------
     !! Read the prediction configuration
     !!
@@ -314,11 +318,11 @@ contains
         character(len=*), intent(in) :: filename
         logical, intent(in)          :: debug
         type(prediction_config) :: prediction_options
-        
+
         integer :: name_unit, i, j
 
         ! namelist variables to be read
-        integer :: nfiles, nvars, calendar_start_year, selected_time, interpolation_method
+        integer :: nfiles, nvars, calendar_start_year, selected_time, interpolation_method, timezone_offset
         integer, dimension(MAX_NUMBER_TIMES) :: time_indices
         integer, dimension(MAX_NUMBER_VARS) :: selected_level
         character(len=MAXSTRINGLENGTH)  :: name, data_type, calendar
@@ -336,7 +340,8 @@ contains
                                          selected_time,                     &
                                          input_transformations, transformations,&
                                          interpolation_method, preloaded,   &
-                                         selected_level, time_indices
+                                         selected_level, time_indices, &
+                                         timezone_offset
 
         !defaults :
         nfiles              = -1
@@ -357,22 +362,23 @@ contains
         preloaded           = ""
         time_indices        = -1
         selected_level      = -1
-        
+        timezone_offset     = 0
+
         ! read namelists
         open(io_newunit(name_unit), file=filename)
         read(name_unit,nml=prediction_parameters)
         close(name_unit)
-        
+
         if (nfiles <= 0) stop "Number of prediction files (nfiles) is not valid. "
         if (nvars  <= 0) stop "Number of prediction variables (nvars) is not valid. "
-        
+
         ! allocate necessary arrays
         allocate(prediction_options%file_names(nfiles,nvars))
         allocate(prediction_options%var_names(nvars))
         allocate(prediction_options%selected_level(nvars))
         allocate(prediction_options%transformations(nvars))
         allocate(prediction_options%input_Xforms(nvars))
-        
+
         ! finally, store the data into the config structure
         prediction_options%name           = name
         prediction_options%n_variables    = nvars
@@ -393,19 +399,20 @@ contains
         prediction_options%selected_time  = selected_time
         prediction_options%selected_level = selected_level(1:nvars)
         call copy_array_i(time_indices, prediction_options%time_indices)
-        prediction_options%time_file      = 1 
+        prediction_options%time_file      = 1
         prediction_options%data_type      = read_data_type(data_type)
         prediction_options%transformations= transformations
         prediction_options%input_Xforms   = input_transformations(1:nvars)
         prediction_options%interpolation_method = interpolation_method
         prediction_options%debug          = debug
         prediction_options%preloaded      = preloaded
-        
+        prediction_options%timezone_offset = timezone_offset
+
         where(prediction_options%selected_level == -1) prediction_options%selected_level = 1
         call check_prediction_options(prediction_options)
-        
+
     end function read_prediction_options
-    
+
     !>------------------------------------------------
     !!Verify the options read from the prediction options namelist
     !!
@@ -414,12 +421,13 @@ contains
         implicit none
         type(prediction_config) :: opt
         integer :: i,j
-        
+
         if (trim(opt%lat_name)  == "") stop "Error : lat_name not supplied in prediction options. "
         if (trim(opt%lon_name)  == "") stop "Error : lon_name not supplied in prediction options. "
         if (trim(opt%calendar)  == "") stop "Error : Calendar not supplied in prediction options. "
         if (trim(opt%time_name) == "") stop "Error : time_name not supplied in prediction options. "
-        
+        if (abs(opt%timezone_offset) > 24) stop "Timezone offset should not be greater than 1 day (24 hours)"
+
         do i = 1, opt%n_variables
             if (trim(opt%var_names(i)) == "") stop "Invalid or not enough variable names specified in prediction options. "
             do j = 1, opt%nfiles
@@ -438,7 +446,7 @@ contains
         character(len=*), intent(in) :: filename
         logical, intent(in)          :: debug
         type(obs_config) :: obs_options
-        
+
         integer :: name_unit, i
 
         ! namelist variables to be read
@@ -477,20 +485,20 @@ contains
         preloaded   = ""
         input_transformations = 0
         logistic_threshold = kFILL_VALUE
-        
+
         ! read namelists
         open(io_newunit(name_unit), file=filename)
         read(name_unit,nml=obs_parameters)
         close(name_unit)
-        
+
         if (nfiles <= 0) stop "Number of obs files (nfiles) is not valid. "
         if (nvars  <= 0) stop "Number of obs variables (nvars) is not valid. "
-        
+
         ! allocate necessary arrays
         allocate(obs_options%file_names(nfiles,nvars))
         allocate(obs_options%var_names(nvars))
         allocate(obs_options%input_Xforms(nvars))
-        
+
         ! finally, store the data into the config structure
         obs_options%name           = name
         obs_options%n_variables    = nvars
@@ -508,7 +516,7 @@ contains
         obs_options%time_name      = time_name
         obs_options%calendar       = calendar
         obs_options%calendar_start_year = calendar_start_year
-        obs_options%time_file      = 1 
+        obs_options%time_file      = 1
         obs_options%data_type      = read_data_type(data_type)
         obs_options%mask_value     = mask_value
         obs_options%mask_variable  = mask_variable
@@ -516,10 +524,10 @@ contains
         obs_options%preloaded      = preloaded
         obs_options%logistic_threshold = logistic_threshold
         obs_options%input_Xforms   = input_transformations(1:nvars)
-        
+
         call check_obs_options(obs_options)
     end function read_obs_options
-    
+
     !>------------------------------------------------
     !!Verify the options read from the obs options namelist
     !!
@@ -528,12 +536,12 @@ contains
         implicit none
         type(obs_config) :: opt
         integer :: i,j
-        
+
         if (trim(opt%lat_name) == "")  stop "Error : lat_name not supplied in obs options. "
         if (trim(opt%lon_name) == "")  stop "Error : lon_name not supplied in obs options. "
         if (trim(opt%calendar) == "")  stop "Error : Calendar not supplied in obs options. "
         if (trim(opt%time_name) == "") stop "Error : time_name not supplied in obs options. "
-        
+
         do i = 1, opt%n_variables
             if (trim(opt%var_names(i)) == "") stop "Invalid or not enough variable names specified in obs options. "
             do j = 1, opt%nfiles
@@ -543,7 +551,7 @@ contains
 
     end subroutine check_obs_options
 
-    
+
     !>-----------------------------------------------
     !! Convert a data type string into its corresponding constant integer expression
     !!
@@ -555,7 +563,7 @@ contains
         implicit none
         character(len=*) :: type_name
         integer :: data_type
-        
+
         select case(trim(type_name))
         case("GEFS")
             data_type = kGEFS_TYPE
@@ -568,7 +576,7 @@ contains
             write(*,*) "Must be one of: GEFS, GCM, obs"
             stop
         end select
-        
+
     end function read_data_type
 
     !>-----------------------------------------------
@@ -583,15 +591,15 @@ contains
         implicit none
         character(len=*), intent(in) :: filename
         character(len=MAXFILELENGTH), dimension(:), intent(inout) :: file_list
-        
+
         integer :: nfiles
-        
+
         character(len=MAXFILELENGTH), dimension(MAX_NUMBER_FILES)            :: forcing_files
         integer :: file_unit
         integer :: i, error
         character(len=MAXFILELENGTH) :: temporary_file
-        logical :: nfiles_warning_printed=.False. ! This variable will be saved between calls so that the warning is only printed once. 
-        
+        logical :: nfiles_warning_printed=.False. ! This variable will be saved between calls so that the warning is only printed once.
+
         if (module_debug) print*, "Reading: ",trim(filename)
         open(unit=io_newunit(file_unit), file=filename)
         i=0
@@ -601,18 +609,18 @@ contains
             read(file_unit, *, iostat=error) temporary_file
             if (error==0) then
                 i=i+1
-                
+
                 if (i > MAX_NUMBER_FILES) then
                     write(*,*) "ERROR reading: "//trim(filename)
                     stop "Too many files to read"
                 endif
-                
+
                 forcing_files(i) = temporary_file
             endif
         enddo
-        
+
         close(file_unit)
-        
+
         nfiles = i
         if (nfiles > size(file_list,1)) then
             if (.not.nfiles_warning_printed) then
@@ -625,7 +633,7 @@ contains
             endif
             nfiles = size(file_list,1)
         endif
-        
+
         file_list(1:nfiles) = forcing_files(1:nfiles)
 
     end function read_files_list
@@ -641,12 +649,12 @@ contains
         character(len=MAXFILELENGTH) ::options_file
         integer :: error
         logical :: file_exists
-    
+
         ! if a commandline argument was given
         if (command_argument_count()>0) then
             ! read the commandline argument
             call get_command_argument(1,options_file, status=error)
-            
+
             ! if there was an error, return the default filename
             if (error>0) then
                 options_file = kDEFAULT_OPTIONS_FILENAME
@@ -660,7 +668,7 @@ contains
             ! if not commandline options were given, assume a default filename
             options_file = kDEFAULT_OPTIONS_FILENAME
         endif
-        
+
         ! check to see if the expected filename even exists on disk
         INQUIRE(file=trim(options_file), exist=file_exists)
         ! if it does not exist, print an error and stop
@@ -670,5 +678,5 @@ contains
         endif
         write(*,*) "Using options file = ", trim(options_file)
     end function get_options_file
-    
+
 end module config_mod
