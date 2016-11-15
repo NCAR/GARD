@@ -165,7 +165,8 @@ contains
         integer :: name_unit, i
 
         ! namelist variables to be read
-        integer :: nfiles, nvars, calendar_start_year, selected_time, interpolation_method, timezone_offset
+        integer :: nfiles, nvars, calendar_start_year, selected_time, interpolation_method
+        double precision :: timezone_offset
         integer, dimension(MAX_NUMBER_TIMES) :: time_indices
         integer, dimension(MAX_NUMBER_VARS)  :: selected_level
         character(len=MAXSTRINGLENGTH)       :: name, data_type, calendar
@@ -322,7 +323,8 @@ contains
         integer :: name_unit, i, j
 
         ! namelist variables to be read
-        integer :: nfiles, nvars, calendar_start_year, selected_time, interpolation_method, timezone_offset
+        integer :: nfiles, nvars, calendar_start_year, selected_time, interpolation_method
+        double precision :: timezone_offset
         integer, dimension(MAX_NUMBER_TIMES) :: time_indices
         integer, dimension(MAX_NUMBER_VARS) :: selected_level
         character(len=MAXSTRINGLENGTH)  :: name, data_type, calendar

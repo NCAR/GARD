@@ -66,6 +66,12 @@ ifeq ($(NODENAME), hydro-c1)
 	# endif
 endif
 
+ifeq ($(NODENAME), joes-imac.local)
+	FC=gfortran
+	NCDF_PATH=/opt/local
+	LAPACK_PATH=/opt/local/lib/lapack
+endif
+
 # on yellowstone:
 ifeq ($(LMOD_FAMILY_COMPILER),gnu)
 	FC=gfortran
@@ -99,8 +105,8 @@ GIT_VERSION := $(shell git describe --long --dirty --all --always | sed -e's/hea
 ###################################################################
 ###################################################################
 ifeq ($(FC), gfortran)
-	COMP=-fopenmp -lgomp -O3 -ffree-line-length-none -ftree-vectorize -fimplicit-none -funroll-loops -march=native \
-		-fno-protect-parens -ffast-math #-flto #
+	COMP=-fopenmp -lgomp -O3 -ffree-line-length-none -ftree-vectorize -fimplicit-none -funroll-loops  \
+		-fno-protect-parens -ffast-math #-flto #-march=native
 	LINK=-fopenmp -lgomp
 	PREPROC=-cpp
 	MODOUTPUT=-J $(BUILD)
@@ -248,7 +254,7 @@ endif
 # flags forall
 FCFLAGS = $(COMP) $(PROF) -I$(NCDF_PATH)/include -I$(BUILD) $(INC_NCAR)
 # libraries needed for linking
-LDFLAGS = $(LINK) $(PROF) -L$(NCDF_PATH)/lib -lnetcdf -lnetcdff $(LIB_NCAR) -L$(LAPACK_PATH)/lib -llapack #-lblas
+LDFLAGS = $(LINK) $(PROF) -L$(NCDF_PATH)/lib -lnetcdf -lnetcdff $(LIB_NCAR) -L$(LAPACK_PATH) -llapack #-lblas
 
 OBJS =  \
 	$(BUILD)time.o            	\

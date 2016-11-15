@@ -74,7 +74,7 @@ contains
         implicit none
         class(input_config), intent(in) :: options
         type(Time_type), intent(inout), dimension(:) :: times
-        integer, optional :: timezone_offset
+        double precision, optional :: timezone_offset
 
         double precision, allocatable, dimension(:) :: temp_times
         integer :: ntimes, file_idx, cur_time, time_idx, error, start_year
