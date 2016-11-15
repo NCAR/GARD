@@ -362,8 +362,7 @@ contains
         preloaded           = ""
         time_indices        = -1
         selected_level      = -1
-        timezone_offset     = 0
-
+        
         ! read namelists
         open(io_newunit(name_unit), file=filename)
         read(name_unit,nml=prediction_parameters)
@@ -406,8 +405,7 @@ contains
         prediction_options%interpolation_method = interpolation_method
         prediction_options%debug          = debug
         prediction_options%preloaded      = preloaded
-        prediction_options%timezone_offset = timezone_offset
-
+        
         where(prediction_options%selected_level == -1) prediction_options%selected_level = 1
         call check_prediction_options(prediction_options)
 
@@ -426,8 +424,7 @@ contains
         if (trim(opt%lon_name)  == "") stop "Error : lon_name not supplied in prediction options. "
         if (trim(opt%calendar)  == "") stop "Error : Calendar not supplied in prediction options. "
         if (trim(opt%time_name) == "") stop "Error : time_name not supplied in prediction options. "
-        if (abs(opt%timezone_offset) > 24) stop "Timezone offset should not be greater than 1 day (24 hours)"
-
+        
         do i = 1, opt%n_variables
             if (trim(opt%var_names(i)) == "") stop "Invalid or not enough variable names specified in prediction options. "
             do j = 1, opt%nfiles

@@ -1,8 +1,8 @@
 !>------------------------------------------------
 !! Handle all IO for GEFS data
-!! 
+!!
 !! Loops through GEFS variables reading data and computing basic statistics
-!! Reads time and lat/lon variables from the GEFS files as well. 
+!! Reads time and lat/lon variables from the GEFS files as well.
 !!
 !!  @author
 !!  Ethan Gutmann (gutmann@ucar.edu)
