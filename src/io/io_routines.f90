@@ -17,7 +17,7 @@
 module io_routines
     use netcdf
     use model_constants
-    
+
     implicit none
     ! maximum number of dimensions for a netCDF file
     integer,parameter::io_maxDims=10
@@ -649,7 +649,7 @@ contains
         ! Close the file, freeing all resources.
         call check( nf90_close(ncid), filename)
     end subroutine io_write6d
-    
+
     !>------------------------------------------------------------
     !! Same as io_write6d but for 4-dimensional data
     !!

@@ -2,7 +2,7 @@
 !!  Main Downscaling Code
 !!
 !!  Makes calls to read configuration options, setup data structures, run the model, and output the final data
-!!  
+!!
 !!  @author
 !!  Ethan Gutmann (gutmann@ucar.edu)
 !!
@@ -18,29 +18,29 @@ program stat_down
     use io_routines,    only : io_write
     use downscaling_mod,only : downscale
     use output_mod,     only : write_output
-    
+
     implicit none
-    
+
     type(config)        :: options
     type(atm)           :: training_atm, predictions
     type(obs)           :: training_obs
     type(results)       :: output
     character(len=MAXSTRINGLENGTH) :: name
-    
+
     integer :: i
-    
+
     call print_model_init()
-    
+
     options = read_config()
-    
+
     call model_init(options)
-    
+
     ! read in the atmospheric predictor data (e.g. GCM or GEFS)
     print*, "=========================================="
     print*, ""
     print*, "Reading predictor"
     predictions  = read_atm(options%prediction)
-    
+
     ! read in the training atmospheric data (e.g. reanalysis or GEFS)
     print*, ""
     print*, "Reading training"
@@ -49,7 +49,7 @@ program stat_down
     print*, ""
     print*, "Reading obs"
     training_obs = read_obs(options%obs)
-    
+
     print*, ""
     print*, "=========================================="
     print*, "options         ", trim(options%name)
@@ -59,10 +59,10 @@ program stat_down
     print*, "=========================================="
     print*, ""
     print*, "Developing geographic interpolation..."
-    
+
     call geo_LUT(training_obs, training_atm)
     call geo_LUT(training_obs, predictions)
-    
+
     if (options%debug) then
         print*, "=========================================="
         print*, ""
@@ -87,16 +87,16 @@ program stat_down
                             predictions%variables(i)%data)
         enddo
     endif
-    
+
     print*, ""
     print*, "=========================================="
     print*, ""
     print*, "Running Downscaling Code"
     call downscale(training_atm, training_obs, predictions, output, options)
-    
+
     print*, "=========================================="
     print*, ""
     print*, "Writing output"
     call write_output(output, options)
-    
+
 end program stat_down

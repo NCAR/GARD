@@ -2,7 +2,7 @@ module output_mod
     use io_routines, only : io_write
     use data_structures
     use string, only : str
-    
+
     implicit none
 
     interface shift_z_dim
@@ -18,9 +18,9 @@ contains
         real, dimension(:,:,:,:), allocatable :: output_data_4d
         integer :: nvars, i, nx, ny, nt, nv
         integer :: Mem_Error
-        
+
         nvars = size(output%variables)
-        
+
         nt = size(output%variables(1)%data, 1)
         nx = size(output%variables(1)%data, 2)
         ny = size(output%variables(1)%data, 3)
@@ -35,11 +35,11 @@ contains
         endif
 
         do i=1,nvars
-            
+
             filename = trim(options%output_file)//trim(output%variables(i)%name)//".nc"
             call shift_z_dim(output%variables(i)%data, output_data)
             call io_write(filename, "data", output_data)
-            
+
             filename = trim(options%output_file)//trim(output%variables(i)%name)//"_errors.nc"
             call shift_z_dim(output%variables(i)%errors, output_data)
             call io_write(filename, "data", output_data)
@@ -64,15 +64,15 @@ contains
                 ! this quickly takes too much memory, so we won't bother swapping dimensions
                 ! call shift_z_dim(output%variables(i)%training, output_data_4d)
                 ! call io_write(filename, "data", output_data_4d)
-                
+
                 filename = trim(options%output_file)//trim(output%variables(i)%name)//"_coef.nc"
                 ! note other 4d vars are nt, nx, ny, nv, but coeff is nv, nt, nx, ny
                 ! call shift_z_dim(output%variables(i)%coefficients, output_data_4d)
-                ! for now skip the shift and just output as is. 
+                ! for now skip the shift and just output as is.
                 call io_write(filename, "data", output%variables(i)%coefficients)
             endif
         enddo
-        
+
     end subroutine write_output
 
     ! for whatever reason reshape(data, [nx, ny, nt], order=[2,3,1]) doesn't work!
