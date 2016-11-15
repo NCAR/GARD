@@ -60,7 +60,7 @@ Notes:
 | selected_time         | integer | Yes       | -1      |                                                                                          |
 | calendar              | string  | Yes       | n/a     |                                                                                          |
 | calendar_start_year   | integer | No        | 1900    |                                                                                          |
-| timezone_offset       | integer | No        | 0    | hours to offset time variable (e.g. `time_name`) to account for timezone. |
+| timezone_offset       | integer | No        | 0       | hours to offset time variable (e.g. `time_name`) to account for timezone.                |
 
 
 ## Prediction Parameters
@@ -83,7 +83,7 @@ Notes:
 | selected_time         | integer | Yes       | -1      |                                                                                          |
 | calendar              | string  | Yes       | n/a     |                                                                                          |
 | calendar_start_year   | integer | No        | 1900    |                                                                                          |
-| timezone_offset       | integer | No        | 0    | hours to offset time variable (e.g. `time_name`) to account for timezone. |
+| timezone_offset       | integer | No        | 0       | hours to offset time variable (e.g. `time_name`) to account for timezone.                |
 
 ## Observation Parameters
 

@@ -13,7 +13,7 @@ contains
         implicit none
         character(len=MAXSTRINGLENGTH), intent(in) :: units
         double precision :: gain
-        
+
         if ((units(1:4)=="days").or.(units(1:4)=="Days")) then
             gain = 1.0
         else if ((units(1:4)=="hour").or.(units(1:4)=="Hour")) then
