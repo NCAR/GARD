@@ -835,7 +835,7 @@ contains
         do i=1,n
             var%data(:,i,j) = var%data(:,i,j) - norm_data%mean(i,j)
 
-            if (var%stddev(i,j) /= 0) then
+            if (norm_data%stddev(i,j) /= 0) then
                 var%data(:,i,j) = var%data(:,i,j) / norm_data%stddev(i,j)
             else
                 if (maxval(abs(var%data(:,i,j))) > 0) then
