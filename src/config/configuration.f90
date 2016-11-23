@@ -323,7 +323,7 @@ contains
         integer :: name_unit, i, j
 
         ! namelist variables to be read
-        integer :: nfiles, nvars, calendar_start_year, selected_time, interpolation_method
+        integer :: nfiles, nvars, calendar_start_year, selected_time, interpolation_method, normalization_method
         double precision :: timezone_offset
         integer, dimension(MAX_NUMBER_TIMES) :: time_indices
         integer, dimension(MAX_NUMBER_VARS) :: selected_level
@@ -343,7 +343,7 @@ contains
                                          input_transformations, transformations,&
                                          interpolation_method, preloaded,   &
                                          selected_level, time_indices, &
-                                         timezone_offset
+                                         timezone_offset, normalization_method
 
         !defaults :
         nfiles              = -1
@@ -361,6 +361,7 @@ contains
         transformations     = kNO_TRANSFORM
         input_transformations = kNO_TRANSFORM
         interpolation_method = kNEAREST
+        normalization_method = kPREDICTIONDATA
         preloaded           = ""
         time_indices        = -1
         selected_level      = -1
@@ -405,6 +406,7 @@ contains
         prediction_options%transformations= transformations
         prediction_options%input_Xforms   = input_transformations(1:nvars)
         prediction_options%interpolation_method = interpolation_method
+        prediction_options%normalization_method = normalization_method
         prediction_options%debug          = debug
         prediction_options%preloaded      = preloaded
 
