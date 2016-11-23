@@ -83,7 +83,7 @@ contains
 
         allocate(GEFS_data%times(ntimesteps))
         if (debug) write(*,*) "Reading Time data"
-        call read_times(options, GEFS_data%times)
+        call read_times(options, GEFS_data%times, options%timezone_offset)
         if (debug) then
             write(*,*) "Times cover the period:"
             write(*,*) "   "//trim(GEFS_data%times(1)%as_string())
