@@ -70,6 +70,7 @@ Notes:
 | name                  | string  | Yes       | n/a     |                                                                                          |
 | preloaded             | string  | Yes       | n/a     |                                                                                          |
 | interpolation_method  | integer | No        | 1       | nearest neighbor= 1, bilenear =2                                                         |
+| normalization_method  | integer | No        | 0       | mean/stddev from: prediction data = 0, training data = 1                                 |
 | nvars                 | integer | Yes       | -1      |                                                                                          |
 | data_type             | string  | Yes       | n/a     |                                                                                          |
 | lat_name              | string  | Yes       | n/a     |                                                                                          |

@@ -155,7 +155,11 @@ contains
 
                     ! does not need to be normalized if it will be transformed to match training_atm anyway
                     if (abs(options%prediction%transformations(v)) /= kQUANTILE_MAPPING) then
-                        call normalize(predictors%variables(v), j)
+                        if (options%prediction%normalization_method == kTRAININGDATA) then
+                            call normalize(predictors%variables(v), j, other=training_atm%variables(v))
+                        else
+                            call normalize(predictors%variables(v), j)
+                        endif
                     endif
                 enddo
                 !$omp end do
@@ -812,19 +816,27 @@ contains
     ! normalize an atmospheric variable by subtracting the mean and dividing by the standard deviation
     ! Assumes mean and stddev have already been calculated as part of the data structure
     ! If stddev is 0, then no division occurs (mean is still removed)
-    subroutine normalize(var, j)
+    subroutine normalize(var, j, other)
         implicit none
-        class(atm_variable_type), intent(inout) :: var
+        class(atm_variable_type), target, intent(inout) :: var
         integer, intent(in)                     :: j
+        class(atm_variable_type), intent(in), target, optional :: other
         integer :: i, n
+        class(atm_variable_type), pointer :: norm_data
 
         n = size(var%mean,1)
 
-        do i=1,n
-            var%data(:,i,j) = var%data(:,i,j) - var%mean(i,j)
+        if (present(other)) then
+            norm_data => other
+        else
+            norm_data => var
+        endif
 
-            if (var%stddev(i,j) /= 0) then
-                var%data(:,i,j) = var%data(:,i,j) / var%stddev(i,j)
+        do i=1,n
+            var%data(:,i,j) = var%data(:,i,j) - norm_data%mean(i,j)
+
+            if (var%norm_data(i,j) /= 0) then
+                var%data(:,i,j) = var%data(:,i,j) / norm_data%stddev(i,j)
             else
                 if (maxval(abs(var%data(:,i,j))) > 0) then
                     !$omp critical (print_lock)
@@ -835,7 +847,7 @@ contains
                 endif
             endif
             ! shift to a 0-based range so that variables such as precip have a testable non-value
-            var%data(:,i,j) = var%data(:,i,j) - minval(var%data(:,i,j))
+            var%data(:,i,j) = var%data(:,i,j) - minval(norm_data%data(:,i,j))
             where(abs(var%data(:,i,j)) < 1e-10) var%data(:,i,j)=0
         enddo
 
