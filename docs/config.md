@@ -54,7 +54,7 @@ Notes:
 | lon_name              | string  | Yes       | n/a     |                                                                                          |
 | time_name             | string  | Yes       | n/a     |                                                                                          |
 | nfiles                | integer | Yes       | -1      |                                                                                          |
-| input_transformations | integer | No        | 1       | no transform = 1, quantile mapping = 2, log transform = 3, cube root = 4, fifth root = 5 |
+| input_transformations | integer | No        | 1       | no transform = 0, quantile mapping = 1, log transform = 2, cube root = 3, fifth root = 4 |
 | var_names             | string  | Yes       | n/a     | variables names to use in training                                                       |
 | file_list             | string  | Yes       | n/a     |                                                                                          |
 | selected_time         | integer | Yes       | -1      |                                                                                          |
@@ -76,8 +76,8 @@ Notes:
 | lon_name              | string  | Yes       | n/a     |                                                                                          |
 | time_name             | string  | Yes       | n/a     |                                                                                          |
 | nfiles                | integer | Yes       | -1      |                                                                                          |
-| transformations       | integer | No        | 2       | no transform = 1, quantile mapping = 2, log transform = 3, cube root = 4, fifth root = 5 |
-| input_transformations | integer | No        | 1       | no transform = 1, quantile mapping = 2, log transform = 3, cube root = 4, fifth root = 5 |
+| transformations       | integer | No        | 2       | no transform = 0, quantile mapping = 1, log transform = 2, cube root = 3, fifth root = 4 |
+| input_transformations | integer | No        | 1       | no transform = 0, quantile mapping = 1, log transform = 2, cube root = 3, fifth root = 4 |
 | var_names             | string  | Yes       | n/a     |                                                                                          |
 | file_list             | string  | Yes       | n/a     |                                                                                          |
 | selected_time         | integer | Yes       | -1      |                                                                                          |
@@ -97,7 +97,7 @@ Notes:
 | lat_name              | string  | Yes       | n/a           |                                                                                          |
 | lon_name              | string  | Yes       | n/a           |                                                                                          |
 | time_name             | string  | Yes       | n/a           |                                                                                          |
-| input_transformations | integer | No        | kNO_TRANSFORM | no transform = 1, quantile mapping = 2, log transform = 3, cube root = 4, fifth root = 5 |
+| input_transformations | integer | No        | kNO_TRANSFORM | no transform = 0, quantile mapping = 1, log transform = 2, cube root = 3, fifth root = 4 |
 | var_names             | string  | Yes       | n/a           |                                                                                          |
 | file_list             | string  | Yes       | n/a           |                                                                                          |
 | calendar              | string  | Yes       | n/a           |                                                                                          |
