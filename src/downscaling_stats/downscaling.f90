@@ -623,7 +623,11 @@ contains
                     timers(2) = timers(2) + (timetwo-timeone)
                     ! revert to a pure analog approach.  By passing analogs and weights, it will not recompute which analogs to use
                     ! it will just compute the analog mean, pop, and error statistics
-                    call downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, options, timers, analogs, weights)
+                    if (present(cur_time)) then
+                        call downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, options, timers, analogs, weights, cur_time)
+                    else
+                        call downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, options, timers, analogs, weights)
+                    endif
                     coefficients(1:nvars) = output_coeff(1:nvars)
                     coefficients(1) = 1e20
                     call System_Clock(timeone)
