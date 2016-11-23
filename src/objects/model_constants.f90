@@ -48,6 +48,12 @@ module model_constants
     integer,public,parameter :: kBILINEAR         = 2
 
     ! ------------------------------------------------
+    ! Normalization Method
+    ! ------------------------------------------------
+    integer,public,parameter :: kPREDICTIONDATA   = 1
+    integer,public,parameter :: kTRAININGDATA     = 2
+
+    ! ------------------------------------------------
     ! Other Constants
     ! ------------------------------------------------
     integer,public,parameter :: kFILL_VALUE       = -9999

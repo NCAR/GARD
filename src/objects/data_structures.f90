@@ -176,8 +176,9 @@ module data_structures
         ! tranformation to apply to each atmophseric variable
         integer, dimension(:), allocatable :: transformations
     end type atm_config
-
     type, extends(atm_config) :: prediction_config
+        ! source of data to use for normalization of prediction data
+        integer :: normalization_method
     end type prediction_config
 
     type, extends(atm_config) :: training_config
