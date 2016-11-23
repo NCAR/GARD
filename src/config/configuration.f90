@@ -89,7 +89,7 @@ contains
         end_train        = ""
         start_transform  = ""
         end_transform    = ""
-        output_file      = "downscaled_output.nc"
+        output_file      = "gard_out_"
         n_analogs        = -1
         n_log_analogs    = -1
         analog_threshold = -1
@@ -365,6 +365,7 @@ contains
         preloaded           = ""
         time_indices        = -1
         selected_level      = -1
+        timezone_offset     = 0
 
         ! read namelists
         open(io_newunit(name_unit), file=filename)
@@ -409,6 +410,7 @@ contains
         prediction_options%normalization_method = normalization_method
         prediction_options%debug          = debug
         prediction_options%preloaded      = preloaded
+        prediction_options%timezone_offset= timezone_offset
 
         where(prediction_options%selected_level == -1) prediction_options%selected_level = 1
         call check_prediction_options(prediction_options)
