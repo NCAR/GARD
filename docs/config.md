@@ -76,7 +76,7 @@ Notes:
 | lon_name              | string  | Yes       | n/a     |                                                                                          |
 | time_name             | string  | Yes       | n/a     |                                                                                          |
 | nfiles                | integer | Yes       | -1      |                                                                                          |
-| transformations       | integer | No        | 2       | no transform = 1, quantile mapping = 2, log transform = 3, cube root = 4, fifth root = 5 |
+| transformations       | integer | No        | 1       | no transform = 1, quantile mapping = 2, log transform = 3, cube root = 4, fifth root = 5 |
 | input_transformations | integer | No        | 1       | no transform = 1, quantile mapping = 2, log transform = 3, cube root = 4, fifth root = 5 |
 | var_names             | string  | Yes       | n/a     |                                                                                          |
 | file_list             | string  | Yes       | n/a     |                                                                                          |

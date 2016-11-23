@@ -358,7 +358,7 @@ contains
         calendar            = ""
         calendar_start_year = 1900
         selected_time       = -1
-        transformations     = kQUANTILE_MAPPING
+        transformations     = kNO_TRANSFORM
         input_transformations = kNO_TRANSFORM
         interpolation_method = kNEAREST
         preloaded           = ""
