@@ -456,9 +456,10 @@ contains
             call System_Clock(timeone)
             output(1)  = compute_regression(predictor(1,:), atm, obs, coefficients, errors(1))
             errors(2:) = errors(1)
+            where( coefficients >  1e20 ) coefficients =  1e20
+            where( coefficients < -1e20 ) coefficients = -1e20
+            coefficients_r4(1:nvars) = coefficients
             if (options%debug) then
-                where( coefficients >  1e20 ) coefficients =  1e20
-                where( coefficients < -1e20 ) coefficients = -1e20
                 do v=1,nvars
                     output_coeff(v,:) = coefficients(v)
                 enddo
@@ -469,10 +470,10 @@ contains
             call System_Clock(timeone)
             if (logistic_threshold/=kFILL_VALUE) then
                 logistic(1) = compute_logistic_regression(predictor(1,:), atm, obs, coefficients, logistic_threshold)
-
+                where( coefficients >  1e20 ) coefficients =  1e20
+                where( coefficients < -1e20 ) coefficients = -1e20
+                coefficients_r4(nvars+1:nvars*2) = coefficients
                 if (options%debug) then
-                    where( coefficients >  1e20 ) coefficients =  1e20
-                    where( coefficients < -1e20 ) coefficients = -1e20
                     do v = 1,nvars
                         output_coeff(v+nvars,:) = coefficients(v)
                     enddo
@@ -529,7 +530,7 @@ contains
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             elseif (options%pure_regression) then
                 ! to test matmul(predictor, output_coeff(:,1)) should provide all time values efficiently?
-                call apply_pure_regression(output(i), predictor(i,:), output_coeff(:,1), logistic(i), logistic_threshold, timers)
+                call apply_pure_regression(output(i), predictor(i,:), coefficients_r4, logistic(i),  logistic_threshold, timers)
 
             endif
         end do
@@ -648,9 +649,9 @@ contains
 
         endif
 
+        where( coefficients >  1e20 ) coefficients =  1e20
+        where( coefficients < -1e20 ) coefficients = -1e20
         if (options%debug) then
-            where( coefficients >  1e20 ) coefficients =  1e20
-            where( coefficients < -1e20 ) coefficients = -1e20
             output_coeff(1:nvars) = coefficients
         endif
         call System_Clock(timetwo)
@@ -683,9 +684,9 @@ contains
 
             else
                 logistic = compute_logistic_regression(x, regression_data, obs_analogs, coefficients, logistic_threshold)
+                where( coefficients >  1e20 ) coefficients =  1e20
+                where( coefficients < -1e20 ) coefficients = -1e20
                 if (options%debug) then
-                    where( coefficients >  1e20 ) coefficients =  1e20
-                    where( coefficients < -1e20 ) coefficients = -1e20
                     do j = 1,nvars
                         output_coeff(j+nvars) = coefficients(j)
                     enddo
@@ -808,6 +809,7 @@ contains
         timers(2) = timers(2) + (timetwo-timeone)
 
         call System_Clock(timeone)
+        
         if (threshold/=kFILL_VALUE) then
             logistic = 1.0 / (1.0 + exp(-dot_product(x, B(nvars+1:nvars*2))))
         endif
