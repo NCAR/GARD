@@ -78,7 +78,7 @@ module data_structures
         character(len=MAXVARLENGTH), allocatable, dimension(:) :: attributes_names
         character(len=MAXVARLENGTH), allocatable, dimension(:) :: attributes_values
 
-        real, allocatable, dimension(:,:) :: mean, stddev ! per gridpoint mean and standard deviation (for normalization)
+        real, allocatable, dimension(:,:) :: min_val, mean, stddev ! per gridpoint mean and standard deviation (for normalization)
     end type variable_type
 
     ! ------------------------------------------------

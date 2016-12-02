@@ -12,7 +12,7 @@ module gcm_mod
 
     use data_structures
     use model_constants
-    use basic_stats_mod,only: time_mean, time_stddev
+    use basic_stats_mod,only: time_mean, time_stddev, time_minval
     use string,         only: str
     use io_routines,    only: io_read, io_getdims, io_maxDims
     use time_io,        only: read_times
@@ -98,13 +98,16 @@ contains
 
         if (allocated(var%mean))    deallocate(var%mean)
         if (allocated(var%stddev))  deallocate(var%stddev)
+        if (allocated(var%min_val))  deallocate(var%min_val)
         allocate(var%mean(nx,ny))
         allocate(var%stddev(nx,ny))
+        allocate(var%min_val(nx,ny))
 
         where(var%data>1e10) var%data=0
 
         call time_mean( var%data, var%mean )
         call time_stddev( var%data, var%stddev, mean_in=var%mean )
+        call time_minval( var%data, var%min_val)
 
     end subroutine compute_grid_stats
 

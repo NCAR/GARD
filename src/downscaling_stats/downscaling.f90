@@ -853,7 +853,9 @@ contains
                 endif
             endif
             ! shift to a 0-based range so that variables such as precip have a testable non-value
-            var%data(:,i,j) = var%data(:,i,j) - minval(norm_data%data(:,i,j))
+            var%min_val(i,j) = minval(var%data(:,i,j))
+
+            var%data(:,i,j) = var%data(:,i,j) - norm_data%min_val(i,j)
             where(abs(var%data(:,i,j)) < 1e-10) var%data(:,i,j)=0
         enddo
 
@@ -873,6 +875,7 @@ contains
         do i=1,nx
             input_var%mean(i,j) = sum(input_var%data(:,i,j)) / ntimes
             input_var%stddev(i,j) = stddev(input_var%data(:,i,j), input_var%mean(i,j))
+            input_var%min_val(i,j) = minval(input_var%data(:,i,j))
         enddo
 
     end subroutine update_statistics
