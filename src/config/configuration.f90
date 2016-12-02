@@ -165,7 +165,7 @@ contains
         integer :: name_unit, i
 
         ! namelist variables to be read
-        integer :: nfiles, nvars, calendar_start_year, selected_time, interpolation_method
+        integer :: nfiles, nvars, calendar_start_year, selected_time, interpolation_method, normalization_method
         double precision :: timezone_offset
         integer, dimension(MAX_NUMBER_TIMES) :: time_indices
         integer, dimension(MAX_NUMBER_VARS)  :: selected_level
@@ -184,7 +184,7 @@ contains
                                          selected_time, time_indices,     &
                                          interpolation_method, preloaded, &
                                          selected_level, input_transformations, &
-                                         timezone_offset
+                                         timezone_offset, normalization_method
 
         !defaults :
         nfiles      = -1
@@ -202,6 +202,7 @@ contains
         time_indices = -1
         interpolation_method = kNEAREST
         input_transformations = kNO_TRANSFORM
+        normalization_method = kSELF_NORMALIZE
         preloaded   = ""
         selected_level = -1
         timezone_offset = 0
@@ -243,8 +244,9 @@ contains
         call copy_array_i(time_indices,   training_options%time_indices)
         training_options%selected_level = selected_level(1:nvars)
         training_options%data_type      = read_data_type(data_type)
-        training_options%interpolation_method = interpolation_method
         training_options%input_Xforms   = input_transformations(1:nvars)
+        training_options%interpolation_method = interpolation_method
+        training_options%normalization_method = normalization_method
         training_options%debug          = debug
         training_options%preloaded      = preloaded
         training_options%timezone_offset = timezone_offset
@@ -361,7 +363,7 @@ contains
         transformations     = kNO_TRANSFORM
         input_transformations = kNO_TRANSFORM
         interpolation_method = kNEAREST
-        normalization_method = kPREDICTIONDATA
+        normalization_method = kSELF_NORMALIZE
         preloaded           = ""
         time_indices        = -1
         selected_level      = -1

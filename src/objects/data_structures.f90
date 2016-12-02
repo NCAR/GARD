@@ -175,10 +175,11 @@ module data_structures
         integer, dimension(:), allocatable :: time_indices   ! specific time indices to average over (e.g. multiple hours in a daily file)
         ! tranformation to apply to each atmophseric variable
         integer, dimension(:), allocatable :: transformations
-    end type atm_config
-    type, extends(atm_config) :: prediction_config
+        
         ! source of data to use for normalization of prediction data
         integer :: normalization_method
+    end type atm_config
+    type, extends(atm_config) :: prediction_config
     end type prediction_config
 
     type, extends(atm_config) :: training_config

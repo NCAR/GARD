@@ -138,7 +138,9 @@ contains
                         call update_statistics(training_atm%variables(v), j)
                     endif
 
-                    call normalize(training_atm%variables(v), j)
+                    if (options%training%normalization_method == kSELF_NORMALIZE) then
+                        call normalize(training_atm%variables(v), j)
+                    endif
                 enddo
                 !$omp end do
 
@@ -155,10 +157,10 @@ contains
 
                     ! does not need to be normalized if it will be transformed to match training_atm anyway
                     if (abs(options%prediction%transformations(v)) /= kQUANTILE_MAPPING) then
-                        if (options%prediction%normalization_method == kTRAININGDATA) then
-                            call normalize(predictors%variables(v), j, other=training_atm%variables(v))
-                        else
+                        if (options%prediction%normalization_method == kSELF_NORMALIZE) then
                             call normalize(predictors%variables(v), j)
+                        elseif (options%prediction%normalization_method == kTRAININGDATA) then
+                            call normalize(predictors%variables(v), j, other=training_atm%variables(v))
                         endif
                     endif
                 enddo
