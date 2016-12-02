@@ -430,9 +430,7 @@ contains
 
         integer(8)  :: timeone, timetwo
         integer     :: i, n, nvars, v
-        !integer     :: a, n_analogs, selected_analog, real_analogs
-        !real        :: rand, analog_threshold
-
+        
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         !!
         !!  Generic Initialization code
@@ -445,10 +443,23 @@ contains
         allocate(coefficients_r4(nvars*2))
         allocate(output(n))
 
-        ! This just prevents any single points that were WAY out (most likely due to the QM?)
-        where(predictor < -10) predictor = -10
-        where(predictor >  10) predictor =  10
 
+        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        !!
+        !!  Just pass through a given predictor variable. 
+        !!
+        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        if (options%pass_through) then
+            output = predictor(:, options%pass_through_var + 1)
+            return
+        endif
+            
+        ! This just prevents any single points that were WAY out (most likely due to the QM?)
+        ! note that if the data have not been normalized, this is not valid
+        ! where(predictor < -10) predictor = -10
+        ! where(predictor >  10) predictor =  10
+
+            
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         !!
         !!  Initialization code for pure regression

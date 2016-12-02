@@ -57,11 +57,11 @@ contains
         implicit none
         type(config), intent(inout)     :: options
 
-        integer :: name_unit, n_analogs, n_log_analogs
+        integer :: name_unit, n_analogs, n_log_analogs, pass_through_var
         character(len=MAXSTRINGLENGTH)  :: name, start_date, end_date, start_train, end_train
         character(len=MAXSTRINGLENGTH)  :: start_transform, end_transform
         character(len=MAXFILELENGTH)    :: training_file, prediction_file, observation_file, output_file
-        logical :: pure_analog, analog_regression, pure_regression, debug
+        logical :: pure_analog, analog_regression, pure_regression, pass_through, debug
         logical :: sample_analog, logistic_from_analog_exceedance, weight_analogs
         real    :: logistic_threshold, analog_threshold
 
@@ -74,7 +74,8 @@ contains
                                 n_analogs, n_log_analogs, logistic_threshold,       &
                                 pure_analog, analog_regression, pure_regression,    &
                                 sample_analog, logistic_from_analog_exceedance,     &
-                                analog_threshold, weight_analogs
+                                analog_threshold, weight_analogs,                   &
+                                pass_through, pass_through_var
 
         options%version = kVERSION_STRING
         options%options_filename = get_options_file()
@@ -96,6 +97,8 @@ contains
         pure_analog      = .False.
         analog_regression= .True.
         pure_regression  = .False.
+        pass_through     = .False.
+        pass_through_var = 1
         debug            = .True.
         logistic_threshold= kFILL_VALUE
         sample_analog    = .False.
@@ -143,6 +146,8 @@ contains
         options%sample_analog       = sample_analog
         options%logistic_from_analog_exceedance  = logistic_from_analog_exceedance
 
+        options%pass_through        = pass_through
+        options%pass_through_var    = pass_through_var
 
         options%debug = debug
         module_debug = options%debug

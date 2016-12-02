@@ -210,6 +210,10 @@ module data_structures
         logical :: pure_analog
         logical :: analog_regression
         logical :: pure_regression
+        
+        ! If instead of running a downscaling process, we just want to output / pass through a given predictor variable
+        logical :: pass_through
+        integer :: pass_through_var
 
         ! when computing mean, error, or logistic probabilities, weight analogs according to how
         ! similar they are to the current time periods

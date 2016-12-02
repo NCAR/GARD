@@ -20,6 +20,10 @@
     pure_analog       = False                   ! set to true (and others to false) to use the selected analogs (no regression) to predict the output
     analog_regression = True                    ! set to true (and others to false) to perform a regression only on the selected analog days when predicting the output
 
+    ! Non-model type
+    pass_through      = False                   ! set to true to simply pass a predictor variable through instead of computing regressions or analogs
+    pass_through_var  = 1                       ! Option to select which predictor variable is passed through
+
     ! analog selection parameters
     n_analogs           = 200                   ! set the number of analogs to find for each time step
     ! n_log_analogs     = 20                    ! set to the number of analogs to use for the logistic_from_analog_exceedance calculation if using something other than n_analogs
@@ -48,6 +52,10 @@
     selected_level = -1                 ! If the input data have 4 dimensions (e.g. one dimension is elevation) this is the index that will be used
                                         ! this assumes that the z dimension is the 2nd (time, z, y, x) in the NetCDF file
                                         ! if -1, the first level will be used.
+
+    ! Controls normalization applied to training data. 
+    ! 0 = don't normalize, 1 = normalize based on the training data mean and standard deviation
+    normalization_method = 1
 
     ! the following are arrays with one element for each input variable
     input_transformations = 0, 0, 3, 3  ! transformations to apply to each input variable (0=none, 1=qm?, 2=log, 3=cuberoot, 4=fifthroot)
@@ -86,9 +94,9 @@
     ! This permits an additional transformation to e.g. quantile map (transformation=1) each variable to match the training data
     ! this is primarily for climate simulations
     transformations = 0, 0, 0, 0
-    ! Also, if normalization_method = 1, the means and standard deviations from the training data will be used to normalize the predictors
-    ! this is primarily for forecasting applications
-    normalization_method = 0
+    ! Also, if normalization_method = 2, the means and standard deviations from the training data will be used to normalize the predictors
+    ! this is primarily for forecasting applications. 1=Normalize based on prediction data, 0=no normalization applied
+    normalization_method = 1
 
     var_names = "T2",                            "PSFC",                          "PREC_ACC_NC",                   "PREC_ACC_C"
     file_list = "filelists/erai_files_200x.txt", "filelists/erai_files_200x.txt", "filelists/erai_files_200x.txt", "filelists/erai_files_200x.txt"
