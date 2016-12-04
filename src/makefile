@@ -52,7 +52,7 @@ ifeq ($(NODENAME), Nomad.local)
 	LAPACK_PATH=/usr/local/opt/lapack
 endif
 
-ifeq ($(NODENAME), hydro-c1)
+ifneq (,$(findstring hydro-c1,$(NODENAME)))
 	FC=ifort
 	# FC=gfortran
 	ifeq ($(FC), ifort)

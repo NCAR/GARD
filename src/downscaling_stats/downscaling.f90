@@ -138,7 +138,9 @@ contains
                         call update_statistics(training_atm%variables(v), j)
                     endif
 
-                    call normalize(training_atm%variables(v), j)
+                    if (options%training%normalization_method == kSELF_NORMALIZE) then
+                        call normalize(training_atm%variables(v), j)
+                    endif
                 enddo
                 !$omp end do
 
@@ -155,10 +157,10 @@ contains
 
                     ! does not need to be normalized if it will be transformed to match training_atm anyway
                     if (abs(options%prediction%transformations(v)) /= kQUANTILE_MAPPING) then
-                        if (options%prediction%normalization_method == kTRAININGDATA) then
-                            call normalize(predictors%variables(v), j, other=training_atm%variables(v))
-                        else
+                        if (options%prediction%normalization_method == kSELF_NORMALIZE) then
                             call normalize(predictors%variables(v), j)
+                        elseif (options%prediction%normalization_method == kTRAININGDATA) then
+                            call normalize(predictors%variables(v), j, other=training_atm%variables(v))
                         endif
                     endif
                 enddo
@@ -428,9 +430,7 @@ contains
 
         integer(8)  :: timeone, timetwo
         integer     :: i, n, nvars, v
-        !integer     :: a, n_analogs, selected_analog, real_analogs
-        !real        :: rand, analog_threshold
-
+        
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         !!
         !!  Generic Initialization code
@@ -443,10 +443,23 @@ contains
         allocate(coefficients_r4(nvars*2))
         allocate(output(n))
 
-        ! This just prevents any single points that were WAY out (most likely due to the QM?)
-        where(predictor < -10) predictor = -10
-        where(predictor >  10) predictor =  10
 
+        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        !!
+        !!  Just pass through a given predictor variable. 
+        !!
+        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        if (options%pass_through) then
+            output = predictor(:, options%pass_through_var + 1)
+            return
+        endif
+            
+        ! This just prevents any single points that were WAY out (most likely due to the QM?)
+        ! note that if the data have not been normalized, this is not valid
+        ! where(predictor < -10) predictor = -10
+        ! where(predictor >  10) predictor =  10
+
+            
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         !!
         !!  Initialization code for pure regression
@@ -456,9 +469,10 @@ contains
             call System_Clock(timeone)
             output(1)  = compute_regression(predictor(1,:), atm, obs, coefficients, errors(1))
             errors(2:) = errors(1)
+            where( coefficients >  1e20 ) coefficients =  1e20
+            where( coefficients < -1e20 ) coefficients = -1e20
+            coefficients_r4(1:nvars) = coefficients
             if (options%debug) then
-                where( coefficients >  1e20 ) coefficients =  1e20
-                where( coefficients < -1e20 ) coefficients = -1e20
                 do v=1,nvars
                     output_coeff(v,:) = coefficients(v)
                 enddo
@@ -469,10 +483,10 @@ contains
             call System_Clock(timeone)
             if (logistic_threshold/=kFILL_VALUE) then
                 logistic(1) = compute_logistic_regression(predictor(1,:), atm, obs, coefficients, logistic_threshold)
-
+                where( coefficients >  1e20 ) coefficients =  1e20
+                where( coefficients < -1e20 ) coefficients = -1e20
+                coefficients_r4(nvars+1:nvars*2) = coefficients
                 if (options%debug) then
-                    where( coefficients >  1e20 ) coefficients =  1e20
-                    where( coefficients < -1e20 ) coefficients = -1e20
                     do v = 1,nvars
                         output_coeff(v+nvars,:) = coefficients(v)
                     enddo
@@ -529,7 +543,7 @@ contains
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             elseif (options%pure_regression) then
                 ! to test matmul(predictor, output_coeff(:,1)) should provide all time values efficiently?
-                call apply_pure_regression(output(i), predictor(i,:), output_coeff(:,1), logistic(i), logistic_threshold, timers)
+                call apply_pure_regression(output(i), predictor(i,:), coefficients_r4, logistic(i),  logistic_threshold, timers)
 
             endif
         end do
@@ -623,7 +637,11 @@ contains
                     timers(2) = timers(2) + (timetwo-timeone)
                     ! revert to a pure analog approach.  By passing analogs and weights, it will not recompute which analogs to use
                     ! it will just compute the analog mean, pop, and error statistics
-                    call downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, options, timers, analogs, weights)
+                    if (present(cur_time)) then
+                        call downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, options, timers, analogs, weights, cur_time)
+                    else
+                        call downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, options, timers, analogs, weights)
+                    endif
                     coefficients(1:nvars) = output_coeff(1:nvars)
                     coefficients(1) = 1e20
                     call System_Clock(timeone)
@@ -644,9 +662,9 @@ contains
 
         endif
 
+        where( coefficients >  1e20 ) coefficients =  1e20
+        where( coefficients < -1e20 ) coefficients = -1e20
         if (options%debug) then
-            where( coefficients >  1e20 ) coefficients =  1e20
-            where( coefficients < -1e20 ) coefficients = -1e20
             output_coeff(1:nvars) = coefficients
         endif
         call System_Clock(timetwo)
@@ -679,9 +697,9 @@ contains
 
             else
                 logistic = compute_logistic_regression(x, regression_data, obs_analogs, coefficients, logistic_threshold)
+                where( coefficients >  1e20 ) coefficients =  1e20
+                where( coefficients < -1e20 ) coefficients = -1e20
                 if (options%debug) then
-                    where( coefficients >  1e20 ) coefficients =  1e20
-                    where( coefficients < -1e20 ) coefficients = -1e20
                     do j = 1,nvars
                         output_coeff(j+nvars) = coefficients(j)
                     enddo
@@ -804,6 +822,7 @@ contains
         timers(2) = timers(2) + (timetwo-timeone)
 
         call System_Clock(timeone)
+        
         if (threshold/=kFILL_VALUE) then
             logistic = 1.0 / (1.0 + exp(-dot_product(x, B(nvars+1:nvars*2))))
         endif
@@ -847,7 +866,9 @@ contains
                 endif
             endif
             ! shift to a 0-based range so that variables such as precip have a testable non-value
-            var%data(:,i,j) = var%data(:,i,j) - minval(norm_data%data(:,i,j))
+            var%min_val(i,j) = minval(var%data(:,i,j))
+
+            var%data(:,i,j) = var%data(:,i,j) - norm_data%min_val(i,j)
             where(abs(var%data(:,i,j)) < 1e-10) var%data(:,i,j)=0
         enddo
 
@@ -867,6 +888,7 @@ contains
         do i=1,nx
             input_var%mean(i,j) = sum(input_var%data(:,i,j)) / ntimes
             input_var%stddev(i,j) = stddev(input_var%data(:,i,j), input_var%mean(i,j))
+            input_var%min_val(i,j) = minval(input_var%data(:,i,j))
         enddo
 
     end subroutine update_statistics
