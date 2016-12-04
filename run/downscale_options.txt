@@ -36,6 +36,7 @@
     weight_analogs = True                       ! when calculating analog_mean, analog_error, or logistic_from_analog, weight each analog by it's inverse square distance from the current input
 
     debug = False           ! prints more output at runtime and outputs files including the coefficients used in each analog regression (or analog values) as well as the predictor data
+    interactive = False ! Print downscaling status as a percentage on the command line
 /
 
 ! define the input atmospheric model data to be used when training the model
@@ -53,7 +54,7 @@
                                         ! this assumes that the z dimension is the 2nd (time, z, y, x) in the NetCDF file
                                         ! if -1, the first level will be used.
 
-    ! Controls normalization applied to training data. 
+    ! Controls normalization applied to training data.
     ! 0 = don't normalize, 1 = normalize based on the training data mean and standard deviation
     normalization_method = 1
 
