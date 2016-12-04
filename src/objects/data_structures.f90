@@ -78,7 +78,7 @@ module data_structures
         character(len=MAXVARLENGTH), allocatable, dimension(:) :: attributes_names
         character(len=MAXVARLENGTH), allocatable, dimension(:) :: attributes_values
 
-        real, allocatable, dimension(:,:) :: mean, stddev ! per gridpoint mean and standard deviation (for normalization)
+        real, allocatable, dimension(:,:) :: min_val, mean, stddev ! per gridpoint mean and standard deviation (for normalization)
     end type variable_type
 
     ! ------------------------------------------------
@@ -175,10 +175,11 @@ module data_structures
         integer, dimension(:), allocatable :: time_indices   ! specific time indices to average over (e.g. multiple hours in a daily file)
         ! tranformation to apply to each atmophseric variable
         integer, dimension(:), allocatable :: transformations
-    end type atm_config
-    type, extends(atm_config) :: prediction_config
+        
         ! source of data to use for normalization of prediction data
         integer :: normalization_method
+    end type atm_config
+    type, extends(atm_config) :: prediction_config
     end type prediction_config
 
     type, extends(atm_config) :: training_config
@@ -209,6 +210,10 @@ module data_structures
         logical :: pure_analog
         logical :: analog_regression
         logical :: pure_regression
+        
+        ! If instead of running a downscaling process, we just want to output / pass through a given predictor variable
+        logical :: pass_through
+        integer :: pass_through_var
 
         ! when computing mean, error, or logistic probabilities, weight analogs according to how
         ! similar they are to the current time periods

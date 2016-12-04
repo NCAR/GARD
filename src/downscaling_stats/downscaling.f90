@@ -138,7 +138,9 @@ contains
                         call update_statistics(training_atm%variables(v), j)
                     endif
 
-                    call normalize(training_atm%variables(v), j)
+                    if (options%training%normalization_method == kSELF_NORMALIZE) then
+                        call normalize(training_atm%variables(v), j)
+                    endif
                 enddo
                 !$omp end do
 
@@ -155,10 +157,10 @@ contains
 
                     ! does not need to be normalized if it will be transformed to match training_atm anyway
                     if (abs(options%prediction%transformations(v)) /= kQUANTILE_MAPPING) then
-                        if (options%prediction%normalization_method == kTRAININGDATA) then
-                            call normalize(predictors%variables(v), j, other=training_atm%variables(v))
-                        else
+                        if (options%prediction%normalization_method == kSELF_NORMALIZE) then
                             call normalize(predictors%variables(v), j)
+                        elseif (options%prediction%normalization_method == kTRAININGDATA) then
+                            call normalize(predictors%variables(v), j, other=training_atm%variables(v))
                         endif
                     endif
                 enddo
@@ -428,9 +430,7 @@ contains
 
         integer(8)  :: timeone, timetwo
         integer     :: i, n, nvars, v
-        !integer     :: a, n_analogs, selected_analog, real_analogs
-        !real        :: rand, analog_threshold
-
+        
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         !!
         !!  Generic Initialization code
@@ -443,10 +443,23 @@ contains
         allocate(coefficients_r4(nvars*2))
         allocate(output(n))
 
-        ! This just prevents any single points that were WAY out (most likely due to the QM?)
-        where(predictor < -10) predictor = -10
-        where(predictor >  10) predictor =  10
 
+        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        !!
+        !!  Just pass through a given predictor variable. 
+        !!
+        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+        if (options%pass_through) then
+            output = predictor(:, options%pass_through_var + 1)
+            return
+        endif
+            
+        ! This just prevents any single points that were WAY out (most likely due to the QM?)
+        ! note that if the data have not been normalized, this is not valid
+        ! where(predictor < -10) predictor = -10
+        ! where(predictor >  10) predictor =  10
+
+            
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         !!
         !!  Initialization code for pure regression
@@ -853,7 +866,9 @@ contains
                 endif
             endif
             ! shift to a 0-based range so that variables such as precip have a testable non-value
-            var%data(:,i,j) = var%data(:,i,j) - minval(norm_data%data(:,i,j))
+            var%min_val(i,j) = minval(var%data(:,i,j))
+
+            var%data(:,i,j) = var%data(:,i,j) - norm_data%min_val(i,j)
             where(abs(var%data(:,i,j)) < 1e-10) var%data(:,i,j)=0
         enddo
 
@@ -873,6 +888,7 @@ contains
         do i=1,nx
             input_var%mean(i,j) = sum(input_var%data(:,i,j)) / ntimes
             input_var%stddev(i,j) = stddev(input_var%data(:,i,j), input_var%mean(i,j))
+            input_var%min_val(i,j) = minval(input_var%data(:,i,j))
         enddo
 
     end subroutine update_statistics

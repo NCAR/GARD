@@ -4,6 +4,34 @@ module basic_stats_mod
     
 contains
     
+    
+    !>-------------------------------------
+    !! Compute the minval over the first dimension
+    !!
+    !! precondition: nt>0
+    !!
+    !!-------------------------------------
+    subroutine time_minval(input, min_val)
+        implicit none
+        real, intent(in),   dimension(:,:,:) :: input
+        real, intent(inout),dimension(:,:)   :: min_val
+        
+        integer :: nx, ny, nt
+        integer :: x, y
+        
+        nt = size(input,1)
+        nx = size(input,2)
+        ny = size(input,3)
+        
+        do y=1,ny
+            do x=1,nx
+                min_val(x,y) = minval(input(:,x,y))
+            end do
+        end do
+        
+    end subroutine time_minval
+
+
     !>-------------------------------------
     !! Compute the mean over the first dimension
     !!

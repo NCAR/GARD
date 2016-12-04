@@ -57,11 +57,11 @@ contains
         implicit none
         type(config), intent(inout)     :: options
 
-        integer :: name_unit, n_analogs, n_log_analogs
+        integer :: name_unit, n_analogs, n_log_analogs, pass_through_var
         character(len=MAXSTRINGLENGTH)  :: name, start_date, end_date, start_train, end_train
         character(len=MAXSTRINGLENGTH)  :: start_transform, end_transform
         character(len=MAXFILELENGTH)    :: training_file, prediction_file, observation_file, output_file
-        logical :: pure_analog, analog_regression, pure_regression, debug
+        logical :: pure_analog, analog_regression, pure_regression, pass_through, debug
         logical :: sample_analog, logistic_from_analog_exceedance, weight_analogs
         real    :: logistic_threshold, analog_threshold
 
@@ -74,7 +74,8 @@ contains
                                 n_analogs, n_log_analogs, logistic_threshold,       &
                                 pure_analog, analog_regression, pure_regression,    &
                                 sample_analog, logistic_from_analog_exceedance,     &
-                                analog_threshold, weight_analogs
+                                analog_threshold, weight_analogs,                   &
+                                pass_through, pass_through_var
 
         options%version = kVERSION_STRING
         options%options_filename = get_options_file()
@@ -96,6 +97,8 @@ contains
         pure_analog      = .False.
         analog_regression= .True.
         pure_regression  = .False.
+        pass_through     = .False.
+        pass_through_var = 1
         debug            = .True.
         logistic_threshold= kFILL_VALUE
         sample_analog    = .False.
@@ -143,6 +146,8 @@ contains
         options%sample_analog       = sample_analog
         options%logistic_from_analog_exceedance  = logistic_from_analog_exceedance
 
+        options%pass_through        = pass_through
+        options%pass_through_var    = pass_through_var
 
         options%debug = debug
         module_debug = options%debug
@@ -165,7 +170,7 @@ contains
         integer :: name_unit, i
 
         ! namelist variables to be read
-        integer :: nfiles, nvars, calendar_start_year, selected_time, interpolation_method
+        integer :: nfiles, nvars, calendar_start_year, selected_time, interpolation_method, normalization_method
         double precision :: timezone_offset
         integer, dimension(MAX_NUMBER_TIMES) :: time_indices
         integer, dimension(MAX_NUMBER_VARS)  :: selected_level
@@ -184,7 +189,7 @@ contains
                                          selected_time, time_indices,     &
                                          interpolation_method, preloaded, &
                                          selected_level, input_transformations, &
-                                         timezone_offset
+                                         timezone_offset, normalization_method
 
         !defaults :
         nfiles      = -1
@@ -202,6 +207,7 @@ contains
         time_indices = -1
         interpolation_method = kNEAREST
         input_transformations = kNO_TRANSFORM
+        normalization_method = kSELF_NORMALIZE
         preloaded   = ""
         selected_level = -1
         timezone_offset = 0
@@ -243,8 +249,9 @@ contains
         call copy_array_i(time_indices,   training_options%time_indices)
         training_options%selected_level = selected_level(1:nvars)
         training_options%data_type      = read_data_type(data_type)
-        training_options%interpolation_method = interpolation_method
         training_options%input_Xforms   = input_transformations(1:nvars)
+        training_options%interpolation_method = interpolation_method
+        training_options%normalization_method = normalization_method
         training_options%debug          = debug
         training_options%preloaded      = preloaded
         training_options%timezone_offset = timezone_offset
@@ -361,7 +368,7 @@ contains
         transformations     = kNO_TRANSFORM
         input_transformations = kNO_TRANSFORM
         interpolation_method = kNEAREST
-        normalization_method = kPREDICTIONDATA
+        normalization_method = kSELF_NORMALIZE
         preloaded           = ""
         time_indices        = -1
         selected_level      = -1

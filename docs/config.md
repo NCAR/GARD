@@ -18,6 +18,7 @@ The namelist options are described in the tables below:
 | observation_file                | string  | No        | Options File Name    | Used to specify a separate namelist file for the observation section shown below |
 | prediction_file                 | string  | No        | Options File Name    | Used to specify a separate namelist file for the prediction section shown below  |
 | output_file                     | string  | No        | downscaled_output.nc | Downscaled output filename.                                                      |
+| pass_through_var                | integer | No        | 1                    | Select the variable to be passed through as the output if pass_through=True      |
 | n_analogs                       | integer | No (1)    | -1                   | The number of analogs to include                                                 |
 | n_log_analogs                   | integer | No (1)    | -1                   |                                                                                  |
 | analog_threshold                | real    | No (1)    | -1                   |                                                                                  |
@@ -30,6 +31,7 @@ The namelist options are described in the tables below:
 | pure_regression                 | logical | No        | FALSE                | Use pure regression downscaling approach                                         |
 | pure_analog                     | logical | No        | FALSE                | Use pure analog downscaling approach                                             |
 | analog_regression               | logical | No        | TRUE                 | Use analog regression downscaling approach                                       |
+| pass_through                    | logical | No        | False                | Pass a given predictor variable through as the output without downscaling        |
 | sample_analog                   | logical | No        | FALSE                |                                                                                  |
 | logistic_from_analog_exceedance | logical | No        | FALSE                |                                                                                  |
 | logistic_threshold              | logical | No        | -9999                |                                                                                  |
@@ -47,6 +49,7 @@ Notes:
 | name                  | string  | Yes       | n/a     | Name of the training parameters dataset                                                  |
 | preloaded             | string  | Yes       | n/a     | filepath of the preloaded training parameters dataset                                    |
 | interpolation_method  | integer | No        | 1       | nearest neighbor= 1, bilenear =2                                                         |
+| normalization_method  | integer | No        | 0       | no normalization = 0, mean/stddev from: training data = 1                                |
 | time_indices          | integer | Yes       | -1      |                                                                                          |
 | nvars                 | integer | Yes       | -1      | number of variables to be used in training                                               |
 | data_type             | string  | Yes       | n/a     |                                                                                          |
@@ -70,7 +73,7 @@ Notes:
 | name                  | string  | Yes       | n/a     |                                                                                          |
 | preloaded             | string  | Yes       | n/a     |                                                                                          |
 | interpolation_method  | integer | No        | 1       | nearest neighbor= 1, bilenear =2                                                         |
-| normalization_method  | integer | No        | 0       | mean/stddev from: prediction data = 0, training data = 1                                 |
+| normalization_method  | integer | No        | 0       | no normalization = 0, mean/stddev from: prediction data = 1, training data = 2           |
 | nvars                 | integer | Yes       | -1      |                                                                                          |
 | data_type             | string  | Yes       | n/a     |                                                                                          |
 | lat_name              | string  | Yes       | n/a     |                                                                                          |

@@ -50,7 +50,8 @@ module model_constants
     ! ------------------------------------------------
     ! Normalization Method
     ! ------------------------------------------------
-    integer,public,parameter :: kPREDICTIONDATA   = 1
+    integer,public,parameter :: kNO_NORMALIZATION = 0
+    integer,public,parameter :: kSELF_NORMALIZE   = 1
     integer,public,parameter :: kTRAININGDATA     = 2
 
     ! ------------------------------------------------
