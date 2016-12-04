@@ -36,7 +36,8 @@ The namelist options are described in the tables below:
 | logistic_from_analog_exceedance | logical | No        | FALSE                |                                                                                  |
 | logistic_threshold              | logical | No        | -9999                |                                                                                  |
 | weight_analogs                  | logical | No        | TRUE                 |                                                                                  |
-| debug                           | logical | No        | TRUE                 |                                                                                  |
+| debug                           | logical | No        | TRUE                 | prints more output at runtime and outputs files including the coefficients used in each analog regression (or analog values) as well as the predictor data |
+| interactive                     | logical | No        | TRUE                 | Print downscaling status as a percentage on the command line                     |
 
 Notes:
 

@@ -277,10 +277,12 @@ contains
                     !!  Print a status updates
                     !!
                     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                    !$omp critical (print_lock)
-                    current_completed_gridcells = current_completed_gridcells + 1
-                    write(*,"(A,f5.1,A$)") char(13), current_completed_gridcells/real(total_number_of_gridcells)*100.0, " %"
-                    !$omp end critical (print_lock)
+                    if (options%interactive) then
+                        !$omp critical (print_lock)
+                        current_completed_gridcells = current_completed_gridcells + 1
+                        write(*,"(A,f5.1,A$)") char(13), current_completed_gridcells/real(total_number_of_gridcells)*100.0, " %"
+                        !$omp end critical (print_lock)
+                    endif
                 enddo
             enddo
             !$omp end do
@@ -430,7 +432,7 @@ contains
 
         integer(8)  :: timeone, timetwo
         integer     :: i, n, nvars, v
-        
+
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         !!
         !!  Generic Initialization code
@@ -446,20 +448,20 @@ contains
 
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         !!
-        !!  Just pass through a given predictor variable. 
+        !!  Just pass through a given predictor variable.
         !!
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         if (options%pass_through) then
             output = predictor(:, options%pass_through_var + 1)
             return
         endif
-            
+
         ! This just prevents any single points that were WAY out (most likely due to the QM?)
         ! note that if the data have not been normalized, this is not valid
         ! where(predictor < -10) predictor = -10
         ! where(predictor >  10) predictor =  10
 
-            
+
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         !!
         !!  Initialization code for pure regression
@@ -822,7 +824,7 @@ contains
         timers(2) = timers(2) + (timetwo-timeone)
 
         call System_Clock(timeone)
-        
+
         if (threshold/=kFILL_VALUE) then
             logistic = 1.0 / (1.0 + exp(-dot_product(x, B(nvars+1:nvars*2))))
         endif
