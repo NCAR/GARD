@@ -625,17 +625,17 @@ contains
         ! Open the file. NF90_CLOBBER tells netCDF we want overwrite existing files
         call check( nf90_create(filename, NF90_CLOBBER, ncid), filename)
         ! define the dimensions
-        call check( nf90_def_dim(ncid, dims(1), nx, temp_dimid) )
+        call check( nf90_def_dim(ncid, trim(dims(1)), nx, temp_dimid) )
         dimids(1)=temp_dimid
-        call check( nf90_def_dim(ncid, dims(2), nz, temp_dimid) )
+        call check( nf90_def_dim(ncid, trim(dims(2)), nz, temp_dimid) )
         dimids(2)=temp_dimid
-        call check( nf90_def_dim(ncid, dims(3), ny, temp_dimid) )
+        call check( nf90_def_dim(ncid, trim(dims(3)), ny, temp_dimid) )
         dimids(3)=temp_dimid
-        call check( nf90_def_dim(ncid, dims(4), na, temp_dimid) )
+        call check( nf90_def_dim(ncid, trim(dims(4)), na, temp_dimid) )
         dimids(4)=temp_dimid
-        call check( nf90_def_dim(ncid, dims(5), nb, temp_dimid) )
+        call check( nf90_def_dim(ncid, trim(dims(5)), nb, temp_dimid) )
         dimids(5)=temp_dimid
-        call check( nf90_def_dim(ncid, dims(6), nc, temp_dimid) )
+        call check( nf90_def_dim(ncid, trim(dims(6)), nc, temp_dimid) )
         dimids(6)=temp_dimid
 
         ! Create the variable returns varid of the data variable
@@ -691,13 +691,13 @@ contains
         ! the file.
         call check( nf90_create(filename, NF90_CLOBBER, ncid), filename)
         ! define the dimensions
-        call check( nf90_def_dim(ncid, dims(1), nx, temp_dimid) )
+        call check( nf90_def_dim(ncid, trim(dims(1)), nx, temp_dimid) )
         dimids(1)=temp_dimid
-        call check( nf90_def_dim(ncid, dims(2), nz, temp_dimid) )
+        call check( nf90_def_dim(ncid, trim(dims(2)), nz, temp_dimid) )
         dimids(2)=temp_dimid
-        call check( nf90_def_dim(ncid, dims(3), ny, temp_dimid) )
+        call check( nf90_def_dim(ncid, trim(dims(3)), ny, temp_dimid) )
         dimids(3)=temp_dimid
-        call check( nf90_def_dim(ncid, dims(4), nr, temp_dimid) )
+        call check( nf90_def_dim(ncid, trim(dims(4)), nr, temp_dimid) )
         dimids(4)=temp_dimid
 
         ! Create the variable returns varid of the data variable
@@ -807,11 +807,11 @@ contains
         ! the file.
         call check( nf90_create(filename, NF90_CLOBBER, ncid), filename)
         ! define the dimensions
-        call check( nf90_def_dim(ncid, dims(1), nx, temp_dimid) )
+        call check( nf90_def_dim(ncid, trim(dims(1)), nx, temp_dimid) )
         dimids(1)=temp_dimid
-        call check( nf90_def_dim(ncid, dims(2), nz, temp_dimid) )
+        call check( nf90_def_dim(ncid, trim(dims(2)), nz, temp_dimid) )
         dimids(2)=temp_dimid
-        call check( nf90_def_dim(ncid, dims(3), ny, temp_dimid) )
+        call check( nf90_def_dim(ncid, trim(dims(3)), ny, temp_dimid) )
         dimids(3)=temp_dimid
 
         ! Create the variable returns varid of the data variable

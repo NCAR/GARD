@@ -13,9 +13,11 @@ contains
         implicit none
         type(config),  intent(in)   :: options
         type(results), intent(in)   :: output
-        character(len=MAXFILELENGTH):: filename
-        real, dimension(:,:,:), allocatable :: output_data
-        real, dimension(:,:,:,:), allocatable :: output_data_4d
+        
+        character(len=MAXFILELENGTH)            :: filename
+        character(len=MAXFILELENGTH)            :: dimnames(3)
+        real, dimension(:,:,:),     allocatable :: output_data
+        real, dimension(:,:,:,:),   allocatable :: output_data_4d
         integer :: nvars, i, nx, ny, nt, nv
         integer :: Mem_Error
 
@@ -34,20 +36,22 @@ contains
             if (Mem_Error /= 0) call memory_error(Mem_Error, "output_data_4d", [nx,ny,nt,nv])
         endif
 
+        dimnames = [character(len=4) :: "x", "y", "time"]
+
         do i=1,nvars
 
             filename = trim(options%output_file)//trim(output%variables(i)%name)//".nc"
             call shift_z_dim(output%variables(i)%data, output_data)
-            call io_write(filename, trim(output%variables(i)%name), output_data, ["x", "y", "time"])
+            call io_write(filename, trim(output%variables(i)%name), output_data, dimnames)
 
             filename = trim(options%output_file)//trim(output%variables(i)%name)//"_errors.nc"
             call shift_z_dim(output%variables(i)%errors, output_data)
-            call io_write(filename, trim(output%variables(i)%name)//"_error", output_data, ["x", "y", "time"])
+            call io_write(filename, trim(output%variables(i)%name)//"_error", output_data, dimnames)
 
             if (options%logistic_threshold/=kFILL_VALUE) then
                 filename = trim(options%output_file)//trim(output%variables(i)%name)//"_logistic.nc"
                 call shift_z_dim(output%variables(i)%logistic, output_data)
-                call io_write(filename, trim(output%variables(i)%name)//"_exceedence_probability", output_data, ["x", "y", "time"])
+                call io_write(filename, trim(output%variables(i)%name)//"_exceedence_probability", output_data, dimnames)
             endif
 
             if (options%debug) then
