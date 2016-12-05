@@ -175,7 +175,7 @@ module data_structures
         integer, dimension(:), allocatable :: time_indices   ! specific time indices to average over (e.g. multiple hours in a daily file)
         ! tranformation to apply to each atmophseric variable
         integer, dimension(:), allocatable :: transformations
-        
+
         ! source of data to use for normalization of prediction data
         integer :: normalization_method
     end type atm_config
@@ -210,7 +210,7 @@ module data_structures
         logical :: pure_analog
         logical :: analog_regression
         logical :: pure_regression
-        
+
         ! If instead of running a downscaling process, we just want to output / pass through a given predictor variable
         logical :: pass_through
         integer :: pass_through_var
@@ -246,6 +246,7 @@ module data_structures
         real    :: analog_threshold
 
         logical :: debug
+        logical :: interactive
         integer :: warning_level        ! level of warnings to issue when checking options settings 0-10.
                                         ! 0  = Don't print anything
                                         ! 1  = print serious warnings

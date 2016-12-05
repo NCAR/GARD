@@ -61,12 +61,12 @@ contains
         character(len=MAXSTRINGLENGTH)  :: name, start_date, end_date, start_train, end_train
         character(len=MAXSTRINGLENGTH)  :: start_transform, end_transform
         character(len=MAXFILELENGTH)    :: training_file, prediction_file, observation_file, output_file
-        logical :: pure_analog, analog_regression, pure_regression, pass_through, debug
+        logical :: pure_analog, analog_regression, pure_regression, pass_through, debug, interactive
         logical :: sample_analog, logistic_from_analog_exceedance, weight_analogs
         real    :: logistic_threshold, analog_threshold
 
         ! setup the namelist
-        namelist /parameters/   name, debug,                                        &
+        namelist /parameters/   name, debug, interactive,                           &
                                 training_file, prediction_file, observation_file,   &
                                 output_file,                                        &
                                 start_date, end_date, start_train, end_train,       &
@@ -100,6 +100,7 @@ contains
         pass_through     = .False.
         pass_through_var = 1
         debug            = .True.
+        interactive      = .True.
         logistic_threshold= kFILL_VALUE
         sample_analog    = .False.
         logistic_from_analog_exceedance = .False.
@@ -150,6 +151,7 @@ contains
         options%pass_through_var    = pass_through_var
 
         options%debug = debug
+        options%interactive = interactive
         module_debug = options%debug
 
     end subroutine read_base_options
