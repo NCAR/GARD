@@ -118,8 +118,12 @@ contains
             mean = sum(input) / n
         endif
         
-        stddev = sqrt( sum( (input - mean)**2 ) / (n-1) )
-        
+        if (n>1) then
+            stddev = sqrt( sum( (input - mean)**2 ) / (n-1) )
+        else
+            stddev = abs(mean) * 10
+        endif
+
     end function stddev
 
 
