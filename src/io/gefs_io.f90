@@ -269,8 +269,10 @@ contains
                                 output(curstep,:,:) = output(curstep,:,:) + data_4d(:,:,1,time_indices(i))
                             else if (agg_method == kAGG_TYPE_MIN) then
                                 ! output(curstep,:,:) = array_minimum(output(curstep,:,:), data_4d(:,:,1,time_indices(i)))
+                                exit
                             else if (agg_method == kAGG_TYPE_MAX) then
                                 ! output(curstep,:,:) = array_maximum(output(curstep,:,:), data_4d(:,:,1,time_indices(i)))
+                                exit
                             else
                                 exit
                             endif
@@ -305,8 +307,10 @@ contains
                                 output(curstep,:,:) = output(curstep,:,:) + data_3d(:,:,time_indices(i))
                             else if (agg_method == kAGG_TYPE_MIN) then
                                 ! output(curstep,:,:) = array_minimum(output(curstep,:,:), data_4d(:,:,1,time_indices(i)))
+                                exit
                             else if (agg_method == kAGG_TYPE_MAX) then
                                 ! output(curstep,:,:) = array_maximum(output(curstep,:,:), data_4d(:,:,1,time_indices(i)))
+                                exit
                             else
                                 exit
                             endif
