@@ -60,9 +60,10 @@ contains
             associate(var => GEFS_data%variables(var_idx))
 
                 var = read_GEFS_variable(options%var_names(var_idx),        &
-                                         options%file_names(:, var_idx),     &
-                                         options%selected_time,              &
+                                         options%file_names(:, var_idx),    &
+                                         options%selected_time,             &
                                          options%time_indices,              &
+                                         options%agg_method(var_idx),       &
                                          options%preloaded)
 
                 if (var_idx==1) then
@@ -122,12 +123,13 @@ contains
 
     end subroutine compute_grid_stats
 
-    function read_GEFS_variable(varname, filenames, timestep, time_indices, preload) result(output)
+    function read_GEFS_variable(varname, filenames, timestep, time_indices, agg_method, preload) result(output)
         implicit none
         character(len=MAXVARLENGTH),    intent(in)              :: varname
         character(len=MAXFILELENGTH),   intent(in), dimension(:):: filenames
         integer,                        intent(in)              :: timestep
         integer,                        intent(in), dimension(:):: time_indices
+        integer,                        intent(in)              :: agg_method
         character(len=MAXFILELENGTH),   intent(in), optional    :: preload
 
         type(atm_variable_type) :: output
@@ -154,7 +156,7 @@ contains
         ! note, we reverse the order of the dimensions here to speed up later computations which will occur per grid cell over time
         allocate(output%data(dims(1), dims(2), dims(3)))
 
-        call load_data(varname, filenames, output%data, timestep, time_indices)
+        call load_data(varname, filenames, output%data, timestep, time_indices, agg_method)
 
     end function read_GEFS_variable
 
@@ -222,13 +224,14 @@ contains
     !!      and the 3rd dim subset to the first element for now
     !!
     !!------------------------------------------------------------
-    subroutine load_data(varname, filenames, output, timestep, time_indices)
+    subroutine load_data(varname, filenames, output, timestep, time_indices, agg_method)
         implicit none
         character(len=MAXVARLENGTH),  intent(in)                    :: varname
         character(len=MAXFILELENGTH), intent(in),   dimension(:)    :: filenames
         real,                         intent(inout),dimension(:,:,:):: output
         integer,                        intent(in)                  :: timestep
         integer,                        intent(in), dimension(:)    :: time_indices
+        integer,                        intent(in)                  :: agg_method
 
         ! array index counters
         integer :: file_idx, curstep, i
@@ -262,9 +265,21 @@ contains
                     else
                         output(curstep,:,:) = data_4d(:,:,1,time_indices(1))
                         do i=2,size(time_indices)
-                            output(curstep,:,:) = output(curstep,:,:) + data_4d(:,:,1,time_indices(i))
+                            if ((agg_method == kAGG_TYPE_AVG) .or. (agg_method == kAGG_TYPE_SUM)) then
+                                output(curstep,:,:) = output(curstep,:,:) + data_4d(:,:,1,time_indices(i))
+                            else if (agg_method == kAGG_TYPE_MIN) then
+                                ! output(curstep,:,:) = array_minimum(output(curstep,:,:), data_4d(:,:,1,time_indices(i)))
+                                exit
+                            else if (agg_method == kAGG_TYPE_MAX) then
+                                ! output(curstep,:,:) = array_maximum(output(curstep,:,:), data_4d(:,:,1,time_indices(i)))
+                                exit
+                            else
+                                exit
+                            endif
                         enddo
-                        output(curstep,:,:) = output(curstep,:,:) / size(time_indices)
+                        if (agg_method == kAGG_TYPE_AVG) then
+                            output(curstep,:,:) = output(curstep,:,:) / size(time_indices)
+                        endif
                         curstep = curstep + 1
                     endif
                 else
@@ -288,9 +303,21 @@ contains
                     else
                         output(curstep,:,:) = data_3d(:,:,time_indices(1))
                         do i=2,size(time_indices)
-                            output(curstep,:,:) = output(curstep,:,:) + data_3d(:,:,time_indices(i))
+                            if ((agg_method == kAGG_TYPE_AVG) .or. (agg_method == kAGG_TYPE_SUM)) then
+                                output(curstep,:,:) = output(curstep,:,:) + data_3d(:,:,time_indices(i))
+                            else if (agg_method == kAGG_TYPE_MIN) then
+                                ! output(curstep,:,:) = array_minimum(output(curstep,:,:), data_4d(:,:,1,time_indices(i)))
+                                exit
+                            else if (agg_method == kAGG_TYPE_MAX) then
+                                ! output(curstep,:,:) = array_maximum(output(curstep,:,:), data_4d(:,:,1,time_indices(i)))
+                                exit
+                            else
+                                exit
+                            endif
                         enddo
-                        output(curstep,:,:) = output(curstep,:,:) / size(time_indices)
+                        if (agg_method == kAGG_TYPE_AVG) then
+                            output(curstep,:,:) = output(curstep,:,:) / size(time_indices)
+                        endif
                         curstep = curstep + 1
                     endif
                 else
