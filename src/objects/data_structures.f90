@@ -170,12 +170,12 @@ module data_structures
         integer, dimension(:), allocatable :: selected_level ! to just use a specific vertical level from each file (e.g. a pressure level)
                                                              ! the array is to provide one level for each variable
         integer :: interpolation_method
-        integer :: agg_method
         double precision :: timezone_offset
 
         integer, dimension(:), allocatable :: time_indices   ! specific time indices to average over (e.g. multiple hours in a daily file)
         ! tranformation to apply to each atmophseric variable
         integer, dimension(:), allocatable :: transformations
+        integer, dimension(:), allocatable :: agg_method
 
         ! source of data to use for normalization of prediction data
         integer :: normalization_method

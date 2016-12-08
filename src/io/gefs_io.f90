@@ -63,7 +63,7 @@ contains
                                          options%file_names(:, var_idx),    &
                                          options%selected_time,             &
                                          options%time_indices,              &
-                                         options%agg_method,                &
+                                         options%agg_method(var_idx),       &
                                          options%preloaded)
 
                 if (var_idx==1) then

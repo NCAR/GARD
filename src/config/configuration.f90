@@ -172,11 +172,12 @@ contains
         integer :: name_unit, i
 
         ! namelist variables to be read
-        integer :: nfiles, nvars, calendar_start_year, selected_time, agg_method
+        integer :: nfiles, nvars, calendar_start_year, selected_time
         integer :: interpolation_method, normalization_method
         double precision :: timezone_offset
         integer, dimension(MAX_NUMBER_TIMES) :: time_indices
         integer, dimension(MAX_NUMBER_VARS)  :: selected_level
+        integer, dimension(MAX_NUMBER_VARS)  :: agg_method
         character(len=MAXSTRINGLENGTH)       :: name, data_type, calendar
         character(len=MAXVARLENGTH)          :: lat_name, lon_name, time_name
         character(len=MAXFILELENGTH)         :: preloaded
@@ -230,6 +231,7 @@ contains
         allocate(training_options%file_names(nfiles,nvars))
         allocate(training_options%var_names(nvars))
         allocate(training_options%selected_level(nvars))
+        allocate(training_options%agg_method(nvars))
         allocate(training_options%input_Xforms(nvars))
 
         ! finally, store the data into the config structure
@@ -336,11 +338,12 @@ contains
         integer :: name_unit, i, j
 
         ! namelist variables to be read
-        integer :: nfiles, nvars, calendar_start_year, selected_time, agg_method
+        integer :: nfiles, nvars, calendar_start_year, selected_time
         integer :: interpolation_method, normalization_method
         double precision :: timezone_offset
         integer, dimension(MAX_NUMBER_TIMES) :: time_indices
         integer, dimension(MAX_NUMBER_VARS) :: selected_level
+        integer, dimension(MAX_NUMBER_VARS) :: agg_method
         character(len=MAXSTRINGLENGTH)  :: name, data_type, calendar
         character(len=MAXVARLENGTH)     :: lat_name, lon_name, time_name
         character(len=MAXFILELENGTH)    :: preloaded
@@ -395,6 +398,7 @@ contains
         allocate(prediction_options%var_names(nvars))
         allocate(prediction_options%selected_level(nvars))
         allocate(prediction_options%transformations(nvars))
+        allocate(prediction_options%agg_method(nvars))
         allocate(prediction_options%input_Xforms(nvars))
 
         ! finally, store the data into the config structure
