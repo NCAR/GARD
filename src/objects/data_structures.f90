@@ -247,6 +247,7 @@ module data_structures
         real    :: analog_threshold
 
         logical :: debug
+        logical :: interactive
         integer :: warning_level        ! level of warnings to issue when checking options settings 0-10.
                                         ! 0  = Don't print anything
                                         ! 1  = print serious warnings
