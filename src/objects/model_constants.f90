@@ -55,6 +55,14 @@ module model_constants
     integer,public,parameter :: kTRAININGDATA     = 2
 
     ! ------------------------------------------------
+    ! Aggregation Method
+    ! ------------------------------------------------
+    integer, public, parameter :: kAGG_TYPE_AVG   = 0
+    integer, public, parameter :: kAGG_TYPE_MAX   = 1
+    integer, public, parameter :: kAGG_TYPE_MIN   = 2
+    integer, public, parameter :: kAGG_TYPE_SUM   = 3
+
+    ! ------------------------------------------------
     ! Other Constants
     ! ------------------------------------------------
     integer,public,parameter :: kFILL_VALUE       = -9999

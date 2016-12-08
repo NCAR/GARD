@@ -128,47 +128,49 @@ contains
             !!  Apply relevant transformations to the input atmospheric data
             !!
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-            do v=1,n_atm_variables
-                !$omp do
-                do j=1,size(training_atm%variables(v)%data,3)
-                    do i=1,size(training_atm%variables(v)%data,2)
-                        call transform_data(options%training%input_Xforms(v), training_atm%variables(v)%data(:,i,j), 1, ntrain)
-                    enddo
-                    if (options%training%input_Xforms(v) /= kNO_TRANSFORM) then
-                        call update_statistics(training_atm%variables(v), j)
-                    endif
-
-                    if (options%training%normalization_method == kSELF_NORMALIZE) then
-                        call normalize(training_atm%variables(v), j)
-                    endif
-                enddo
-                !$omp end do
-
-                !$omp barrier
-
-                !$omp do
-                do j=1,size(predictors%variables(v)%data,3)
-                    do i=1,size(predictors%variables(v)%data,2)
-                        call transform_data(options%prediction%input_Xforms(v), predictors%variables(v)%data(:,i,j), 1, ntimes)
-                    enddo
-                    if (options%prediction%input_Xforms(v) /= kNO_TRANSFORM) then
-                        call update_statistics(predictors%variables(v), j)
-                    endif
-
-                    ! does not need to be normalized if it will be transformed to match training_atm anyway
-                    if (abs(options%prediction%transformations(v)) /= kQUANTILE_MAPPING) then
-                        if (options%prediction%normalization_method == kSELF_NORMALIZE) then
-                            call normalize(predictors%variables(v), j)
-                        elseif (options%prediction%normalization_method == kTRAININGDATA) then
-                            call normalize(predictors%variables(v), j, other=training_atm%variables(v))
+            if (options%pass_through .eqv. .False.) then
+                do v=1,n_atm_variables
+                    !$omp do
+                    do j=1,size(training_atm%variables(v)%data,3)
+                        do i=1,size(training_atm%variables(v)%data,2)
+                            call transform_data(options%training%input_Xforms(v), training_atm%variables(v)%data(:,i,j), 1, ntrain)
+                        enddo
+                        if (options%training%input_Xforms(v) /= kNO_TRANSFORM) then
+                            call update_statistics(training_atm%variables(v), j)
                         endif
-                    endif
+
+                        if (options%training%normalization_method == kSELF_NORMALIZE) then
+                            call normalize(training_atm%variables(v), j)
+                        endif
+                    enddo
+                    !$omp end do
+
+                    !$omp barrier
+
+                    !$omp do
+                    do j=1,size(predictors%variables(v)%data,3)
+                        do i=1,size(predictors%variables(v)%data,2)
+                            call transform_data(options%prediction%input_Xforms(v), predictors%variables(v)%data(:,i,j), 1, ntimes)
+                        enddo
+                        if (options%prediction%input_Xforms(v) /= kNO_TRANSFORM) then
+                            call update_statistics(predictors%variables(v), j)
+                        endif
+
+                        ! does not need to be normalized if it will be transformed to match training_atm anyway
+                        if (abs(options%prediction%transformations(v)) /= kQUANTILE_MAPPING) then
+                            if (options%prediction%normalization_method == kSELF_NORMALIZE) then
+                                call normalize(predictors%variables(v), j)
+                            elseif (options%prediction%normalization_method == kTRAININGDATA) then
+                                call normalize(predictors%variables(v), j, other=training_atm%variables(v))
+                            endif
+                        endif
+                    enddo
+                    !$omp end do
+
+                    !$omp barrier
+
                 enddo
-                !$omp end do
-
-                !$omp barrier
-
-            enddo
+            endif
 
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             ! Normalization must be finished before running anything else

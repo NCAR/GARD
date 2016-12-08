@@ -175,6 +175,7 @@ module data_structures
         integer, dimension(:), allocatable :: time_indices   ! specific time indices to average over (e.g. multiple hours in a daily file)
         ! tranformation to apply to each atmophseric variable
         integer, dimension(:), allocatable :: transformations
+        integer, dimension(:), allocatable :: agg_method
 
         ! source of data to use for normalization of prediction data
         integer :: normalization_method

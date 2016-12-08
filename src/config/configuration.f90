@@ -172,10 +172,12 @@ contains
         integer :: name_unit, i
 
         ! namelist variables to be read
-        integer :: nfiles, nvars, calendar_start_year, selected_time, interpolation_method, normalization_method
+        integer :: nfiles, nvars, calendar_start_year, selected_time
+        integer :: interpolation_method, normalization_method
         double precision :: timezone_offset
         integer, dimension(MAX_NUMBER_TIMES) :: time_indices
         integer, dimension(MAX_NUMBER_VARS)  :: selected_level
+        integer, dimension(MAX_NUMBER_VARS)  :: agg_method
         character(len=MAXSTRINGLENGTH)       :: name, data_type, calendar
         character(len=MAXVARLENGTH)          :: lat_name, lon_name, time_name
         character(len=MAXFILELENGTH)         :: preloaded
@@ -188,7 +190,8 @@ contains
                                          lat_name, lon_name, time_name,   &
                                          file_list, var_names,            &
                                          calendar, calendar_start_year,   &
-                                         selected_time, time_indices,     &
+                                         selected_time, agg_method,       &
+                                         time_indices,                    &
                                          interpolation_method, preloaded, &
                                          selected_level, input_transformations, &
                                          timezone_offset, normalization_method
@@ -206,6 +209,7 @@ contains
         calendar    = ""
         calendar_start_year = 1900
         selected_time = -1
+        agg_method = kAGG_TYPE_AVG
         time_indices = -1
         interpolation_method = kNEAREST
         input_transformations = kNO_TRANSFORM
@@ -227,6 +231,7 @@ contains
         allocate(training_options%file_names(nfiles,nvars))
         allocate(training_options%var_names(nvars))
         allocate(training_options%selected_level(nvars))
+        allocate(training_options%agg_method(nvars))
         allocate(training_options%input_Xforms(nvars))
 
         ! finally, store the data into the config structure
@@ -248,6 +253,7 @@ contains
         training_options%calendar_start_year = calendar_start_year
         training_options%time_file      = 1
         training_options%selected_time  = selected_time
+        training_options%agg_method     = agg_method
         call copy_array_i(time_indices,   training_options%time_indices)
         training_options%selected_level = selected_level(1:nvars)
         training_options%data_type      = read_data_type(data_type)
@@ -332,10 +338,12 @@ contains
         integer :: name_unit, i, j
 
         ! namelist variables to be read
-        integer :: nfiles, nvars, calendar_start_year, selected_time, interpolation_method, normalization_method
+        integer :: nfiles, nvars, calendar_start_year, selected_time
+        integer :: interpolation_method, normalization_method
         double precision :: timezone_offset
         integer, dimension(MAX_NUMBER_TIMES) :: time_indices
         integer, dimension(MAX_NUMBER_VARS) :: selected_level
+        integer, dimension(MAX_NUMBER_VARS) :: agg_method
         character(len=MAXSTRINGLENGTH)  :: name, data_type, calendar
         character(len=MAXVARLENGTH)     :: lat_name, lon_name, time_name
         character(len=MAXFILELENGTH)    :: preloaded
@@ -348,7 +356,7 @@ contains
                                          lat_name, lon_name, time_name,     &
                                          file_list, var_names,              &
                                          calendar, calendar_start_year,     &
-                                         selected_time,                     &
+                                         selected_time, agg_method,         &
                                          input_transformations, transformations,&
                                          interpolation_method, preloaded,   &
                                          selected_level, time_indices, &
@@ -367,6 +375,7 @@ contains
         calendar            = ""
         calendar_start_year = 1900
         selected_time       = -1
+        agg_method          = kAGG_TYPE_AVG
         transformations     = kNO_TRANSFORM
         input_transformations = kNO_TRANSFORM
         interpolation_method = kNEAREST
@@ -389,6 +398,7 @@ contains
         allocate(prediction_options%var_names(nvars))
         allocate(prediction_options%selected_level(nvars))
         allocate(prediction_options%transformations(nvars))
+        allocate(prediction_options%agg_method(nvars))
         allocate(prediction_options%input_Xforms(nvars))
 
         ! finally, store the data into the config structure
@@ -409,6 +419,7 @@ contains
         prediction_options%calendar       = calendar
         prediction_options%calendar_start_year = calendar_start_year
         prediction_options%selected_time  = selected_time
+        prediction_options%agg_method     = agg_method
         prediction_options%selected_level = selected_level(1:nvars)
         call copy_array_i(time_indices, prediction_options%time_indices)
         prediction_options%time_file      = 1
