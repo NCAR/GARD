@@ -258,8 +258,6 @@ contains
         training_options%agg_method     = agg_method
         call copy_array_i(time_indices,   training_options%time_indices)
         call copy_array_weights(time_weights, training_options%time_weights, size(training_options%time_indices))
-
-        write(*,*) "training weights: ", training_options%time_weights
         training_options%selected_level = selected_level(1:nvars)
         training_options%data_type      = read_data_type(data_type)
         training_options%input_Xforms   = input_transformations(1:nvars)
@@ -305,20 +303,12 @@ contains
         output(:n)  = input(:n)
     end subroutine copy_array_i
 
-    subroutine copy_array_weights(input, output, n, default)
+    subroutine copy_array_weights(input, output, n)
         implicit none
         real, dimension(:), intent(in)   :: input
         real, dimension(:), allocatable, intent(inout):: output
         integer, intent(in)   :: n
-        real, optional :: default
         integer :: i
-        real    :: default_test
-
-        if (present(default)) then
-            default_test = default
-        else
-            default_test = 1
-        endif
 
         if (allocated(output)) then
             if (size(output)/=n) then
@@ -458,8 +448,6 @@ contains
         prediction_options%selected_level = selected_level(1:nvars)
         call copy_array_i(time_indices, prediction_options%time_indices)
         call copy_array_weights(time_weights, prediction_options%time_weights, size(prediction_options%time_indices))
-        write(*,*) "prediction weights: ", prediction_options%time_weights
-
         prediction_options%time_file      = 1
         prediction_options%data_type      = read_data_type(data_type)
         prediction_options%transformations= transformations
