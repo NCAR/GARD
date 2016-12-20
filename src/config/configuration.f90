@@ -303,6 +303,25 @@ contains
         output(:n)  = input(:n)
     end subroutine copy_array_i
 
+    subroutine copy_array_weights(input, output, n)
+        implicit none
+        real, dimension(:), intent(in)   :: input
+        real, dimension(:), allocatable, intent(inout):: output
+        integer, intent(in)   :: n
+        integer :: i
+
+        if (allocated(output)) then
+            if (size(output)/=n) then
+                deallocate(output)
+                allocate(output(n))
+            endif
+        else
+            allocate(output(n))
+        endif
+
+        output(:n)  = input(:n)
+    end subroutine copy_array_weights
+
     !>------------------------------------------------
     !! Copy the subdaily array weights into the prediction/training data structures
     !!
