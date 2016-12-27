@@ -52,6 +52,12 @@ ifeq ($(NODENAME), Nomad.local)
 	LAPACK_PATH=/usr/local/opt/lapack
 endif
 
+ifeq ($(NODENAME), foil.local)
+	FC=gfortran
+	NCDF_PATH=/opt/local
+	LAPACK_PATH=/opt/local/lib/lapack
+endif
+
 ifneq (,$(findstring hydro-c1,$(NODENAME)))
 	FC=ifort
 	# FC=gfortran
@@ -99,7 +105,7 @@ GIT_VERSION := $(shell git describe --long --dirty --all --always | sed -e's/hea
 ###################################################################
 ###################################################################
 ifeq ($(FC), gfortran)
-	COMP=-fopenmp -lgomp -O3 -ffree-line-length-none -ftree-vectorize -fimplicit-none -funroll-loops -march=native \
+	COMP=-fopenmp -lgomp -O3 -ffree-line-length-none -ftree-vectorize -fimplicit-none -funroll-loops \
 		-fno-protect-parens -ffast-math #-flto #
 	LINK=-fopenmp -lgomp
 	PREPROC=-cpp
@@ -234,6 +240,16 @@ ifeq ($(MODE), fast) # WARNING -ipo (included in -fast) takes forever for very l
 		COMP= -u -qopenmp -fast -ftz #-fast-transcendentals # not available in ifort <13: -align array64byte
 	endif
 endif
+
+$(info $$NODENAME    = ${NODENAME})
+$(info $$FC          = ${FC})
+$(info $$NCDF_PATH   = ${NCDF_PATH})
+$(info $$GIT_VERSION = ${GIT_VERSION})
+$(info $$COMP        = ${COMP})
+$(info $$LINK        = ${LINK})
+$(info $$PREPROC     = ${GIT_VERSION})
+$(info $$MODOUTPUT   = ${MODOUTPUT})
+$(info $$MODE        = ${MODE})
 
 ###################################################################
 ###################################################################
