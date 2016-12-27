@@ -172,7 +172,8 @@ module data_structures
         integer :: interpolation_method
         double precision :: timezone_offset
 
-        integer, dimension(:), allocatable :: time_indices   ! specific time indices to average over (e.g. multiple hours in a daily file)
+        integer, dimension(:), allocatable :: time_indices   ! specific time indices to aggregate over (e.g. multiple hours in a daily file)
+        real, dimension(:), allocatable    :: time_weights   ! specific time weights for each indices to aggregate over
         ! tranformation to apply to each atmophseric variable
         integer, dimension(:), allocatable :: transformations
         integer, dimension(:), allocatable :: agg_method

@@ -63,6 +63,7 @@ contains
                                          options%file_names(:, var_idx),    &
                                          options%selected_time,             &
                                          options%time_indices,              &
+                                         options%time_weights,              &
                                          options%agg_method(var_idx),       &
                                          options%preloaded)
 
@@ -123,12 +124,13 @@ contains
 
     end subroutine compute_grid_stats
 
-    function read_GEFS_variable(varname, filenames, timestep, time_indices, agg_method, preload) result(output)
+    function read_GEFS_variable(varname, filenames, timestep, time_indices, time_weights, agg_method, preload) result(output)
         implicit none
         character(len=MAXVARLENGTH),    intent(in)              :: varname
         character(len=MAXFILELENGTH),   intent(in), dimension(:):: filenames
         integer,                        intent(in)              :: timestep
         integer,                        intent(in), dimension(:):: time_indices
+        real,                           intent(in), dimension(:):: time_weights
         integer,                        intent(in)              :: agg_method
         character(len=MAXFILELENGTH),   intent(in), optional    :: preload
 
@@ -156,7 +158,7 @@ contains
         ! note, we reverse the order of the dimensions here to speed up later computations which will occur per grid cell over time
         allocate(output%data(dims(1), dims(2), dims(3)))
 
-        call load_data(varname, filenames, output%data, timestep, time_indices, agg_method)
+        call load_data(varname, filenames, output%data, timestep, time_indices, time_weights, agg_method)
 
     end function read_GEFS_variable
 
@@ -224,13 +226,14 @@ contains
     !!      and the 3rd dim subset to the first element for now
     !!
     !!------------------------------------------------------------
-    subroutine load_data(varname, filenames, output, timestep, time_indices, agg_method)
+    subroutine load_data(varname, filenames, output, timestep, time_indices, time_weights, agg_method)
         implicit none
         character(len=MAXVARLENGTH),  intent(in)                    :: varname
         character(len=MAXFILELENGTH), intent(in),   dimension(:)    :: filenames
         real,                         intent(inout),dimension(:,:,:):: output
         integer,                        intent(in)                  :: timestep
         integer,                        intent(in), dimension(:)    :: time_indices
+        real,                           intent(in), dimension(:)    :: time_weights
         integer,                        intent(in)                  :: agg_method
 
         ! array index counters
@@ -265,20 +268,22 @@ contains
                     else
                         output(curstep,:,:) = data_4d(:,:,1,time_indices(1))
                         do i=2,size(time_indices)
-                            if ((agg_method == kAGG_TYPE_AVG) .or. (agg_method == kAGG_TYPE_SUM)) then
+                            if (agg_method == kAGG_TYPE_SUM) then
+                                output(curstep,:,:) = output(curstep,:,:) + data_4d(:,:,1,time_indices(i)) * time_weights(i)
+                            else if (agg_method == kAGG_TYPE_SUM) then
                                 output(curstep,:,:) = output(curstep,:,:) + data_4d(:,:,1,time_indices(i))
                             else if (agg_method == kAGG_TYPE_MIN) then
                                 ! output(curstep,:,:) = array_minimum(output(curstep,:,:), data_4d(:,:,1,time_indices(i)))
-                                exit
+                                stop "Not implemented: minimum aggregation type"
                             else if (agg_method == kAGG_TYPE_MAX) then
                                 ! output(curstep,:,:) = array_maximum(output(curstep,:,:), data_4d(:,:,1,time_indices(i)))
-                                exit
+                                stop "Not implemented: maximum aggregation type"
                             else
-                                exit
+                                stop "Not implemented: unknown aggregation type"
                             endif
                         enddo
                         if (agg_method == kAGG_TYPE_AVG) then
-                            output(curstep,:,:) = output(curstep,:,:) / size(time_indices)
+                            output(curstep,:,:) = output(curstep,:,:) / sum(time_weights)
                         endif
                         curstep = curstep + 1
                     endif
@@ -303,20 +308,22 @@ contains
                     else
                         output(curstep,:,:) = data_3d(:,:,time_indices(1))
                         do i=2,size(time_indices)
-                            if ((agg_method == kAGG_TYPE_AVG) .or. (agg_method == kAGG_TYPE_SUM)) then
+                            if (agg_method == kAGG_TYPE_AVG) then
+                                output(curstep,:,:) = output(curstep,:,:) + data_3d(:,:,time_indices(i)) * time_weights(i)
+                            else if (agg_method == kAGG_TYPE_SUM) then
                                 output(curstep,:,:) = output(curstep,:,:) + data_3d(:,:,time_indices(i))
                             else if (agg_method == kAGG_TYPE_MIN) then
                                 ! output(curstep,:,:) = array_minimum(output(curstep,:,:), data_4d(:,:,1,time_indices(i)))
-                                exit
+                                stop "Not implemented: minimum aggregation type"
                             else if (agg_method == kAGG_TYPE_MAX) then
                                 ! output(curstep,:,:) = array_maximum(output(curstep,:,:), data_4d(:,:,1,time_indices(i)))
-                                exit
+                                stop "Not implemented: maximum aggregation type"
                             else
-                                exit
+                                stop "Not implemented: unknown aggregation type"
                             endif
                         enddo
                         if (agg_method == kAGG_TYPE_AVG) then
-                            output(curstep,:,:) = output(curstep,:,:) / size(time_indices)
+                            output(curstep,:,:) = output(curstep,:,:) / sum(time_weights)
                         endif
                         curstep = curstep + 1
                     endif

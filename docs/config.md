@@ -52,6 +52,7 @@ Notes:
 | interpolation_method  | integer | No        | 1       | nearest neighbor= 1, bilenear =2                                                         |
 | normalization_method  | integer | No        | 0       | no normalization = 0, mean/stddev from: training data = 1                                |
 | time_indices          | integer | Yes       | -1      | list of timesteps in file to aggregate over (GEFS only)                                  |
+| time_weights          | real    | No        | 1       | list of averaging weights for individual time indices
 | agg_method            | integer | No        | 0       | per variable aggregation method when aggregating over time_indices: mean = 0, minimum = 1, maximum = 2, sum = 3 (GEFS only) |
 | nvars                 | integer | Yes       | -1      | number of variables to be used in training                                               |
 | data_type             | string  | Yes       | n/a     | dataset type: GEFS or GCM                                                                |
@@ -77,6 +78,7 @@ Notes:
 | interpolation_method  | integer | No        | 1       | nearest neighbor= 1, bilenear =2                                                         |
 | normalization_method  | integer | No        | 0       | no normalization = 0, mean/stddev from: prediction data = 1, training data = 2           |
 | time_indices          | integer | Yes       | -1      | list of timesteps in file to aggregate over (GEFS only)                                  |
+| time_weights          | real    | No        | 1       | list of averaging weights for individual time indices
 | agg_method            | integer | No        | 0       | per variable aggregation method when aggregating over time_indices: mean = 0, minimum = 1, maximum = 2, sum = 3 (GEFS only) |
 | nvars                 | integer | Yes       | -1      | number of prediction parameters to use in downscaling                                    |
 | data_type             | string  | Yes       | n/a     | dataset type: GEFS or GCM                                                                |
