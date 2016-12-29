@@ -64,7 +64,7 @@ contains
         logical :: pure_analog, analog_regression, pure_regression, pass_through, debug, interactive
         logical :: sample_analog, logistic_from_analog_exceedance, weight_analogs
         logical :: read_coefficients, write_coefficients
-        character(len=MAXFILELENGTH)    :: coefficients_file
+        character(len=MAXFILELENGTH)    :: coefficients_files(MAX_NUMBER_VARS)
         real    :: logistic_threshold, analog_threshold
 
         ! setup the namelist
@@ -79,7 +79,7 @@ contains
                                 analog_threshold, weight_analogs,                   &
                                 pass_through, pass_through_var,                     &
                                 read_coefficients, write_coefficients,              &
-                                coefficients_file
+                                coefficients_files
 
         options%version = kVERSION_STRING
         options%options_filename = get_options_file()
@@ -111,7 +111,7 @@ contains
         weight_analogs   = .True.
         read_coefficients= .False.
         write_coefficients=.False.
-        coefficients_file= ""
+        coefficients_files= ""
 
         options%name = options%options_filename
 
@@ -163,7 +163,7 @@ contains
         
         options%read_coefficients  = read_coefficients
         options%write_coefficients = write_coefficients
-        options%coefficients_file  = coefficients_file
+        options%coefficients_files = coefficients_files
     end subroutine read_base_options
 
 

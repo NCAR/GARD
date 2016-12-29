@@ -234,7 +234,7 @@ module data_structures
         ! read pure regression coefficients from a file so that no regression is necessary.
         logical :: read_coefficients
         ! name of file to read coefficients from.
-        character (len=MAXFILELENGTH) :: coefficients_file
+        character (len=MAXFILELENGTH) :: coefficients_files(MAX_NUMBER_VARS)
 
         ! if not equal to kFILL_VALUE then it will be used to generate a probability of exceedance
         real    :: logistic_threshold

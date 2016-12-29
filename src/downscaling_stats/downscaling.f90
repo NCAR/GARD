@@ -8,6 +8,7 @@ module downscaling_mod
     use quantile_mapping,   only : develop_qm, apply_qm
     use time_util,          only : setup_time_indices
     use basic_stats_mod,    only : stddev
+    use io_routines,        only : file_exists, io_read
     implicit none
 
     integer*8, dimension(10) :: master_timers
@@ -20,7 +21,7 @@ contains
             type(atm),    intent(inout) :: training_atm, predictors
             type(obs),    intent(inout) :: training_obs
             type(results),intent(out)   :: output
-            type(config), intent(in)    :: options
+            type(config), intent(inout) :: options
 
             type(qm_correction_type) :: qm
             real, dimension(:,:), allocatable :: train_data, pred_data
@@ -1018,43 +1019,45 @@ contains
         type(config),   intent(inout)   :: options
         
         real, allocatable :: coefficients(:,:,:,:)
-        integer :: i, ntimes
+        integer :: i, ntimes, v, nvars
         logical :: no_error
 
         no_error = .True.
-
-        if (file_exists(options%coefficients_file)) then
-            call io_read(options%coefficients_file, "coefficients", coefficients)
-
-            if (size(options%output_coeff, 1) /= size(coefficients, 1)) then
-                write(*,*) "WARNING: input regression coefficients in file do not match the expected number of variables."
-                no_error = .False.
-            endif
-            if (size(options%output_coeff, 3) /= size(coefficients, 3)) then
-                write(*,*) "WARNING: input regression coefficients in file do not match the expected number of x grid points."
-                no_error = .False.
-            endif
-            if (size(options%output_coeff, 4) /= size(coefficients, 4)) then
-                write(*,*) "WARNING: input regression coefficients in file do not match the expected number of y grid points."
-                no_error = .False.
-            endif
-                
-            if (no_error) then
-                ntimes = size(options%output_coeff, 2)
-                do i=1, ntimes
-                    output%output_coeff(:,i,:,:) = coefficients(:,1,:,:)
-                enddo
-            endif
-            deallocate(coefficients) ! probably not needed
-        else
-            write(*,*) "WARNING: coefficients_file does not exist:"//trim(options%coefficients_file)
-            no_error = .False.
-        endif
+        nvars = size(output%variables)
         
-        if (.not.no_error) then
-            options%read_coefficients = .False.
-        endif
+        do v=1, nvars
+            if (file_exists(options%coefficients_files(v))) then
+                call io_read(options%coefficients_files(v), "coefficients", coefficients)
 
+                if (size(output%variables(v)%coefficients, 1) /= size(coefficients, 1)) then
+                    write(*,*) "WARNING: input regression coefficients in file do not match the expected number of variables."
+                    no_error = .False.
+                endif
+                if (size(output%variables(v)%coefficients, 3) /= size(coefficients, 3)) then
+                    write(*,*) "WARNING: input regression coefficients in file do not match the expected number of x grid points."
+                    no_error = .False.
+                endif
+                if (size(output%variables(v)%coefficients, 4) /= size(coefficients, 4)) then
+                    write(*,*) "WARNING: input regression coefficients in file do not match the expected number of y grid points."
+                    no_error = .False.
+                endif
+                    
+                if (no_error) then
+                    ntimes = size(output%variables(v)%coefficients, 2)
+                    do i=1, ntimes
+                        output%variables(v)%coefficients(:,i,:,:) = coefficients(:,1,:,:)
+                    enddo
+                endif
+                deallocate(coefficients) ! probably not needed
+            else
+                write(*,*) "WARNING: coefficients_file does not exist:"//trim(options%coefficients_files(v))
+                no_error = .False.
+            endif
+            
+            if (.not.no_error) then
+                options%read_coefficients = .False.
+            endif
+        enddo
     end subroutine read_coefficients
 
 end module downscaling_mod
