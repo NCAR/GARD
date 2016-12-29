@@ -79,6 +79,7 @@ contains
 
             call System_Clock(timeone)
             call allocate_data(output, n_obs_variables, noutput, nx, ny, n_atm_variables, tr_size, options)
+            if (options%read_coefficients) call read_coefficients(output, options)
             print*, ""
 
             do v=1,n_obs_variables
@@ -469,18 +470,17 @@ contains
         !!  Initialization code for pure regression
         !!
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        if (options%pure_regression) then
+        if (options%pure_regression .and. (.not.options%read_coefficients)) then
             call System_Clock(timeone)
             output(1)  = compute_regression(predictor(1,:), atm, obs, coefficients, errors(1))
             errors(2:) = errors(1)
             where( coefficients >  1e20 ) coefficients =  1e20
             where( coefficients < -1e20 ) coefficients = -1e20
             coefficients_r4(1:nvars) = coefficients
-            if (options%debug) then
-                do v=1,nvars
-                    output_coeff(v,:) = coefficients(v)
-                enddo
-            endif
+            do v=1,nvars
+                output_coeff(v,:) = coefficients(v)
+            enddo
+
             call System_Clock(timetwo)
             timers(2) = timers(2) + (timetwo-timeone)
 
@@ -490,15 +490,15 @@ contains
                 where( coefficients >  1e20 ) coefficients =  1e20
                 where( coefficients < -1e20 ) coefficients = -1e20
                 coefficients_r4(nvars+1:nvars*2) = coefficients
-                if (options%debug) then
-                    do v = 1,nvars
-                        output_coeff(v+nvars,:) = coefficients(v)
-                    enddo
-                endif
+                do v = 1,nvars
+                    output_coeff(v+nvars,:) = coefficients(v)
+                enddo
             endif
             call System_Clock(timetwo)
             timers(3) = timers(3) + (timetwo-timeone)
-
+        
+        elseif (options%pure_regression .and. options%read_coefficients) then
+            coefficients_r4 = output_coeff(:,1)
         endif
 
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -963,8 +963,10 @@ contains
             if (options%debug) then
                 allocate(output%variables(v)%obs         (tr_size, nx, ny), stat=Mem_Error)
                 if (Mem_Error /= 0) call memory_error(Mem_Error, "out%variables(v)%obs v="//trim(str(v)), [tr_size,nx,ny])
+
                 allocate(output%variables(v)%training    (tr_size, nx, ny, n_atm_variables+1), stat=Mem_Error)
                 if (Mem_Error /= 0) call memory_error(Mem_Error, "out%variables(v)%training v="//trim(str(v)), [tr_size,nx,ny, n_atm_variables+1])
+
                 allocate(output%variables(v)%predictors  (noutput, nx, ny, n_atm_variables+1), stat=Mem_Error)
                 if (Mem_Error /= 0) call memory_error(Mem_Error, "out%variables(v)%predictors v="//trim(str(v)), [noutput,nx,ny, n_atm_variables+1])
 
@@ -1004,5 +1006,55 @@ contains
 
     end subroutine memory_error
 
+    !>------------------------------------------------
+    !! Read the regression coefficients from a specified netcdf file
+    !!
+    !! Needs to add more error checking! file existance, etc. 
+    !!
+    !!------------------------------------------------
+    subroutine read_coefficients(output, options)
+        implicit none
+        type(results),  intent(inout)   :: output
+        type(config),   intent(inout)   :: options
+        
+        real, allocatable :: coefficients(:,:,:,:)
+        integer :: i, ntimes
+        logical :: no_error
+
+        no_error = .True.
+
+        if (file_exists(options%coefficients_file)) then
+            call io_read(options%coefficients_file, "coefficients", coefficients)
+
+            if (size(options%output_coeff, 1) /= size(coefficients, 1)) then
+                write(*,*) "WARNING: input regression coefficients in file do not match the expected number of variables."
+                no_error = .False.
+            endif
+            if (size(options%output_coeff, 3) /= size(coefficients, 3)) then
+                write(*,*) "WARNING: input regression coefficients in file do not match the expected number of x grid points."
+                no_error = .False.
+            endif
+            if (size(options%output_coeff, 4) /= size(coefficients, 4)) then
+                write(*,*) "WARNING: input regression coefficients in file do not match the expected number of y grid points."
+                no_error = .False.
+            endif
+                
+            if (no_error) then
+                ntimes = size(options%output_coeff, 2)
+                do i=1, ntimes
+                    output%output_coeff(:,i,:,:) = coefficients(:,1,:,:)
+                enddo
+            endif
+            deallocate(coefficients) ! probably not needed
+        else
+            write(*,*) "WARNING: coefficients_file does not exist:"//trim(options%coefficients_file)
+            no_error = .False.
+        endif
+        
+        if (.not.no_error) then
+            options%read_coefficients = .False.
+        endif
+
+    end subroutine read_coefficients
 
 end module downscaling_mod

@@ -181,6 +181,7 @@ module data_structures
         ! source of data to use for normalization of prediction data
         integer :: normalization_method
     end type atm_config
+
     type, extends(atm_config) :: prediction_config
     end type prediction_config
 
@@ -227,6 +228,13 @@ module data_structures
         ! for pure analog, determine whether to compute the expected value by sampling a random analog (if True),
         ! or to compute the mean across all analogs (if False)
         logical :: sample_analog
+
+        ! store pure regression coefficients in a file for future use.
+        logical :: write_coefficients
+        ! read pure regression coefficients from a file so that no regression is necessary.
+        logical :: read_coefficients
+        ! name of file to read coefficients from.
+        character (len=MAXFILELENGTH) :: coefficients_file
 
         ! if not equal to kFILL_VALUE then it will be used to generate a probability of exceedance
         real    :: logistic_threshold
