@@ -13,6 +13,8 @@ GARD has the following dependencies:
 1. LAPACK — Linear Algebra PACKage.
 1. netCDF4 - Network Common Data Form.
 
+*Note: GARD allocates memory to the stack. Users should set the "The maximum stack size." to "unlimited" prior to building/running GARD. `ulimit -s unlimited`*
+
 ## Building GARD
 
 GARD is built using a standard `makefile`.  From the command line, simply run the following command:
