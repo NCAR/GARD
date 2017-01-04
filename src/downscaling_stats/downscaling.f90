@@ -499,7 +499,10 @@ contains
             timers(3) = timers(3) + (timetwo-timeone)
         
         elseif (options%pure_regression .and. options%read_coefficients) then
-            coefficients_r4 = output_coeff(:,1)
+            coefficients_r4(1:nvars) = output_coeff(1:nvars,1)
+            if (logistic_threshold/=kFILL_VALUE) then
+                coefficients_r4(nvars+1:nvars*2) = output_coeff(nvars+1:nvars*2,1)
+            endif
         endif
 
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -984,10 +987,13 @@ contains
                 output%variables(v)%obs          = 0
                 output%variables(v)%coefficients = 0
             else
-                ! unfortunately coefficients has to be allocated even if it is not used because it is indexed
-                ! however, it does not need a complete time sequence or variable size because they are never indexed
-                allocate(output%variables(v)%coefficients(n_atm_variables+1, 2, nx, ny), stat=Mem_Error)
-                if (Mem_Error /= 0) call memory_error(Mem_Error, "out%variables(v)%coefficients v="//trim(str(v)), [2,2,nx,ny])
+                if (options%logistic_threshold/=kFILL_VALUE) then
+                    allocate(output%variables(v)%coefficients((n_atm_variables+1)*2, 1, nx, ny), stat=Mem_Error)
+                    if (Mem_Error /= 0) call memory_error(Mem_Error, "out%variables(v)%coefficients v="//trim(str(v)), [(n_atm_variables+1)*2,1,nx,ny])
+                else
+                    allocate(output%variables(v)%coefficients(n_atm_variables+1, 1, nx, ny), stat=Mem_Error)
+                    if (Mem_Error /= 0) call memory_error(Mem_Error, "out%variables(v)%coefficients v="//trim(str(v)), [n_atm_variables+1,1,nx,ny])
+                endif
             endif
 
         end do
