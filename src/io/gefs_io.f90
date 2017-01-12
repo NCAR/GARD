@@ -267,8 +267,11 @@ contains
                         end do
                     else
                         output(curstep,:,:) = data_4d(:,:,1,time_indices(1))
+                        if (agg_method == kAGG_TYPE_AVG) then
+                            output(curstep,:,:) = output(curstep,:,:) * time_weights(1)
+                        endif
                         do i=2,size(time_indices)
-                            if (agg_method == kAGG_TYPE_SUM) then
+                            if (agg_method == kAGG_TYPE_AVG) then
                                 output(curstep,:,:) = output(curstep,:,:) + data_4d(:,:,1,time_indices(i)) * time_weights(i)
                             else if (agg_method == kAGG_TYPE_SUM) then
                                 output(curstep,:,:) = output(curstep,:,:) + data_4d(:,:,1,time_indices(i))
@@ -307,9 +310,12 @@ contains
                         end do
                     else
                         output(curstep,:,:) = data_3d(:,:,time_indices(1))
+                        if (agg_method == kAGG_TYPE_AVG) then
+                            output(curstep,:,:) = output(curstep,:,:) * time_weights(1)
+                        endif
                         do i=2,size(time_indices)
                             if (agg_method == kAGG_TYPE_AVG) then
-                                output(curstep,:,:) = output(curstep,:,:) + data_3d(:,:,time_indices(i)) * time_weights(i)
+                                output(curstep,:,:) = output(curstep,:,:) + (data_3d(:,:,time_indices(i)) * time_weights(i))
                             else if (agg_method == kAGG_TYPE_SUM) then
                                 output(curstep,:,:) = output(curstep,:,:) + data_3d(:,:,time_indices(i))
                             else if (agg_method == kAGG_TYPE_MIN) then
