@@ -17,7 +17,8 @@ module quantile_mapping
     public :: apply_qm
     
     integer, parameter :: DEFAULT_QM_SEGMENTS = 100
-    real, parameter :: SMALL_VALUE = 1e-20
+    integer, parameter :: EXTREME_WINDOW      = 5
+    real,    parameter :: SMALL_VALUE         = 1e-20
 
 contains
 
@@ -28,7 +29,7 @@ contains
         type(qm_correction_type), intent(out) :: qm
         
         integer :: ni, nm, nseg
-        integer :: i
+        integer :: i, top, bottom
         real    :: input_i, input_step, match_i, match_step ! these are real to handle more bins than elements
         real    :: denominator
         real, dimension(:), allocatable :: input_data_sorted, data_to_match_sorted
@@ -53,8 +54,8 @@ contains
             write(*,*), "Quantile mapping with <10 segments not recommended, using 10 segments. "
             nseg=10
         endif
-        input_step = ni/real(nseg)
-        match_step = nm/real(nseg)
+        input_step = ni/real(nseg-1)
+        match_step = nm/real(nseg-1)
 
         input_i = 1
         match_i = 1
@@ -67,35 +68,68 @@ contains
         allocate(qm%slope(nseg))
         allocate(qm%offset(nseg))
         
-        do i=1,nseg-1
-            qm%start_idx(i) = input_data_sorted( int(input_i) )
-            qm%end_idx(i)   = input_data_sorted( int(input_i + input_step) )
-            qm%offset(i)    = data_to_match_sorted( int(match_i) )
+        ! first handle the bottom of the QM segment
+        bottom = 1
+        top = min(EXTREME_WINDOW, int(input_step/4))
+        qm%start_idx(1) = sum(input_data_sorted( bottom:top )) / (top - bottom + 1)
+        
+        bottom = top
+        top = 1 + input_step
+        qm%end_idx(1)   = sum(input_data_sorted( bottom:top )) / (top - bottom + 1)
+        
+        bottom = 1
+        top = min(EXTREME_WINDOW, int(match_step/4))
+        qm%offset(1)    = sum(data_to_match_sorted( bottom:top )) / (top - bottom + 1)
+        denominator     = qm%end_idx(1) - qm%start_idx(1)
+        if (denominator < SMALL_VALUE) then
+            qm%slope(1) = 0
+        else
+            bottom = top
+            top = 1 + match_step
+            qm%offset(2) = sum(data_to_match_sorted( bottom:top ))/ (top - bottom + 1)
+            qm%slope(1)  = ( qm%offset(2) - qm%offset(1)) &
+                           / denominator
+        endif
+
+        input_i = input_step
+        match_i = match_step
+        do i=2,nseg-1
+            qm%start_idx(i) = qm%end_idx(i-1)
+            bottom          = int(input_i)
+            top             = int(input_i + input_step)
+            qm%end_idx(i)   = sum(input_data_sorted( bottom:top )) / (top - bottom + 1)
+            bottom          = int(match_i)
+            top             = int(match_i + match_step)
+            qm%offset(i+1)  = sum(data_to_match_sorted( bottom:top ))/ (top - bottom + 1)
             
             denominator     = qm%end_idx(i) - qm%start_idx(i)
             if (denominator < SMALL_VALUE) then
                 qm%slope(i) = 0
             else
-                qm%slope(i)     = (data_to_match_sorted( int(match_i + match_step) ) - qm%offset(i)) &
-                                / denominator
+                qm%slope(i) = (qm%offset(i+1) - qm%offset(i)) &
+                             / denominator
             endif
             
             input_i = input_i + input_step
             match_i = match_i + match_step
-
+            
         end do
         
         ! For the last segment, make sure it finishes at the final value
         ! this will not happen otherwise because nseg invariably will not divide nm and ni evenly
         i = nseg
-        qm%start_idx(i) = input_data_sorted( input_i )
-        qm%end_idx(i)   = input_data_sorted( ni )
-        qm%offset(i)    = data_to_match_sorted( match_i )
-        denominator = max(SMALL_VALUE, qm%end_idx(i) - qm%start_idx(i))
-        qm%slope(i)     = (data_to_match_sorted( nm ) - qm%offset(i)) &
-                        / denominator
-        
-        
+        qm%start_idx(i) = qm%end_idx(i-1)
+        bottom          = min(max(int(input_i - input_step/4), ni - EXTREME_WINDOW), ni-1)
+        top             = ni
+        qm%end_idx(i)   = sum(input_data_sorted( bottom:top )) / (top - bottom + 1)
+
+        bottom          = min(max(int(match_i - match_step/4), nm - EXTREME_WINDOW), nm-1)
+        top             = nm
+        input_i         = sum(data_to_match_sorted( bottom:top ))/ (top - bottom + 1)
+        denominator     = max(SMALL_VALUE, qm%end_idx(i) - qm%start_idx(i))
+        qm%slope(i)     = (input_i - qm%offset(i)) &
+                         / denominator
+
     end subroutine develop_qm
     
     ! apply a quantile mapping scheme to a given input value
