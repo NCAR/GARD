@@ -33,15 +33,17 @@ contains
         varlist = -1
         useable_vars = 0
 
-        ! find all non-zero vars
+        ! find all vars that have some variability through time. 
         do i=1,nvars
             nonzero_count = 0
             do j=1,ntimes
-                if (abs(training_x(j,i))>0) then
+                if (abs(training_x(j,i)-training_x(1,i))>0) then
                     nonzero_count = nonzero_count + 1
                 endif
             enddo
-            if ( nonzero_count > nvars ) then
+            ! need at least two data points that are different from the first data point
+            ! to ensure that the regression on that variable might be useful. 
+            if ( nonzero_count > 2 ) then
                 useable_vars = useable_vars + 1
                 varlist(i) = i
             end if
@@ -269,10 +271,12 @@ contains
         real :: d
         integer :: info
 
+        ! skip the logistic regression and force the result to be 1
         if (all(Y > 0)) then
             B(1) = 88
             B(2:)= 0
             return
+        ! skip the logistic regression and force the result to be 0
         elseif (all(Y==0)) then
             B(1) = -88
             B(2:)= 0
@@ -322,9 +326,6 @@ contains
                 if (info /= 0) then
                     B(1) = -1 * log( (1.0 / (sum(Y)/size(Y))) - 1.0)
                     B(2:)= 0
-                    ! !$omp critical (print_lock)
-                    ! print*, B(1)
-                    ! !$omp end critical (print_lock)
                     return
                 endif
 
