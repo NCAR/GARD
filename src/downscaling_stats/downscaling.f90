@@ -219,6 +219,14 @@ contains
                             call System_Clock(timetwo)
                             timers(6) = timers(6) + (timetwo-timeone)
                         enddo
+                        if ((options%pass_through .eqv. .False.).and.(options%prediction%transformations(v) == kQUANTILE_MAPPING)) then
+                            call System_Clock(timeone)
+                            ! we should have normalized data, so nothing should be greater than ~80 (or less than 0?)
+                            where(pred_data > 80) pred_data=80
+                            where(pred_data < 0)   pred_data=0
+                            call System_Clock(timetwo)
+                            timers(6) = timers(6) + (timetwo-timeone)
+                        endif
 
                         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                         !!
@@ -249,7 +257,10 @@ contains
                                                     options, timers, i,j)
 
                             ! if the input data were transformed with e.g. a cube root or log transform, then reverse that transformation for the output
+                            call System_Clock(timeone)
                             call transform_data(options%obs%input_Xforms(v), output%variables(v)%data(:,i,j), 1, noutput, reverse=.True.)
+                            call System_Clock(timetwo)
+                            timers(6) = timers(6) + (timetwo-timeone)
 
 
                         enddo
@@ -460,12 +471,6 @@ contains
             return
         endif
 
-        ! This just prevents any single points that were WAY out (most likely due to the QM?)
-        ! note that if the data have not been normalized, this is not valid
-        ! where(predictor < -10) predictor = -10
-        ! where(predictor >  10) predictor =  10
-
-
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         !!
         !!  Initialization code for pure regression
@@ -550,7 +555,9 @@ contains
             !!
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             elseif (options%pure_regression) then
-                ! to test matmul(predictor, output_coeff(:,1)) should provide all time values efficiently?
+                ! to test should provide all time values efficiently? i.e. no time loop
+                ! output   = matmul(predictor, coefficients_r4(:nvars))
+                ! logistic = 1.0 / (1.0 + exp(-matmul(predictor, coefficients_r4(nvars+1:nvars*2))))
                 call apply_pure_regression(output(i), predictor(i,:), coefficients_r4, logistic(i),  logistic_threshold, timers)
 
             endif
@@ -654,12 +661,6 @@ contains
                     coefficients(1) = 1e20
                     call System_Clock(timeone)
                 endif
-                ! if the regression picked a vaguely valid value <0 then just set it to 0?
-                ! But since this is just the mean expected value, it can have a positive error term added to it resulting
-                ! in a net positive value, so for now we will accept "negative" precipitation amounts
-                ! if (output<0) then
-                !     output=0
-                ! endif
 
             elseif (n_packed > 0) then
                 output = sum(pack(obs_analogs, threshold_packing)) / n_packed
@@ -873,11 +874,16 @@ contains
                     !$omp end critical (print_lock)
                 endif
             endif
+            ! limit to +/- 40 sigma (!) presumably 0 precip is > -40 sigma... but the high end can exceed 40...
+            where(abs(var%data(:,i,j)) >  40) var%data(:,i,j) =  40
+            where(abs(var%data(:,i,j)) < -40) var%data(:,i,j) = -40
+            
             ! shift to a 0-based range so that variables such as precip have a testable non-value
             var%min_val(i,j) = minval(var%data(:,i,j))
-
+            ! this has the potential to make 0 precip values >0 (or <0) for predictors
             var%data(:,i,j) = var%data(:,i,j) - norm_data%min_val(i,j)
-            where(abs(var%data(:,i,j)) < 1e-10) var%data(:,i,j)=0
+            ! this has the potential to make a bunch of small precip values effectively 0 and something else should be done
+            where(abs(var%data(:,i,j)) < 0) var%data(:,i,j) = 0
         enddo
 
 
