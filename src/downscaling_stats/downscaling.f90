@@ -13,6 +13,7 @@ module downscaling_mod
 
     integer*8, dimension(10) :: master_timers
     real, parameter :: LOG_FILL_VALUE = 1e-30
+    real, parameter :: MAX_ALLOWED_SIGMA = 20
 
 
 contains
@@ -216,17 +217,14 @@ contains
                                 output%variables(1)%predictors(:,i,j,v+1) = pred_data( p_start   : p_end,    v+1)
                                 output%variables(1)%training  (:,i,j,v+1) = train_data(t_tr_start: t_tr_stop,v+1)
                             endif
+                            if ((options%pass_through .eqv. .False.).and.(options%prediction%transformations(v) == kQUANTILE_MAPPING)) then
+                                ! we should have normalized data, so nothing should be greater than ~MAX_SIGMA (or less than 0?)
+                                where(pred_data(:,v+1) >  MAX_ALLOWED_SIGMA)   pred_data(:,v+1) =  MAX_ALLOWED_SIGMA
+                                where(pred_data(:,v+1) < -MAX_ALLOWED_SIGMA)   pred_data(:,v+1) = -MAX_ALLOWED_SIGMA
+                            endif
                             call System_Clock(timetwo)
                             timers(6) = timers(6) + (timetwo-timeone)
                         enddo
-                        if ((options%pass_through .eqv. .False.).and.(options%prediction%transformations(v) == kQUANTILE_MAPPING)) then
-                            call System_Clock(timeone)
-                            ! we should have normalized data, so nothing should be greater than ~80 (or less than 0?)
-                            where(pred_data > 80) pred_data=80
-                            where(pred_data < 0)   pred_data=0
-                            call System_Clock(timetwo)
-                            timers(6) = timers(6) + (timetwo-timeone)
-                        endif
 
                         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                         !!
@@ -874,16 +872,16 @@ contains
                     !$omp end critical (print_lock)
                 endif
             endif
-            ! limit to +/- 40 sigma (!) presumably 0 precip is > -40 sigma... but the high end can exceed 40...
-            where(abs(var%data(:,i,j)) >  40) var%data(:,i,j) =  40
-            where(abs(var%data(:,i,j)) < -40) var%data(:,i,j) = -40
+            ! limit to +/- ~20 sigma
+            where(abs(var%data(:,i,j)) >  MAX_ALLOWED_SIGMA) var%data(:,i,j) =  MAX_ALLOWED_SIGMA
+            where(abs(var%data(:,i,j)) < -MAX_ALLOWED_SIGMA) var%data(:,i,j) = -MAX_ALLOWED_SIGMA
             
             ! shift to a 0-based range so that variables such as precip have a testable non-value
             var%min_val(i,j) = minval(var%data(:,i,j))
             ! this has the potential to make 0 precip values >0 (or <0) for predictors
-            var%data(:,i,j) = var%data(:,i,j) - norm_data%min_val(i,j)
+            ! var%data(:,i,j) = var%data(:,i,j) - norm_data%min_val(i,j)
             ! this has the potential to make a bunch of small precip values effectively 0 and something else should be done
-            where(abs(var%data(:,i,j)) < 0) var%data(:,i,j) = 0
+            ! where(abs(var%data(:,i,j)) < 0) var%data(:,i,j) = 0
         enddo
 
 
