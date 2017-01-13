@@ -74,6 +74,9 @@ contains
                 ! call shift_z_dim(output%variables(i)%coefficients, output_data_4d)
                 ! for now skip the shift and just output as is.
                 call io_write(filename, "coefficients", output%variables(i)%coefficients)
+            else if ((options%write_coefficients).and.(options%pure_regression)) then
+                filename = trim(options%output_file)//trim(output%variables(i)%name)//"_coef.nc"
+                call io_write(filename, "coefficients", output%variables(i)%coefficients)
             endif
 
         enddo

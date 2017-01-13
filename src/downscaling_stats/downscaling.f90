@@ -8,6 +8,7 @@ module downscaling_mod
     use quantile_mapping,   only : develop_qm, apply_qm
     use time_util,          only : setup_time_indices
     use basic_stats_mod,    only : stddev
+    use io_routines,        only : file_exists, io_read
     implicit none
 
     integer*8, dimension(10) :: master_timers
@@ -20,7 +21,7 @@ contains
             type(atm),    intent(inout) :: training_atm, predictors
             type(obs),    intent(inout) :: training_obs
             type(results),intent(out)   :: output
-            type(config), intent(in)    :: options
+            type(config), intent(inout) :: options
 
             type(qm_correction_type) :: qm
             real, dimension(:,:), allocatable :: train_data, pred_data
@@ -79,6 +80,7 @@ contains
 
             call System_Clock(timeone)
             call allocate_data(output, n_obs_variables, noutput, nx, ny, n_atm_variables, tr_size, options)
+            if (options%read_coefficients) call read_coefficients(output, options)
             print*, ""
 
             do v=1,n_obs_variables
@@ -469,18 +471,17 @@ contains
         !!  Initialization code for pure regression
         !!
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        if (options%pure_regression) then
+        if (options%pure_regression .and. (.not.options%read_coefficients)) then
             call System_Clock(timeone)
             output(1)  = compute_regression(predictor(1,:), atm, obs, coefficients, errors(1))
             errors(2:) = errors(1)
             where( coefficients >  1e20 ) coefficients =  1e20
             where( coefficients < -1e20 ) coefficients = -1e20
             coefficients_r4(1:nvars) = coefficients
-            if (options%debug) then
-                do v=1,nvars
-                    output_coeff(v,:) = coefficients(v)
-                enddo
-            endif
+            do v=1,nvars
+                output_coeff(v,:) = coefficients(v)
+            enddo
+
             call System_Clock(timetwo)
             timers(2) = timers(2) + (timetwo-timeone)
 
@@ -490,15 +491,18 @@ contains
                 where( coefficients >  1e20 ) coefficients =  1e20
                 where( coefficients < -1e20 ) coefficients = -1e20
                 coefficients_r4(nvars+1:nvars*2) = coefficients
-                if (options%debug) then
-                    do v = 1,nvars
-                        output_coeff(v+nvars,:) = coefficients(v)
-                    enddo
-                endif
+                do v = 1,nvars
+                    output_coeff(v+nvars,:) = coefficients(v)
+                enddo
             endif
             call System_Clock(timetwo)
             timers(3) = timers(3) + (timetwo-timeone)
-
+        
+        elseif (options%pure_regression .and. options%read_coefficients) then
+            coefficients_r4(1:nvars) = output_coeff(1:nvars,1)
+            if (logistic_threshold/=kFILL_VALUE) then
+                coefficients_r4(nvars+1:nvars*2) = output_coeff(nvars+1:nvars*2,1)
+            endif
         endif
 
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -963,8 +967,10 @@ contains
             if (options%debug) then
                 allocate(output%variables(v)%obs         (tr_size, nx, ny), stat=Mem_Error)
                 if (Mem_Error /= 0) call memory_error(Mem_Error, "out%variables(v)%obs v="//trim(str(v)), [tr_size,nx,ny])
+
                 allocate(output%variables(v)%training    (tr_size, nx, ny, n_atm_variables+1), stat=Mem_Error)
                 if (Mem_Error /= 0) call memory_error(Mem_Error, "out%variables(v)%training v="//trim(str(v)), [tr_size,nx,ny, n_atm_variables+1])
+
                 allocate(output%variables(v)%predictors  (noutput, nx, ny, n_atm_variables+1), stat=Mem_Error)
                 if (Mem_Error /= 0) call memory_error(Mem_Error, "out%variables(v)%predictors v="//trim(str(v)), [noutput,nx,ny, n_atm_variables+1])
 
@@ -981,10 +987,13 @@ contains
                 output%variables(v)%obs          = 0
                 output%variables(v)%coefficients = 0
             else
-                ! unfortunately coefficients has to be allocated even if it is not used because it is indexed
-                ! however, it does not need a complete time sequence or variable size because they are never indexed
-                allocate(output%variables(v)%coefficients(n_atm_variables+1, 2, nx, ny), stat=Mem_Error)
-                if (Mem_Error /= 0) call memory_error(Mem_Error, "out%variables(v)%coefficients v="//trim(str(v)), [2,2,nx,ny])
+                if (options%logistic_threshold/=kFILL_VALUE) then
+                    allocate(output%variables(v)%coefficients((n_atm_variables+1)*2, 1, nx, ny), stat=Mem_Error)
+                    if (Mem_Error /= 0) call memory_error(Mem_Error, "out%variables(v)%coefficients v="//trim(str(v)), [(n_atm_variables+1)*2,1,nx,ny])
+                else
+                    allocate(output%variables(v)%coefficients(n_atm_variables+1, 1, nx, ny), stat=Mem_Error)
+                    if (Mem_Error /= 0) call memory_error(Mem_Error, "out%variables(v)%coefficients v="//trim(str(v)), [n_atm_variables+1,1,nx,ny])
+                endif
             endif
 
         end do
@@ -1004,5 +1013,57 @@ contains
 
     end subroutine memory_error
 
+    !>------------------------------------------------
+    !! Read the regression coefficients from a specified netcdf file
+    !!
+    !! Needs to add more error checking! file existance, etc. 
+    !!
+    !!------------------------------------------------
+    subroutine read_coefficients(output, options)
+        implicit none
+        type(results),  intent(inout)   :: output
+        type(config),   intent(inout)   :: options
+        
+        real, allocatable :: coefficients(:,:,:,:)
+        integer :: i, ntimes, v, nvars
+        logical :: no_error
+
+        no_error = .True.
+        nvars = size(output%variables)
+        
+        do v=1, nvars
+            if (file_exists(options%coefficients_files(v))) then
+                call io_read(options%coefficients_files(v), "coefficients", coefficients)
+
+                if (size(output%variables(v)%coefficients, 1) /= size(coefficients, 1)) then
+                    write(*,*) "WARNING: input regression coefficients in file do not match the expected number of variables."
+                    no_error = .False.
+                endif
+                if (size(output%variables(v)%coefficients, 3) /= size(coefficients, 3)) then
+                    write(*,*) "WARNING: input regression coefficients in file do not match the expected number of x grid points."
+                    no_error = .False.
+                endif
+                if (size(output%variables(v)%coefficients, 4) /= size(coefficients, 4)) then
+                    write(*,*) "WARNING: input regression coefficients in file do not match the expected number of y grid points."
+                    no_error = .False.
+                endif
+                    
+                if (no_error) then
+                    ntimes = size(output%variables(v)%coefficients, 2)
+                    do i=1, ntimes
+                        output%variables(v)%coefficients(:,i,:,:) = coefficients(:,1,:,:)
+                    enddo
+                endif
+                deallocate(coefficients) ! probably not needed
+            else
+                write(*,*) "WARNING: coefficients_file does not exist:"//trim(options%coefficients_files(v))
+                no_error = .False.
+            endif
+            
+            if (.not.no_error) then
+                options%read_coefficients = .False.
+            endif
+        enddo
+    end subroutine read_coefficients
 
 end module downscaling_mod

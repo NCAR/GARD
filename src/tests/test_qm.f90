@@ -18,7 +18,7 @@ program test_qm
     implicit none
     logical :: verbose
     integer*8, parameter :: n = 100000
-    real, parameter :: acceptable_error = 1e-3
+    real, parameter :: acceptable_error = 1 ! 1e-3 <- use this with more QM segments and train on the complete dataset
 
     real, allocatable, dimension(:) :: input_data, matching_data
 
@@ -82,7 +82,7 @@ contains
 
     subroutine test_mapping(input_data, matching_data, name)
         implicit none
-        real, allocatable, intent(in), dimension(:) :: input_data, matching_data
+        real, intent(in), dimension(:) :: input_data, matching_data
         character(len=*), intent(in) :: name
 
         real, allocatable, dimension(:) :: output_data
@@ -94,11 +94,15 @@ contains
         n = size(matching_data)
         allocate(output_data(n))
 
+        print*, ""
+        print*, ""
         print*, "---------------------------"
         print*, trim(name)
         if (verbose) then
             print*, "Input:",sum(input_data)/size(input_data)
+            print*, "   min/max",minval(input_data),maxval(input_data)
             print*, "To match:",sum(matching_data)/n
+            print*, "   min/max",minval(matching_data),maxval(matching_data)
             print*, "---------------------------"
         endif
 
@@ -106,7 +110,7 @@ contains
         !-------------------------------
         ! Develop the Quantile mapping
         !-------------------------------
-        call develop_qm(input_data, matching_data, qm, min(size(input_data)/2, size(matching_data)/2))
+        call develop_qm(input_data(1:size(input_data)/2), matching_data, qm, 300)! min(size(input_data)/2, size(matching_data)/2))
 
         call system_clock(end_time, COUNT_RATE, COUNT_MAX)
         if (start_time>end_time) end_time=end_time+COUNT_MAX
@@ -172,6 +176,9 @@ contains
         if (verbose) then
             print*, "Q-Mapped Stddev = ",qm_data_stat, "Original stddev = ",original_stat
             print*, "   Error % = ", error
+            print*, "---------------------------"
+            print*, "Q-Mapped Min/Max = ",minval(qmdata),   maxval(qmdata)
+            print*, "Original Min/Max = ",minval(original), maxval(original)
             print*, "---------------------------"
             print*, "   Elapsed time = ", time
         endif
