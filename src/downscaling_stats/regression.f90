@@ -1,7 +1,7 @@
 module  regression_mod
 contains
 
-    function compute_regression(x, training_x, training_y, coefficients, error, weights) result(y)
+    function compute_regression(x, training_x, training_y, coefficients, error, weights, used_vars) result(y)
         implicit none
         real,    intent(in),    dimension(:)   :: x
         real,    intent(in),    dimension(:,:) :: training_x
@@ -9,6 +9,7 @@ contains
         real(8), intent(inout), dimension(:)   :: coefficients
         real,    intent(inout),                             optional :: error
         real,    intent(inout), dimension(:),  allocatable, optional :: weights
+        integer, intent(inout), dimension(:),               optional :: used_vars
 
         real,    allocatable,   dimension(:,:) :: training_x_lp
         real,    allocatable,   dimension(:)   :: training_y_lp
@@ -31,10 +32,11 @@ contains
 
         allocate(varlist(nvars))
         varlist = -1
-        useable_vars = 0
-
+        varlist(1) = 1   ! this assumes there is a constant passed in for the first variable... 
+        useable_vars = 1 ! the constant 
+        
         ! find all vars that have some variability through time. 
-        do i=1,nvars
+        do i=2,nvars
             nonzero_count = 0
             do j=1,ntimes
                 if (abs(training_x(j,i)-training_x(1,i))>0) then
@@ -48,6 +50,7 @@ contains
                 varlist(i) = i
             end if
         enddo
+        if (present(used_vars)) used_vars=varlist
 
         ! if there are no useable training variables other than the constant, just return (this should never happen?)
         if (useable_vars <= 1) then

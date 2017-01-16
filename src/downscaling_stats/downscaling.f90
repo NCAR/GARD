@@ -427,7 +427,7 @@ contains
         end select
     end subroutine transform_data
 
-    function downscale_point(predictor, atm, obs, errors, output_coeff, logistic, logistic_threshold, options, timers, xptn, ypnt) result(output)
+    function downscale_point(predictor, atm, obs, errors, output_coeff, logistic, logistic_threshold, options, timers, xpnt, ypnt) result(output)
         implicit none
         real,    dimension(:,:), intent(inout):: predictor, atm ! (ntimes, nvars)
         real,    dimension(:),   intent(in)   :: obs
@@ -437,8 +437,9 @@ contains
         real,                    intent(in)   :: logistic_threshold
         type(config),            intent(in)   :: options
         integer(8),dimension(:), intent(inout):: timers
-        integer, intent(in) :: xptn, ypnt
+        integer, intent(in) :: xpnt, ypnt
 
+        integer, dimension(:),   allocatable :: used_vars
         real,    dimension(:),   allocatable :: output
         real(8), dimension(:),   allocatable :: coefficients
         real,    dimension(:),   allocatable :: coefficients_r4
@@ -454,6 +455,7 @@ contains
         nvars = size(atm,2)
         n = size(predictor,1)
 
+        allocate(used_vars(nvars))
         allocate(coefficients(nvars))
         allocate(coefficients_r4(nvars*2))
         allocate(output(n))
@@ -476,7 +478,8 @@ contains
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         if (options%pure_regression .and. (.not.options%read_coefficients)) then
             call System_Clock(timeone)
-            output(1)  = compute_regression(predictor(1,:), atm, obs, coefficients, errors(1))
+            output(1)  = compute_regression(predictor(1,:), atm, obs, coefficients, errors(1), used_vars=used_vars)
+
             errors(2:) = errors(1)
             where( coefficients >  1e20 ) coefficients =  1e20
             where( coefficients < -1e20 ) coefficients = -1e20
@@ -500,7 +503,7 @@ contains
             endif
             call System_Clock(timetwo)
             timers(3) = timers(3) + (timetwo-timeone)
-        
+
         elseif (options%pure_regression .and. options%read_coefficients) then
             coefficients_r4(1:nvars) = output_coeff(1:nvars,1)
             if (logistic_threshold/=kFILL_VALUE) then
@@ -538,7 +541,7 @@ contains
             elseif (options%analog_regression) then
                 call downscale_analog_regression(predictor(i,:), atm, obs, coefficients_r4,     &
                                                  output(i), errors(i), logistic(i),             &
-                                                 options, timers, [xptn,ypnt,i], cur_time=i)
+                                                 options, timers, [xpnt,ypnt,i], cur_time=i)
 
                 if (options%debug) then
                     do v=1,nvars
@@ -556,7 +559,7 @@ contains
                 ! to test should provide all time values efficiently? i.e. no time loop
                 ! output   = matmul(predictor, coefficients_r4(:nvars))
                 ! logistic = 1.0 / (1.0 + exp(-matmul(predictor, coefficients_r4(nvars+1:nvars*2))))
-                call apply_pure_regression(output(i), predictor(i,:), coefficients_r4, logistic(i),  logistic_threshold, timers)
+                call apply_pure_regression(output(i), predictor(i,:), coefficients_r4, logistic(i),  logistic_threshold, timers, used_vars)
 
             endif
         end do
@@ -812,26 +815,52 @@ contains
 
     end subroutine downscale_pure_analog
 
-    subroutine apply_pure_regression(output, x, B, logistic, threshold, timers)
+    subroutine apply_pure_regression(output, x, B, logistic, threshold, timers, used_vars)
         implicit none
         real,       intent(in),     dimension(:)    :: x, B
         real,       intent(inout)                   :: output, logistic
         real,       intent(in)                      :: threshold
         integer*8,  intent(inout),  dimension(:)    :: timers
+        integer,    intent(in),     dimension(:)    :: used_vars
 
         integer*8   :: timeone, timetwo
-        integer     :: nvars
+        integer     :: i, nvars, nextcoef
 
         nvars = size(x)
         call System_Clock(timeone)
-        output = dot_product(x, B(1:nvars))
+
+        ! need to handle the fact that the regression code might skip one or more variables
+        if (minval(used_vars)<0) then
+            output  = 0
+            nextcoef= 1
+            do i=1,nvars
+                if (used_vars(i)>0) then
+                    output = output + x(i) * B(nextcoef)
+                    nextcoef = nextcoef+1
+                endif
+            enddo
+        else
+            output = dot_product(x, B(1:nvars))
+        endif
         call System_Clock(timetwo)
         timers(2) = timers(2) + (timetwo-timeone)
 
         call System_Clock(timeone)
 
         if (threshold/=kFILL_VALUE) then
-            logistic = 1.0 / (1.0 + exp(-dot_product(x, B(nvars+1:nvars*2))))
+            if (minval(used_vars)<0) then
+                logistic  = 0
+                nextcoef= nvars+1
+                do i=1,nvars
+                    if (used_vars(i)>0) then
+                        logistic = logistic + x(i) * B(nextcoef)
+                        nextcoef = nextcoef+1
+                    endif
+                enddo
+                logistic = 1.0 / (1.0 + exp(-logistic))
+            else
+                logistic = 1.0 / (1.0 + exp(-dot_product(x, B(nvars+1:nvars*2))))
+            endif
         endif
         call System_Clock(timetwo)
         timers(3) = timers(3) + (timetwo-timeone)
