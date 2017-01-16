@@ -37,6 +37,11 @@ program test_qm
     matching_data = matching_data * 10 + 3
     call test_mapping(input_data, matching_data, "Gain + Offset")
 
+    ! test a negative gain and offset
+    call random_number(matching_data)
+    matching_data = matching_data * -3 - 3
+    call test_mapping(input_data, matching_data, "Negative Values")
+
     ! Then test a fourth root transformation
     call random_number(matching_data)
     matching_data = sqrt(sqrt(matching_data)) * 2 + 3.14159
