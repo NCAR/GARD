@@ -70,7 +70,7 @@ contains
         
         ! first handle the bottom of the QM segment
         bottom = 1
-        top = min(EXTREME_WINDOW, int(input_step/4))
+        top = max(1, min(EXTREME_WINDOW, int(input_step/4)))
         qm%start_idx(1) = sum(input_data_sorted( bottom:top )) / (top - bottom + 1)
         
         bottom = top
@@ -78,7 +78,7 @@ contains
         qm%end_idx(1)   = sum(input_data_sorted( bottom:top )) / (top - bottom + 1)
         
         bottom = 1
-        top = min(EXTREME_WINDOW, int(match_step/4))
+        top = max(1, min(EXTREME_WINDOW, int(match_step/4)) )
         qm%offset(1)    = sum(data_to_match_sorted( bottom:top )) / (top - bottom + 1)
         denominator     = qm%end_idx(1) - qm%start_idx(1)
         if (denominator < SMALL_VALUE) then
@@ -115,8 +115,8 @@ contains
             
         end do
         
-        ! For the last segment, make sure it finishes at the final value
-        ! this will not happen otherwise because nseg invariably will not divide nm and ni evenly
+        ! For the last segment, just fit to an average over the top 2-5 values so we can get a more extreme fit
+        ! that isn't dependant just on the absolute highest value. 
         i = nseg
         qm%start_idx(i) = qm%end_idx(i-1)
         bottom          = min(max(int(input_i - input_step/4), ni - EXTREME_WINDOW), ni-1)

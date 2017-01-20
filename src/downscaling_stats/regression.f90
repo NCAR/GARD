@@ -1,7 +1,7 @@
 module  regression_mod
 contains
 
-    function compute_regression(x, training_x, training_y, coefficients, error, weights) result(y)
+    function compute_regression(x, training_x, training_y, coefficients, error, weights, used_vars) result(y)
         implicit none
         real,    intent(in),    dimension(:)   :: x
         real,    intent(in),    dimension(:,:) :: training_x
@@ -9,6 +9,7 @@ contains
         real(8), intent(inout), dimension(:)   :: coefficients
         real,    intent(inout),                             optional :: error
         real,    intent(inout), dimension(:),  allocatable, optional :: weights
+        integer, intent(inout), dimension(:),               optional :: used_vars
 
         real,    allocatable,   dimension(:,:) :: training_x_lp
         real,    allocatable,   dimension(:)   :: training_y_lp
@@ -31,21 +32,25 @@ contains
 
         allocate(varlist(nvars))
         varlist = -1
-        useable_vars = 0
-
-        ! find all non-zero vars
-        do i=1,nvars
+        varlist(1) = 1   ! this assumes there is a constant passed in for the first variable... 
+        useable_vars = 1 ! the constant 
+        
+        ! find all vars that have some variability through time. 
+        do i=2,nvars
             nonzero_count = 0
             do j=1,ntimes
-                if (abs(training_x(j,i))>0) then
+                if (abs(training_x(j,i)-training_x(1,i))>0) then
                     nonzero_count = nonzero_count + 1
                 endif
             enddo
-            if ( nonzero_count > nvars ) then
+            ! need at least two data points that are different from the first data point
+            ! to ensure that the regression on that variable might be useful. 
+            if ( nonzero_count > 2 ) then
                 useable_vars = useable_vars + 1
                 varlist(i) = i
             end if
         enddo
+        if (present(used_vars)) used_vars=varlist
 
         ! if there are no useable training variables other than the constant, just return (this should never happen?)
         if (useable_vars <= 1) then
@@ -269,10 +274,12 @@ contains
         real :: d
         integer :: info
 
+        ! skip the logistic regression and force the result to be 1
         if (all(Y > 0)) then
             B(1) = 88
             B(2:)= 0
             return
+        ! skip the logistic regression and force the result to be 0
         elseif (all(Y==0)) then
             B(1) = -88
             B(2:)= 0
@@ -322,9 +329,6 @@ contains
                 if (info /= 0) then
                     B(1) = -1 * log( (1.0 / (sum(Y)/size(Y))) - 1.0)
                     B(2:)= 0
-                    ! !$omp critical (print_lock)
-                    ! print*, B(1)
-                    ! !$omp end critical (print_lock)
                     return
                 endif
 
