@@ -58,9 +58,10 @@ contains
         type(config), intent(inout)     :: options
 
         integer :: name_unit, n_analogs, n_log_analogs, pass_through_var
-        character(len=MAXSTRINGLENGTH)  :: name, start_date, end_date, start_train, end_train
-        character(len=MAXSTRINGLENGTH)  :: start_transform, end_transform
-        character(len=MAXFILELENGTH)    :: training_file, prediction_file, observation_file, output_file
+        character(len=MAXSTRINGLENGTH)      :: name, start_date, end_date, start_train, end_train
+        character(len=MAXSTRINGLENGTH)      :: start_transform, end_transform, post_start, post_end
+        character(len=MAXFILELENGTH)        :: training_file, prediction_file, observation_file, output_file
+        integer, dimension(MAX_NUMBER_VARS) :: post_correction_Xform
         logical :: pure_analog, analog_regression, pure_regression, pass_through, debug, interactive
         logical :: sample_analog, logistic_from_analog_exceedance, weight_analogs
         logical :: read_coefficients, write_coefficients
@@ -73,13 +74,14 @@ contains
                                 output_file,                                        &
                                 start_date, end_date, start_train, end_train,       &
                                 start_transform, end_transform,                     &
+                                post_start, post_end,                               &
                                 n_analogs, n_log_analogs, logistic_threshold,       &
                                 pure_analog, analog_regression, pure_regression,    &
                                 sample_analog, logistic_from_analog_exceedance,     &
                                 analog_threshold, weight_analogs,                   &
                                 pass_through, pass_through_var,                     &
                                 read_coefficients, write_coefficients,              &
-                                coefficients_files
+                                coefficients_files, post_correction_Xform
 
         options%version = kVERSION_STRING
         options%options_filename = get_options_file()
@@ -88,12 +90,16 @@ contains
         training_file    = options%options_filename
         prediction_file  = options%options_filename
         observation_file = options%options_filename
+        
         start_date       = ""
         end_date         = ""
         start_train      = ""
         end_train        = ""
         start_transform  = ""
         end_transform    = ""
+        post_start       = ""
+        post_end         = ""
+        
         output_file      = "gard_out_"
         n_analogs        = -1
         n_log_analogs    = -1
@@ -112,6 +118,7 @@ contains
         read_coefficients= .False.
         write_coefficients=.False.
         coefficients_files= ""
+        post_correction_Xform = kNO_TRANSFORM
 
         options%name = options%options_filename
 
@@ -137,6 +144,11 @@ contains
         call options%transform_start%set(start_transform)
         call options%transform_stop%init("gregorian")
         call options%transform_stop%set(end_transform)
+        ! this is the time period to use when calculating e.g. quantile mapping transformations for post processing
+        call options%post_start%init("gregorian")
+        call options%post_start%set(post_start)
+        call options%post_end%init("gregorian")
+        call options%post_end%set(post_end)
 
         options%training_file       = training_file
         options%prediction_file     = prediction_file
@@ -164,6 +176,9 @@ contains
         options%read_coefficients  = read_coefficients
         options%write_coefficients = write_coefficients
         options%coefficients_files = coefficients_files
+        
+        allocate(options%post_correction_Xform(MAX_NUMBER_VARS))
+        options%post_correction_Xform = post_correction_Xform
     end subroutine read_base_options
 
 

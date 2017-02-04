@@ -113,6 +113,7 @@ module data_structures
         integer :: first_time, last_time
         integer :: training_start, training_stop
         integer :: transform_start, transform_stop
+        integer :: post_start, post_end
     end type base_data_type
 
     ! ------------------------------------------------
@@ -249,11 +250,15 @@ module data_structures
         type(Time_type) :: first_time,     last_time        ! define the period over which the model should be applied
         type(Time_type) :: transform_start, transform_stop  ! define the period over which any transformations should be developed
                                                             ! e.g. to Quantile map GCM data into training atm data space
+        type(Time_type) :: post_start, post_end             ! define the period for a post QM transformation
 
         integer :: first_point, last_point ! start and end positions to run the model for(?)
         integer :: n_analogs
         integer :: n_log_analogs
         real    :: analog_threshold
+        
+        ! defines a set of transforms to be applied to the final data (e.g. Quantile Mapping to match obs)
+        integer, dimension(:), allocatable :: post_correction_Xform
 
         logical :: debug
         logical :: interactive
