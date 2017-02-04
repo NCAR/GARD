@@ -61,7 +61,7 @@ contains
         character(len=MAXSTRINGLENGTH)      :: name, start_date, end_date, start_train, end_train
         character(len=MAXSTRINGLENGTH)      :: start_transform, end_transform, post_start, post_end
         character(len=MAXFILELENGTH)        :: training_file, prediction_file, observation_file, output_file
-        integer, dimension(MAX_NUMBER_VARS) :: post_correction_Xform
+        integer, dimension(MAX_NUMBER_VARS) :: post_correction_transform
         logical :: pure_analog, analog_regression, pure_regression, pass_through, debug, interactive
         logical :: sample_analog, logistic_from_analog_exceedance, weight_analogs
         logical :: read_coefficients, write_coefficients
@@ -81,7 +81,7 @@ contains
                                 analog_threshold, weight_analogs,                   &
                                 pass_through, pass_through_var,                     &
                                 read_coefficients, write_coefficients,              &
-                                coefficients_files, post_correction_Xform
+                                coefficients_files, post_correction_transform
 
         options%version = kVERSION_STRING
         options%options_filename = get_options_file()
@@ -118,7 +118,7 @@ contains
         read_coefficients= .False.
         write_coefficients=.False.
         coefficients_files= ""
-        post_correction_Xform = kNO_TRANSFORM
+        post_correction_transform = kNO_TRANSFORM
 
         options%name = options%options_filename
 
@@ -178,7 +178,7 @@ contains
         options%coefficients_files = coefficients_files
         
         allocate(options%post_correction_Xform(MAX_NUMBER_VARS))
-        options%post_correction_Xform = post_correction_Xform
+        options%post_correction_Xform = post_correction_transform
     end subroutine read_base_options
 
 

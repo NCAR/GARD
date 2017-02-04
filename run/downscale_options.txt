@@ -15,6 +15,10 @@
     start_transform  = "1990-01-01 00:00:00"    ! start time for any transformations (e.g. quantile mapping) (must exist in both the training and the prediction datasets)
     end_transform    = "1999-01-01 23:00:00"    ! end time for the transformation period
 
+    post_start       = "1990-01-01 00:00:00"    ! start time for any post processing transformations (e.g. quantile mapping) (must exist in the prediction dataset)
+    post_end         = "1999-01-01 23:00:00"    ! end time for the post-proc transformation period
+
+
     ! model types
     pure_regression   = False                   ! set to true (and others to false) to compute a single regression (no analogs) between training variables and observations to be applied to all predictor data
     pure_analog       = False                   ! set to true (and others to false) to use the selected analogs (no regression) to predict the output
@@ -34,6 +38,9 @@
     logistic_from_analog_exceedance = False     ! when true the logistic probability is calculated from the number of analogs that exceed the threshold instead of from a logistic regression
     logistic_threshold = 0                      ! when set, the probability of exceeding this value will be calculated and the standard output will be trained only for the data that exceed this value
     weight_analogs = True                       ! when calculating analog_mean, analog_error, or logistic_from_analog, weight each analog by it's inverse square distance from the current input
+
+    ! output post processing transformation
+    post_correction_transform = 0               ! post processing to apply (e.g. quantile mapping to entire input obs period) (one entry for every output variable)
 
     debug = False           ! prints more output at runtime and outputs files including the coefficients used in each analog regression (or analog values) as well as the predictor data
     interactive = False ! Print downscaling status as a percentage on the command line
