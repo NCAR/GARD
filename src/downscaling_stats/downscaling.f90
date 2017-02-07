@@ -14,7 +14,8 @@ module downscaling_mod
     integer*8, dimension(10) :: master_timers
     real, parameter :: LOG_FILL_VALUE = 1e-30
     real, parameter :: MAX_ALLOWED_SIGMA = 20
-    real :: random_sample(10000)
+    real, parameter :: N_RANDOM_SAMPLES = 10000
+    real :: random_sample(N_RANDOM_SAMPLES)
 
 
 contains
@@ -50,7 +51,7 @@ contains
             master_timers = 0
             current_completed_gridcells = 0
 
-            call random_number(random_sample)
+            call box_muller_random(random_sample)
 
             call System_Clock(timeone, COUNT_RATE)
             ! should this be done outside of "downscale" ?
@@ -444,10 +445,9 @@ contains
 
                 call develop_qm(pred_data( p_xf_start:p_xf_stop), &
                                 random_sample, &
-                                qm, n_segments = N_ATM_QM_SEGMENTS)
+                                qm, n_segments = (p_xf_stop - p_xf_start)/2 )!N_ATM_QM_SEGMENTS)
 
                 call apply_qm(pred_data, temporary, qm)
-
                 pred_data = temporary
 
                 if (present(qm_io)) then
@@ -457,6 +457,46 @@ contains
             endif
         end select
     end subroutine transform_data
+
+    !>------------------------------------------------
+    !! Use the Box-Muller Transform to convert uniform to normal random deviates
+    !!
+    !! Note random_sample should be an allocated 1D real array
+    !! On return, random_sample will be filled with random normal (0,1) data
+    !!
+    !! Caveat: this transform is unable to generate extremely high values (>6.66)
+    !! Having switched to double precision it may do better now.
+    !!
+    !-------------------------------------------------
+    subroutine box_muller_random(random_sample)
+        implicit none
+        real, intent(inout) :: random_sample(:)
+        integer :: n,i
+
+        double precision :: u1, u2, s
+        double precision, allocatable :: double_random(:)
+
+        n = size(random_sample)
+        allocate(double_random(n))
+        call random_number(double_random)
+
+        do i=1,n,2
+            u1 = double_random(i)
+            if (i<n) then
+                u2 = double_random(i+1)
+            else
+                call random_number(u2)
+            endif
+
+            s = sqrt(-2 * log(u1))
+            random_sample(i) = s * cos(2 * kPI * u2)
+            if (i<n) then
+                random_sample(i+1) = s * sin(2 * kPI * u2)
+            endif
+
+        enddo
+
+    end subroutine box_muller_random
 
     function downscale_point(predictor, atm, obs_in, errors, output_coeff, logistic, logistic_threshold, options, timers, xpnt, ypnt) result(output)
         implicit none
@@ -502,7 +542,7 @@ contains
             output = predictor(:, options%pass_through_var + 1)
             return
         endif
-        
+
         allocate(obs, source=obs_in)
         if (options%time_smooth > 0) then
             do i=1, n
@@ -514,7 +554,7 @@ contains
                 enddo
             enddo
         endif
-                    
+
 
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         !!

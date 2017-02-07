@@ -66,8 +66,9 @@ module model_constants
     ! ------------------------------------------------
     ! Other Constants
     ! ------------------------------------------------
-    integer,public,parameter :: kFILL_VALUE       = -9999
-    character(len=*),public,parameter :: kDEFAULT_OPTIONS_FILENAME = "downscale_options.txt"
+    integer,public,parameter            :: kFILL_VALUE       = -9999
+    character(len=*),public,parameter   :: kDEFAULT_OPTIONS_FILENAME = "downscale_options.txt"
+    double precision, public, parameter :: kPI = 3.14159265358979323846264338327950288419716939937510582
 
 
 
