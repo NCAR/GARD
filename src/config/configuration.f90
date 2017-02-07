@@ -59,7 +59,7 @@ contains
 
         integer :: name_unit, n_analogs, n_log_analogs, pass_through_var
         character(len=MAXSTRINGLENGTH)      :: name, start_date, end_date, start_train, end_train
-        character(len=MAXSTRINGLENGTH)      :: start_transform, end_transform, post_start, post_end
+        character(len=MAXSTRINGLENGTH)      :: start_transform, end_transform, start_post, end_post
         character(len=MAXFILELENGTH)        :: training_file, prediction_file, observation_file, output_file
         integer, dimension(MAX_NUMBER_VARS) :: post_correction_transform
         logical :: pure_analog, analog_regression, pure_regression, pass_through, debug, interactive
@@ -74,7 +74,7 @@ contains
                                 output_file,                                        &
                                 start_date, end_date, start_train, end_train,       &
                                 start_transform, end_transform,                     &
-                                post_start, post_end,                               &
+                                start_post, end_post,                               &
                                 n_analogs, n_log_analogs, logistic_threshold,       &
                                 pure_analog, analog_regression, pure_regression,    &
                                 sample_analog, logistic_from_analog_exceedance,     &
@@ -90,16 +90,16 @@ contains
         training_file    = options%options_filename
         prediction_file  = options%options_filename
         observation_file = options%options_filename
-        
-        start_date       = ""
-        end_date         = ""
-        start_train      = ""
-        end_train        = ""
-        start_transform  = ""
-        end_transform    = ""
-        post_start       = ""
-        post_end         = ""
-        
+
+        start_date       = "1980-01-01 00:00:00"
+        end_date         = "1980-01-01 00:00:00"
+        start_train      = "1980-01-01 00:00:00"
+        end_train        = "1980-01-01 00:00:00"
+        start_transform  = "1980-01-01 00:00:00"
+        end_transform    = "1980-01-01 00:00:00"
+        start_post       = "1980-01-01 00:00:00"
+        end_post         = "1980-01-01 00:00:00"
+
         output_file      = "gard_out_"
         n_analogs        = -1
         n_log_analogs    = -1
@@ -127,6 +127,7 @@ contains
         read(name_unit,nml=parameters)
         close(name_unit)
 
+
         ! this is the time to make predictions over
         call options%first_time%init("gregorian")
         call options%first_time%set(start_date)
@@ -145,10 +146,11 @@ contains
         call options%transform_stop%init("gregorian")
         call options%transform_stop%set(end_transform)
         ! this is the time period to use when calculating e.g. quantile mapping transformations for post processing
+
         call options%post_start%init("gregorian")
-        call options%post_start%set(post_start)
+        call options%post_start%set(start_post)
         call options%post_end%init("gregorian")
-        call options%post_end%set(post_end)
+        call options%post_end%set(end_post)
 
         options%training_file       = training_file
         options%prediction_file     = prediction_file
@@ -172,13 +174,14 @@ contains
         options%debug = debug
         options%interactive = interactive
         module_debug = options%debug
-        
+
         options%read_coefficients  = read_coefficients
         options%write_coefficients = write_coefficients
         options%coefficients_files = coefficients_files
-        
+
         allocate(options%post_correction_Xform(MAX_NUMBER_VARS))
         options%post_correction_Xform = post_correction_transform
+
     end subroutine read_base_options
 
 
