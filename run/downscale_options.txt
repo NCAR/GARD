@@ -15,8 +15,8 @@
     start_transform  = "1990-01-01 00:00:00"    ! start time for any transformations (e.g. quantile mapping) (must exist in both the training and the prediction datasets)
     end_transform    = "1999-01-01 23:00:00"    ! end time for the transformation period
 
-    post_start       = "1990-01-01 00:00:00"    ! start time for any post processing transformations (e.g. quantile mapping) (must exist in the prediction dataset)
-    post_end         = "1999-01-01 23:00:00"    ! end time for the post-proc transformation period
+    start_post       = "1990-01-01 00:00:00"    ! start time for any post processing transformations (e.g. quantile mapping) (must exist in the prediction dataset)
+    end_post         = "1999-01-01 23:00:00"    ! end time for the post-proc transformation period
 
 
     ! model types
