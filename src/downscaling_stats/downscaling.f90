@@ -818,7 +818,7 @@ contains
             threshold_packing = obs_analogs > logistic_threshold
             n_packed = count(threshold_packing)
 
-            if (n_packed > (nvars*2)) then
+            if (n_packed > (nvars*5)) then
                 allocate(threshold_atm(n_packed, nvars))
                 allocate(threshold_obs(n_packed))
                 do j=1,nvars
