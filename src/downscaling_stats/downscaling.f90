@@ -5,7 +5,7 @@ module downscaling_mod
     use regression_mod,     only : compute_regression, compute_logistic_regression
     use analog_mod,         only : find_analogs, compute_analog_mean, compute_analog_error, compute_analog_exceedance
     use model_constants
-    use quantile_mapping,   only : develop_qm, apply_qm
+    use quantile_mapping,   only : develop_qm, apply_qm, reverse_qm
     use time_util,          only : setup_time_indices
     use basic_stats_mod,    only : stddev
     use io_routines,        only : file_exists, io_read
@@ -14,6 +14,7 @@ module downscaling_mod
     integer*8, dimension(10) :: master_timers
     real, parameter :: LOG_FILL_VALUE = 1e-30
     real, parameter :: MAX_ALLOWED_SIGMA = 20
+    real :: random_sample(10000)
 
 
 contains
@@ -39,15 +40,17 @@ contains
             integer*8 :: timeone, timetwo, master_timeone, master_timetwo, master_time_post_init
             integer*8, dimension(10) :: timers
             integer*8 :: COUNT_RATE
-            
+
             ! optionally used to store the quantile mapping for a normal transform to be used when reversing
             type(qm_correction_type) :: qq_normal
-            
+
             integer :: total_number_of_gridcells, current_completed_gridcells
 
             timers = 0
             master_timers = 0
             current_completed_gridcells = 0
+
+            call random_number(random_sample)
 
             call System_Clock(timeone, COUNT_RATE)
             ! should this be done outside of "downscale" ?
@@ -185,8 +188,8 @@ contains
             !$omp end single
             ! parallelization could be over x and y, (do n=1,ny*nx; j=n/nx; i=mod(n,nx)) and use schedule(dynamic)
             !$omp do schedule(static, 1)
-            do j=1,ny
-                do i=1,nx
+            do j=ny/2,ny/2+50
+                do i=nx/2,nx/2+50
 
                     if (training_obs%mask(i,j)) then
 
@@ -233,7 +236,7 @@ contains
                         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                         do v=1,n_obs_variables
 
-                            call transform_data(options%obs%input_Xforms(v), training_obs%variables(v)%data(:,i,j), 1, nobs)
+                            call transform_data(options%obs%input_Xforms(v), training_obs%variables(v)%data(:,i,j), 1, nobs, qm_io=qq_normal)
 
                             if (options%debug) then
                                 !$omp critical (print_lock)
@@ -431,25 +434,16 @@ contains
             else
                 pred_data = pred_data ** (1/5.0)
             endif
-            
+
         case (kQQ_NORMAL)
             if (reverse_internal) then
-                write(*,*) "Not Implemented Yet"
-                if (.not.allocated(qm_io%start_idx)) then
-                    print*, "ERROR QM not even allocated"
-                    stop
-                endif
-                print*, minval(qm_io%start_idx), maxval(qm_io%start_idx)
-                print*, minval(qm_io%end_idx), maxval(qm_io%end_idx)
-                print*, minval(qm_io%slope), maxval(qm_io%slope)
-                print*, minval(qm_io%offset), maxval(qm_io%offset)
-                stop
+                call reverse_qm(pred_data, qm_io)
             else
-                
+
                 allocate( temporary( size(pred_data)) )
-                call random_number(temporary)
+
                 call develop_qm(pred_data( p_xf_start:p_xf_stop), &
-                                temporary, &
+                                random_sample, &
                                 qm, n_segments = N_ATM_QM_SEGMENTS)
 
                 call apply_qm(pred_data, temporary, qm)
@@ -941,7 +935,7 @@ contains
             ! limit to +/- ~20 sigma
             where(abs(var%data(:,i,j)) >  MAX_ALLOWED_SIGMA) var%data(:,i,j) =  MAX_ALLOWED_SIGMA
             where(abs(var%data(:,i,j)) < -MAX_ALLOWED_SIGMA) var%data(:,i,j) = -MAX_ALLOWED_SIGMA
-            
+
             ! shift to a 0-based range so that variables such as precip have a testable non-value
             var%min_val(i,j) = minval(var%data(:,i,j))
             ! this has the potential to make 0 precip values >0 (or <0) for predictors
@@ -1086,21 +1080,21 @@ contains
     !>------------------------------------------------
     !! Read the regression coefficients from a specified netcdf file
     !!
-    !! Needs to add more error checking! file existance, etc. 
+    !! Needs to add more error checking! file existance, etc.
     !!
     !!------------------------------------------------
     subroutine read_coefficients(output, options)
         implicit none
         type(results),  intent(inout)   :: output
         type(config),   intent(inout)   :: options
-        
+
         real, allocatable :: coefficients(:,:,:,:)
         integer :: i, ntimes, v, nvars
         logical :: no_error
 
         no_error = .True.
         nvars = size(output%variables)
-        
+
         do v=1, nvars
             if (file_exists(options%coefficients_files(v))) then
                 call io_read(options%coefficients_files(v), "coefficients", coefficients)
@@ -1117,7 +1111,7 @@ contains
                     write(*,*) "WARNING: input regression coefficients in file do not match the expected number of y grid points."
                     no_error = .False.
                 endif
-                    
+
                 if (no_error) then
                     ntimes = size(output%variables(v)%coefficients, 2)
                     do i=1, ntimes
@@ -1129,7 +1123,7 @@ contains
                 write(*,*) "WARNING: coefficients_file does not exist:"//trim(options%coefficients_files(v))
                 no_error = .False.
             endif
-            
+
             if (.not.no_error) then
                 options%read_coefficients = .False.
             endif
