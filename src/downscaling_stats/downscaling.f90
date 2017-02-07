@@ -188,8 +188,8 @@ contains
             !$omp end single
             ! parallelization could be over x and y, (do n=1,ny*nx; j=n/nx; i=mod(n,nx)) and use schedule(dynamic)
             !$omp do schedule(static, 1)
-            do j=ny/2,ny/2+50
-                do i=nx/2,nx/2+50
+            do j=1,ny!ny/2,ny/2+50
+                do i=1,nx!nx/2,nx/2+50
 
                     if (training_obs%mask(i,j)) then
 
@@ -458,10 +458,10 @@ contains
         end select
     end subroutine transform_data
 
-    function downscale_point(predictor, atm, obs, errors, output_coeff, logistic, logistic_threshold, options, timers, xpnt, ypnt) result(output)
+    function downscale_point(predictor, atm, obs_in, errors, output_coeff, logistic, logistic_threshold, options, timers, xpnt, ypnt) result(output)
         implicit none
         real,    dimension(:,:), intent(inout):: predictor, atm ! (ntimes, nvars)
-        real,    dimension(:),   intent(in)   :: obs
+        real,    dimension(:),   intent(in)   :: obs_in
         real,    dimension(:),   intent(inout):: errors
         real,    dimension(:,:), intent(inout):: output_coeff
         real,    dimension(:),   intent(inout):: logistic
@@ -471,12 +471,13 @@ contains
         integer, intent(in) :: xpnt, ypnt
 
         integer, dimension(:),   allocatable :: used_vars
+        real,    dimension(:),   allocatable :: obs
         real,    dimension(:),   allocatable :: output
         real(8), dimension(:),   allocatable :: coefficients
         real,    dimension(:),   allocatable :: coefficients_r4
 
         integer(8)  :: timeone, timetwo
-        integer     :: i, n, nvars, v
+        integer     :: i, n, nvars, v, start, endpt
 
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         !!
@@ -501,6 +502,19 @@ contains
             output = predictor(:, options%pass_through_var + 1)
             return
         endif
+        
+        allocate(obs, source=obs_in)
+        if (options%time_smooth > 0) then
+            do i=1, n
+                start = max(1, i - options%time_smooth)
+                endpt = min(n, i + options%time_smooth)
+                obs(i) = sum(obs_in(start:endpt)) / (endpt-start+1)
+                do v=1, nvars
+                    atm(i,v) = sum(atm(start:endpt, v)) / (endpt-start+1)
+                enddo
+            enddo
+        endif
+                    
 
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         !!
@@ -509,7 +523,7 @@ contains
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         if (options%pure_regression .and. (.not.options%read_coefficients)) then
             call System_Clock(timeone)
-            output(1)  = compute_regression(predictor(1,:), atm, obs, coefficients, errors(1), used_vars=used_vars)
+            output(1)  = compute_regression(predictor(1,:), atm, obs, coefficients, obs_in, errors(1), used_vars=used_vars)
 
             errors(2:) = errors(1)
             where( coefficients >  1e20 ) coefficients =  1e20
@@ -555,7 +569,7 @@ contains
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             if (options%pure_analog) then
                 call downscale_pure_analog(predictor(i,:), atm, obs, coefficients_r4,     &
-                                           output(i), errors(i), logistic(i),               &
+                                           output(i), errors(i), logistic(i), obs_in,     &
                                            options, timers, cur_time=i)
 
                 if (options%debug) then
@@ -571,7 +585,7 @@ contains
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             elseif (options%analog_regression) then
                 call downscale_analog_regression(predictor(i,:), atm, obs, coefficients_r4,     &
-                                                 output(i), errors(i), logistic(i),             &
+                                                 output(i), errors(i), logistic(i), obs_in,     &
                                                  options, timers, [xpnt,ypnt,i], cur_time=i)
 
                 if (options%debug) then
@@ -597,10 +611,10 @@ contains
 
     end function downscale_point
 
-    subroutine downscale_analog_regression(x, atm, obs, output_coeff, output, error, logistic, options, timers, cur_point, cur_time)
+    subroutine downscale_analog_regression(x, atm, obs, output_coeff, output, error, logistic, obs_in, options, timers, cur_point, cur_time)
         implicit none
         real,           intent(in),     dimension(:,:)  :: atm
-        real,           intent(in),     dimension(:)    :: x, obs
+        real,           intent(in),     dimension(:)    :: x, obs, obs_in
         real,           intent(inout),  dimension(:)    :: output_coeff
         real,           intent(inout)                   :: output, logistic, error
         type(config),   intent(in)                      :: options
@@ -656,7 +670,7 @@ contains
 
         call System_Clock(timeone)
         if (logistic_threshold==kFILL_VALUE) then
-            output = compute_regression(x, regression_data, obs_analogs, coefficients, error, weights)
+            output = compute_regression(x, regression_data, obs_analogs, coefficients, obs_in, error, weights)
         else
 
             threshold_packing = obs_analogs > logistic_threshold
@@ -674,7 +688,7 @@ contains
                     packed_weights = pack(weights, threshold_packing)
                 endif
 
-                output = compute_regression(x, threshold_atm, threshold_obs, coefficients, error, packed_weights)
+                output = compute_regression(x, threshold_atm, threshold_obs, coefficients, obs_in, error, packed_weights)
 
                 if ((output>maxval(threshold_obs)*1.2)                        &
                     .or.(output<(logistic_threshold-2))                       &
@@ -685,9 +699,9 @@ contains
                     ! revert to a pure analog approach.  By passing analogs and weights, it will not recompute which analogs to use
                     ! it will just compute the analog mean, pop, and error statistics
                     if (present(cur_time)) then
-                        call downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, options, timers, analogs, weights, cur_time)
+                        call downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, obs_in, options, timers, analogs, weights, cur_time)
                     else
-                        call downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, options, timers, analogs, weights)
+                        call downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, obs_in, options, timers, analogs, weights)
                     endif
                     coefficients(1:nvars) = output_coeff(1:nvars)
                     coefficients(1) = 1e20
@@ -698,7 +712,7 @@ contains
                 output = sum(pack(obs_analogs, threshold_packing)) / n_packed
             else
                 ! note, for precip (and a 0 threshold), this could just be setting output, error, logistic, and coefficients to 0
-                output = compute_regression(x, regression_data, obs_analogs, coefficients, error, weights)
+                output = compute_regression(x, regression_data, obs_analogs, coefficients, obs_in, error, weights)
             endif
 
         endif
@@ -752,10 +766,10 @@ contains
         timers(3) = timers(3) + (timetwo-timeone)
     end subroutine downscale_analog_regression
 
-    subroutine downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, options, timers, input_analogs, input_weights, cur_time)
+    subroutine downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, obs_in, options, timers, input_analogs, input_weights, cur_time)
         implicit none
         real,           intent(in),     dimension(:,:)  :: atm
-        real,           intent(in),     dimension(:)    :: x, obs
+        real,           intent(in),     dimension(:)    :: x, obs, obs_in
         real,           intent(inout),  dimension(:)    :: output_coeff
         real,           intent(inout)                   :: output, logistic, error
         type(config),   intent(in)                      :: options
@@ -825,9 +839,9 @@ contains
         endif
 
         if (options%analog_weights) then
-            error = compute_analog_error(obs, analogs, output, weights)
+            error = compute_analog_error(obs_in, analogs, output, weights)
         else
-            error = compute_analog_error(obs, analogs, output)
+            error = compute_analog_error(obs_in, analogs, output)
         endif
 
         call System_Clock(timetwo)

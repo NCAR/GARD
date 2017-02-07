@@ -1,13 +1,14 @@
 module  regression_mod
 contains
 
-    function compute_regression(x, training_x, training_y, coefficients, error, weights, used_vars) result(y)
+    function compute_regression(x, training_x, training_y, coefficients, y_test, error, weights, used_vars) result(y)
         implicit none
         real,    intent(in),    dimension(:)   :: x
         real,    intent(in),    dimension(:,:) :: training_x
         real,    intent(in),    dimension(:)   :: training_y
         real(8), intent(inout), dimension(:)   :: coefficients
         real,    intent(inout),                             optional :: error
+        real,    intent(in),    dimension(:),               optional :: y_test
         real,    intent(inout), dimension(:),  allocatable, optional :: weights
         integer, intent(inout), dimension(:),               optional :: used_vars
 
@@ -118,12 +119,24 @@ contains
                         write(*,*) "ERROR size of weights /= data"
                         write(*,*), shape(weights), shape(training_y_lp)
                     endif
-                    error = sqrt( sum(((training_y_lp - training_y)**2)*weights) / sum(weights) )
+                    if (present(y_test)) then
+                        error = sqrt( sum(((training_y_lp - y_test)**2)*weights) / sum(weights) )
+                    else
+                        error = sqrt( sum(((training_y_lp - training_y)**2)*weights) / sum(weights) )
+                    endif
+                else
+                    if (present(y_test)) then
+                        error = sqrt( sum((training_y_lp - y_test)**2) / ntimes )
+                    else
+                        error = sqrt( sum((training_y_lp - training_y)**2) / ntimes )
+                    endif
+                endif
+            else
+                if (present(y_test)) then
+                    error = sqrt( sum((training_y_lp - y_test)**2) / ntimes )
                 else
                     error = sqrt( sum((training_y_lp - training_y)**2) / ntimes )
                 endif
-            else
-                error = sqrt( sum((training_y_lp - training_y)**2) / ntimes )
             endif
         endif
 

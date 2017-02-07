@@ -67,6 +67,7 @@ contains
         logical :: read_coefficients, write_coefficients
         character(len=MAXFILELENGTH)    :: coefficients_files(MAX_NUMBER_VARS)
         real    :: logistic_threshold, analog_threshold
+        integer :: time_smooth
 
         ! setup the namelist
         namelist /parameters/   name, debug, interactive,                           &
@@ -81,7 +82,8 @@ contains
                                 analog_threshold, weight_analogs,                   &
                                 pass_through, pass_through_var,                     &
                                 read_coefficients, write_coefficients,              &
-                                coefficients_files, post_correction_transform
+                                coefficients_files, post_correction_transform,      &
+                                time_smooth
 
         options%version = kVERSION_STRING
         options%options_filename = get_options_file()
@@ -119,6 +121,7 @@ contains
         write_coefficients=.False.
         coefficients_files= ""
         post_correction_transform = kNO_TRANSFORM
+        time_smooth       = 0
 
         options%name = options%options_filename
 
@@ -167,6 +170,7 @@ contains
         options%logistic_threshold  = logistic_threshold
         options%sample_analog       = sample_analog
         options%logistic_from_analog_exceedance  = logistic_from_analog_exceedance
+        options%time_smooth         = time_smooth
 
         options%pass_through        = pass_through
         options%pass_through_var    = pass_through_var

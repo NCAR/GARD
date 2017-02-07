@@ -256,7 +256,9 @@ module data_structures
         integer :: n_analogs
         integer :: n_log_analogs
         real    :: analog_threshold
-        
+
+        integer :: time_smooth
+
         ! defines a set of transforms to be applied to the final data (e.g. Quantile Mapping to match obs)
         integer, dimension(:), allocatable :: post_correction_Xform
 
