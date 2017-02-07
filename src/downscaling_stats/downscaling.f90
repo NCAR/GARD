@@ -39,7 +39,10 @@ contains
             integer*8 :: timeone, timetwo, master_timeone, master_timetwo, master_time_post_init
             integer*8, dimension(10) :: timers
             integer*8 :: COUNT_RATE
-
+            
+            ! optionally used to store the quantile mapping for a normal transform to be used when reversing
+            type(qm_correction_type) :: qq_normal
+            
             integer :: total_number_of_gridcells, current_completed_gridcells
 
             timers = 0
@@ -86,19 +89,13 @@ contains
             if (options%read_coefficients) call read_coefficients(output, options)
             print*, ""
 
-            do v=1,n_obs_variables
-                output%variables(v)%name = training_obs%variables(v)%name
-                do j=1,ny
-                    do i=1,nx
-                        call transform_data(options%obs%input_Xforms(v), training_obs%variables(v)%data(:,i,j), 1, nobs)
-                    enddo
-                enddo
-            enddo
-
             call System_Clock(timetwo)
             timers(7) = timetwo - timeone
 
             call System_Clock(master_timeone)
+            do v=1,n_obs_variables
+                output%variables(v)%name = training_obs%variables(v)%name
+            enddo
 
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             !!                                       !!
@@ -106,7 +103,7 @@ contains
             !!                                       !!
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             !$omp parallel default(shared)                                                              &
-            !$omp      private(train_data, pred_data, i, j, v, timeone, timetwo, Mem_Error)             &
+            !$omp      private(train_data, pred_data, i, j, v, timeone, timetwo, Mem_Error, qq_normal)  &
             !$omp firstprivate(nx,ny,n_atm_variables, n_obs_variables, noutput, ntrain, nobs, ntimes)   &
             !$omp firstprivate(p_start, p_end, t_tr_start, t_tr_stop, o_tr_start, o_tr_stop)            &
             !$omp firstprivate(post_start, post_end, timers)
@@ -183,7 +180,7 @@ contains
             !$omp barrier
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             !$omp single
-            write(*,*), "Downscaling..."
+            write(*,*) "Downscaling..."
             call System_Clock(master_time_post_init)
             !$omp end single
             ! parallelization could be over x and y, (do n=1,ny*nx; j=n/nx; i=mod(n,nx)) and use schedule(dynamic)
@@ -236,6 +233,8 @@ contains
                         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                         do v=1,n_obs_variables
 
+                            call transform_data(options%obs%input_Xforms(v), training_obs%variables(v)%data(:,i,j), 1, nobs)
+
                             if (options%debug) then
                                 !$omp critical (print_lock)
                                 write(*,*) ""
@@ -259,7 +258,8 @@ contains
 
                             ! if the input data were transformed with e.g. a cube root or log transform, then reverse that transformation for the output
                             call System_Clock(timeone)
-                            call transform_data(options%obs%input_Xforms(v), output%variables(v)%data(:,i,j), 1, noutput, reverse=.True.)
+                            call transform_data(options%obs%input_Xforms(v), output%variables(v)%data(:,i,j), 1, noutput, &
+                                                reverse=.True., qm_io=qq_normal)
                             call System_Clock(timetwo)
                             timers(6) = timers(6) + (timetwo-timeone)
 
@@ -374,7 +374,7 @@ contains
                             p_xf_start, p_xf_stop,      &
                             train_data,                 &
                             t_xf_start, t_xf_stop,      &
-                            reverse)
+                            reverse, qm_io)
         implicit none
         integer,            intent(in)    :: transform_type
         real, dimension(:), intent(inout) :: pred_data
@@ -382,6 +382,7 @@ contains
         real, dimension(:), intent(in), optional :: train_data
         integer,            intent(in), optional :: t_xf_start, t_xf_stop
         logical,            intent(in), optional :: reverse
+        type(qm_correction_type), intent(inout), optional  :: qm_io
 
 
         ! local variables needed by the quantile mapping transform
@@ -429,6 +430,36 @@ contains
                 pred_data = pred_data ** 5
             else
                 pred_data = pred_data ** (1/5.0)
+            endif
+            
+        case (kQQ_NORMAL)
+            if (reverse_internal) then
+                write(*,*) "Not Implemented Yet"
+                if (.not.allocated(qm_io%start_idx)) then
+                    print*, "ERROR QM not even allocated"
+                    stop
+                endif
+                print*, minval(qm_io%start_idx), maxval(qm_io%start_idx)
+                print*, minval(qm_io%end_idx), maxval(qm_io%end_idx)
+                print*, minval(qm_io%slope), maxval(qm_io%slope)
+                print*, minval(qm_io%offset), maxval(qm_io%offset)
+                stop
+            else
+                
+                allocate( temporary( size(pred_data)) )
+                call random_number(temporary)
+                call develop_qm(pred_data( p_xf_start:p_xf_stop), &
+                                temporary, &
+                                qm, n_segments = N_ATM_QM_SEGMENTS)
+
+                call apply_qm(pred_data, temporary, qm)
+
+                pred_data = temporary
+
+                if (present(qm_io)) then
+                    qm_io = qm
+                endif
+
             endif
         end select
     end subroutine transform_data
@@ -967,11 +998,11 @@ contains
 
         integer :: v, Mem_Error
 
-        write(*,*), "Allocating Memory"
-        write(*,*), "  N output times:", noutput
-        write(*,*), "  nx:", nx, "        ny:",ny
-        write(*,*), "  Training size:",  tr_size
-        write(*,*), "  N atm variables:",n_atm_variables
+        write(*,*) "Allocating Memory"
+        write(*,*) "  N output times:", noutput
+        write(*,*) "  nx:", nx, "        ny:",ny
+        write(*,*) "  Training size:",  tr_size
+        write(*,*) "  N atm variables:",n_atm_variables
 
         allocate(output%variables(n_obs_variables), stat=Mem_Error)
         if (Mem_Error /= 0) call memory_error(Mem_Error, "out%variables", [n_obs_variables])
@@ -1044,9 +1075,9 @@ contains
         character(len=*), intent(in)                :: variable_name
         integer,          intent(in), dimension(:)  :: dims
 
-        write(*,*), "Error allocating memory for variable: ", trim(variable_name)
-        write(*,*), "  ERROR        = ", error
-        write(*,*), "  Dimensions   = ", dims
+        write(*,*) "Error allocating memory for variable: ", trim(variable_name)
+        write(*,*) "  ERROR        = ", error
+        write(*,*) "  Dimensions   = ", dims
 
         stop "MEMORY ALLOCATION ERROR"
 

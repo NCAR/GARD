@@ -40,6 +40,7 @@ module model_constants
     integer,public,parameter :: kLOG_TRANSFORM    = 2
     integer,public,parameter :: kCUBE_ROOT        = 3
     integer,public,parameter :: kFIFTH_ROOT       = 4
+    integer,public,parameter :: kQQ_NORMAL        = 5
 
     ! ------------------------------------------------
     ! Geospatial Interpolation Type Constants
