@@ -28,11 +28,13 @@ contains
 
             type(qm_correction_type) :: qm
             real, dimension(:,:), allocatable :: train_data, pred_data
+            real, dimension(:),   allocatable :: observed_data
             integer :: nx, ny, ntimes, ntrain, nobs, noutput
             integer :: n_obs_variables, n_atm_variables
             integer :: i, j, l, x, y, v
             integer :: Mem_Error
-            real :: w
+            ! real :: w
+            real :: current_threshold
             ! prediction period index variables
             integer :: p_start, p_end
             ! training index variables
@@ -107,7 +109,8 @@ contains
             !!                                       !!
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             !$omp parallel default(shared)                                                              &
-            !$omp      private(train_data, pred_data, i, j, v, timeone, timetwo, Mem_Error, qq_normal)  &
+            !$omp      private(train_data, pred_data, observed_data, i, j, v)                           &
+            !$omp      private(timeone, timetwo, Mem_Error, qq_normal)                                  &
             !$omp firstprivate(nx,ny,n_atm_variables, n_obs_variables, noutput, ntrain, nobs, ntimes)   &
             !$omp firstprivate(p_start, p_end, t_tr_start, t_tr_stop, o_tr_start, o_tr_stop)            &
             !$omp firstprivate(post_start, post_end, timers)
@@ -123,12 +126,16 @@ contains
             allocate( pred_data(  ntimes, n_atm_variables+1 ), STAT = Mem_Error )
             if (Mem_Error /= 0) call memory_error(Mem_Error, "pred_data", [ntimes, n_atm_variables+1])
 
+            allocate( observed_data (nobs), STAT = Mem_Error)
+            if (Mem_Error /= 0) call memory_error(Mem_Error, "observed_data", [nobs])
+            
             train_data=0
             pred_data=0
             ! constant coefficient for regressions... might be better to keep this in the point downscaling section?
             pred_data(:,1) = 1
             train_data(:,1) = 1
 
+            observed_data = 0
 
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             !!
@@ -237,8 +244,6 @@ contains
                         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                         do v=1,n_obs_variables
 
-                            call transform_data(options%obs%input_Xforms(v), training_obs%variables(v)%data(:,i,j), 1, nobs, qm_io=qq_normal)
-
                             if (options%debug) then
                                 !$omp critical (print_lock)
                                 write(*,*) ""
@@ -248,28 +253,40 @@ contains
                                 !$omp end critical (print_lock)
                                 output%variables(v)%obs(:,i,j) = training_obs%variables(v)%data(o_tr_start:o_tr_stop, i, j)
                             endif
+                            current_threshold = output%variables(v)%logistic_threshold
+                            observed_data     = training_obs%variables(v)%data(:,i,j)
+                            call transform_data(options%obs%input_Xforms(v), observed_data, 1, nobs, &
+                                                qm_io=qq_normal, threshold=current_threshold)
+
+                            ! if (output%variables(v)%logistic_threshold /= current_threshold) then
+                            !     !$omp critical (print_lock)
+                            !     print*, output%variables(v)%logistic_threshold, current_threshold
+                            !     !$omp end critical (print_lock)
+                            ! endif
 
                             ! As tempting as it may be, associate statements are not threadsafe!!!
                             output%variables(v)%data(:,i,j) = downscale_point(                                         &
                                                     pred_data                       (   p_start : p_end,     :),       &
                                                     train_data                      (t_tr_start : t_tr_stop, :),       &
-                                                    training_obs%variables(v)%data  (o_tr_start : o_tr_stop, i, j),    &
+                                                    observed_data                   (o_tr_start : o_tr_stop),          &
                                                     output%variables(v)%errors      (           :,           i, j),    &
                                                     output%variables(v)%coefficients(           :,  :,       i, j),    &
                                                     output%variables(v)%logistic    (           :,           i, j),    &
-                                                    output%variables(v)%logistic_threshold,                            &
-                                                    options, timers, i,j)
+                                                    current_threshold, options, timers, i,j)
 
                             ! if the input data were transformed with e.g. a cube root or log transform, then reverse that transformation for the output
                             call System_Clock(timeone)
                             call transform_data(options%obs%input_Xforms(v), output%variables(v)%data(:,i,j), 1, noutput, &
-                                                reverse=.True., qm_io=qq_normal)
+                                                reverse=.True., qm_io=qq_normal,                                          &
+                                                threshold = current_threshold,                                            &
+                                                threshold_delta = output%variables(v)%logistic_threshold - current_threshold)
                             call System_Clock(timetwo)
                             timers(6) = timers(6) + (timetwo-timeone)
 
                             call transform_data(options%post_correction_Xform(v), &
                                                 output      %variables(v)%data(:,i,j), post_start, post_end, &
-                                                training_obs%variables(v)%data(:,i,j),      1    , nobs)
+                                                training_obs%variables(v)%data(:,i,j),      1    , nobs,     &
+                                                threshold=current_threshold)
 
                         enddo
 
@@ -378,21 +395,25 @@ contains
                             p_xf_start, p_xf_stop,      &
                             train_data,                 &
                             t_xf_start, t_xf_stop,      &
-                            reverse, qm_io)
+                            reverse, qm_io, threshold, threshold_delta)
         implicit none
-        integer,            intent(in)    :: transform_type
-        real, dimension(:), intent(inout) :: pred_data
-        integer,            intent(in)    :: p_xf_start, p_xf_stop
-        real, dimension(:), intent(in), optional :: train_data
-        integer,            intent(in), optional :: t_xf_start, t_xf_stop
-        logical,            intent(in), optional :: reverse
+        integer,            intent(in)              :: transform_type
+        real, dimension(:), intent(inout)           :: pred_data
+        integer,            intent(in)              :: p_xf_start, p_xf_stop
+        real, dimension(:), intent(in), optional    :: train_data
+        integer,            intent(in), optional    :: t_xf_start, t_xf_stop
+        logical,            intent(in), optional    :: reverse
         type(qm_correction_type), intent(inout), optional  :: qm_io
+        real,               intent(inout),optional  :: threshold
+        real,               intent(in), optional    :: threshold_delta
 
 
         ! local variables needed by the quantile mapping transform
         type(qm_correction_type) :: qm
-        real, dimension(:), allocatable :: temporary
+        real, dimension(:), allocatable :: temporary, thresholded_training
+        real :: newmin
         logical :: reverse_internal
+        logical, allocatable :: mask(:)
 
         reverse_internal = .False.
         if (present(reverse)) reverse_internal = reverse
@@ -401,15 +422,55 @@ contains
 
         case (kQUANTILE_MAPPING)
 
-            allocate( temporary( size(pred_data)) )
+            if (reverse_internal) then
+                if (.not.present(qm_io)) then
+                    write(*,*) "ERROR: Can't reverse a quantile mapping step without the saved quantiles"
+                    stop
+                endif
 
-            call develop_qm(pred_data( p_xf_start:p_xf_stop), &
-                            train_data(t_xf_start:t_xf_stop), &
-                            qm, n_segments = N_ATM_QM_SEGMENTS)
+                call reverse_qm(pred_data, qm_io)
+            else
+                if (.not.present(train_data)) then
+                    write(*,*) "ERROR: Can't quantile map with out a training data set"
+                    stop
+                endif
 
-            call apply_qm(pred_data, temporary, qm)
+                if (threshold/=kFILL_VALUE) then
+                    allocate(mask(p_xf_start:p_xf_stop))
+                    mask = pred_data(p_xf_start:p_xf_stop) > threshold
+                    allocate( temporary( count(mask) ) )
+                    allocate( thresholded_training ( count(train_data(t_xf_start:t_xf_stop) > threshold) ))
 
-            pred_data = temporary
+                    temporary            = pack(  pred_data(p_xf_start:p_xf_stop), mask=mask )
+                    thresholded_training = pack( train_data(t_xf_start:t_xf_stop), mask=(train_data(t_xf_start:t_xf_stop) > threshold))
+
+                    call develop_qm(temporary, thresholded_training,    &
+                                    qm, n_segments = N_ATM_QM_SEGMENTS)
+
+                    deallocate(thresholded_training)
+                    allocate( thresholded_training( size(temporary)) )
+                    call apply_qm(temporary, thresholded_training, qm)
+
+                    pred_data(p_xf_start:p_xf_stop) = unpack( thresholded_training, mask, pred_data(p_xf_start:p_xf_stop))
+
+                    deallocate(thresholded_training, temporary, mask)
+                else
+                    call develop_qm(pred_data( p_xf_start:p_xf_stop), &
+                                    train_data(t_xf_start:t_xf_stop), &
+                                    qm, n_segments = N_ATM_QM_SEGMENTS)
+
+                    allocate( temporary( size(pred_data)) )
+
+                    call apply_qm(pred_data, temporary, qm)
+                    pred_data = temporary
+
+                    deallocate(temporary)
+                endif
+
+                if (present(qm_io)) then
+                    qm_io = qm
+                endif
+            endif
 
         case (kLOG_TRANSFORM)
 
@@ -438,17 +499,58 @@ contains
 
         case (kQQ_NORMAL)
             if (reverse_internal) then
+                if (.not.present(qm_io)) then
+                    write(*,*) "ERROR: Can't reverse a quantile mapping step without the saved quantiles"
+                    stop
+                endif
+
+                if (present(threshold_delta)) then
+                    allocate(mask(size(pred_data)))
+                    mask = pred_data <= threshold
+                endif
+
                 call reverse_qm(pred_data, qm_io)
+
+                if (present(threshold_delta)) then
+                    where(mask) pred_data = pred_data + threshold_delta
+                    threshold = threshold + threshold_delta
+                    deallocate(mask)
+                endif
             else
 
-                allocate( temporary( size(pred_data)) )
 
-                call develop_qm(pred_data( p_xf_start:p_xf_stop), &
-                                random_sample, &
-                                qm, n_segments = (p_xf_stop - p_xf_start)/2 )!N_ATM_QM_SEGMENTS)
+                if (threshold/=kFILL_VALUE) then
+                    allocate(mask(p_xf_start:p_xf_stop))
+                    mask = pred_data(p_xf_start:p_xf_stop) > threshold
+                    allocate( temporary( count(mask) ) )
+                    temporary = pack(  pred_data(p_xf_start:p_xf_stop), mask=mask)
 
-                call apply_qm(pred_data, temporary, qm)
-                pred_data = temporary
+                    call develop_qm(temporary, random_sample,    &
+                                    qm, n_segments = N_ATM_QM_SEGMENTS)
+
+                    allocate( thresholded_training( size(temporary)) )
+                    call apply_qm(temporary, thresholded_training, qm)
+
+                    newmin = minval(thresholded_training)
+                    newmin = newmin - 0.001 * abs(newmin)
+
+                    if (newmin < threshold) then
+                        where(mask) pred_data(p_xf_start:p_xf_stop) = pred_data(p_xf_start:p_xf_stop) + (newmin - threshold)
+                        threshold = (newmin - threshold)
+                    endif
+                    pred_data(p_xf_start:p_xf_stop) = unpack( thresholded_training, mask, pred_data(p_xf_start:p_xf_stop))
+
+                    deallocate(thresholded_training, temporary, mask)
+                else
+                    allocate( temporary( size(pred_data)) )
+
+                    call develop_qm(pred_data( p_xf_start:p_xf_stop), &
+                                    random_sample, &
+                                    qm, n_segments = N_ATM_QM_SEGMENTS)
+
+                    call apply_qm(pred_data, temporary, qm)
+                    pred_data = temporary
+                endif
 
                 if (present(qm_io)) then
                     qm_io = qm
