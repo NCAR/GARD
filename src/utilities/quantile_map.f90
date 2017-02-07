@@ -51,9 +51,13 @@ contains
         allocate(data_to_match_sorted(nm))
         call sort(data_to_match, data_to_match_sorted)
 
-        if (nseg<10) then
-            write(*,*), "Quantile mapping with <10 segments not recommended, using 10 segments. "
-            nseg=10
+        if (nseg<5) then
+            ! write(*,*), "Quantile mapping with < 5 segments not recommended, using 5 segments. "
+            nseg=5
+        endif
+        if ((nseg-1) > min(ni,nm)) then
+            nseg = min(ni,nm)+1
+            ! write(*,*) " WARNING: reducing number of QM segments:",nseg
         endif
         input_step = ni/real(nseg-1)
         match_step = nm/real(nseg-1)
@@ -78,6 +82,7 @@ contains
         top = 1 + input_step
         qm%end_idx(1)   = sum(input_data_sorted( bottom:top )) / (top - bottom + 1)
 
+
         bottom = 1
         top = max(1, min(EXTREME_WINDOW, int(match_step/4)) )
         qm%offset(1)    = sum(data_to_match_sorted( bottom:top )) / (top - bottom + 1)
@@ -96,10 +101,10 @@ contains
         match_i = match_step
         do i=2,nseg-1
             qm%start_idx(i) = qm%end_idx(i-1)
-            bottom          = int(input_i)
+            bottom          = max(int(input_i),1)
             top             = int(input_i + input_step)
             qm%end_idx(i)   = sum(input_data_sorted( bottom:top )) / (top - bottom + 1)
-            bottom          = int(match_i)
+            bottom          = max(int(match_i),1)
             top             = int(match_i + match_step)
             qm%offset(i+1)  = sum(data_to_match_sorted( bottom:top ))/ (top - bottom + 1)
 
@@ -122,6 +127,7 @@ contains
         qm%start_idx(i) = qm%end_idx(i-1)
         bottom          = min(max(int(input_i - input_step/4), ni - EXTREME_WINDOW), ni-1)
         top             = ni
+
         qm%end_idx(i)   = sum(input_data_sorted( bottom:top )) / (top - bottom + 1)
 
         bottom          = min(max(int(match_i - match_step/4), nm - EXTREME_WINDOW), nm-1)
