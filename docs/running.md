@@ -45,3 +45,10 @@ After building GARD, it is run on the command line following this syntax:
 Use the following to generate a list of e.g. GEFS precipitation files for input.
 
     ls -1 gefs/2010/*/apcp_sfc_*_mean.nc | sed 's/*//g;s/$/"/g;s/^/"/g'>gefs_pr_file.txt
+
+## Common Errors
+
+1. Segmentation Fault
+    - GARD allocates memory to the stack. Users should set the "The maximum stack size" to "unlimited" prior to building/running GARD. `ulimit -s unlimited`
+2. Random errors (e.g. debug not staying set at False)
+    - Make sure all filenames in the namelist are in quotations. 

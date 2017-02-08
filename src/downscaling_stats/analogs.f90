@@ -56,10 +56,15 @@ contains
 
         if (minval(analogs)<1) then
             !$omp critical (print_lock)
-            print*, n, minval(analogs), maxval(analogs)
-            print*, analogs(1:4)
-            print*, maxval(distances), minval(distances)
-            print*, match
+            write(*,*) ""
+            write(*,'(A,I4)'         ) "   n analogs:",n
+            write(*,'(A,I7,A,I7)'    ) "   Minimum analog index:",   minval(analogs),   "      Maximum analog index:",maxval(analogs)
+            write(*,'(A,4I7)'        ) "   First 4 analogs:", analogs(1:4)
+            write(*,'(A,F9.1,A,F9.1)') "   Maximum analog distance:",maxval(distances), "      Minimum analog distance:",minval(distances)
+            write(*,*) "   Predictor values to match:", match
+            write(*,*) ""
+            write(*,*) " Are training and predictor transforms set appropriately?"
+            write(*,*) ""
             stop "ERROR selecting analogs"
             !$omp end critical (print_lock)
         endif

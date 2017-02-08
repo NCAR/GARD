@@ -8,10 +8,12 @@ module downscaling_mod
     use quantile_mapping,   only : develop_qm, apply_qm
     use time_util,          only : setup_time_indices
     use basic_stats_mod,    only : stddev
+    use io_routines,        only : file_exists, io_read
     implicit none
 
     integer*8, dimension(10) :: master_timers
     real, parameter :: LOG_FILL_VALUE = 1e-30
+    real, parameter :: MAX_ALLOWED_SIGMA = 20
 
 
 contains
@@ -20,7 +22,7 @@ contains
             type(atm),    intent(inout) :: training_atm, predictors
             type(obs),    intent(inout) :: training_obs
             type(results),intent(out)   :: output
-            type(config), intent(in)    :: options
+            type(config), intent(inout) :: options
 
             type(qm_correction_type) :: qm
             real, dimension(:,:), allocatable :: train_data, pred_data
@@ -79,6 +81,7 @@ contains
 
             call System_Clock(timeone)
             call allocate_data(output, n_obs_variables, noutput, nx, ny, n_atm_variables, tr_size, options)
+            if (options%read_coefficients) call read_coefficients(output, options)
             print*, ""
 
             do v=1,n_obs_variables
@@ -214,6 +217,11 @@ contains
                                 output%variables(1)%predictors(:,i,j,v+1) = pred_data( p_start   : p_end,    v+1)
                                 output%variables(1)%training  (:,i,j,v+1) = train_data(t_tr_start: t_tr_stop,v+1)
                             endif
+                            if ((options%pass_through .eqv. .False.).and.(options%prediction%transformations(v) == kQUANTILE_MAPPING)) then
+                                ! we should have normalized data, so nothing should be greater than ~MAX_SIGMA (or less than 0?)
+                                where(pred_data(:,v+1) >  MAX_ALLOWED_SIGMA)   pred_data(:,v+1) =  MAX_ALLOWED_SIGMA
+                                where(pred_data(:,v+1) < -MAX_ALLOWED_SIGMA)   pred_data(:,v+1) = -MAX_ALLOWED_SIGMA
+                            endif
                             call System_Clock(timetwo)
                             timers(6) = timers(6) + (timetwo-timeone)
                         enddo
@@ -247,7 +255,10 @@ contains
                                                     options, timers, i,j)
 
                             ! if the input data were transformed with e.g. a cube root or log transform, then reverse that transformation for the output
+                            call System_Clock(timeone)
                             call transform_data(options%obs%input_Xforms(v), output%variables(v)%data(:,i,j), 1, noutput, reverse=.True.)
+                            call System_Clock(timetwo)
+                            timers(6) = timers(6) + (timetwo-timeone)
 
 
                         enddo
@@ -416,7 +427,7 @@ contains
         end select
     end subroutine transform_data
 
-    function downscale_point(predictor, atm, obs, errors, output_coeff, logistic, logistic_threshold, options, timers, xptn, ypnt) result(output)
+    function downscale_point(predictor, atm, obs, errors, output_coeff, logistic, logistic_threshold, options, timers, xpnt, ypnt) result(output)
         implicit none
         real,    dimension(:,:), intent(inout):: predictor, atm ! (ntimes, nvars)
         real,    dimension(:),   intent(in)   :: obs
@@ -426,8 +437,9 @@ contains
         real,                    intent(in)   :: logistic_threshold
         type(config),            intent(in)   :: options
         integer(8),dimension(:), intent(inout):: timers
-        integer, intent(in) :: xptn, ypnt
+        integer, intent(in) :: xpnt, ypnt
 
+        integer, dimension(:),   allocatable :: used_vars
         real,    dimension(:),   allocatable :: output
         real(8), dimension(:),   allocatable :: coefficients
         real,    dimension(:),   allocatable :: coefficients_r4
@@ -443,6 +455,7 @@ contains
         nvars = size(atm,2)
         n = size(predictor,1)
 
+        allocate(used_vars(nvars))
         allocate(coefficients(nvars))
         allocate(coefficients_r4(nvars*2))
         allocate(output(n))
@@ -458,29 +471,23 @@ contains
             return
         endif
 
-        ! This just prevents any single points that were WAY out (most likely due to the QM?)
-        ! note that if the data have not been normalized, this is not valid
-        ! where(predictor < -10) predictor = -10
-        ! where(predictor >  10) predictor =  10
-
-
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         !!
         !!  Initialization code for pure regression
         !!
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        if (options%pure_regression) then
+        if (options%pure_regression .and. (.not.options%read_coefficients)) then
             call System_Clock(timeone)
-            output(1)  = compute_regression(predictor(1,:), atm, obs, coefficients, errors(1))
+            output(1)  = compute_regression(predictor(1,:), atm, obs, coefficients, errors(1), used_vars=used_vars)
+
             errors(2:) = errors(1)
             where( coefficients >  1e20 ) coefficients =  1e20
             where( coefficients < -1e20 ) coefficients = -1e20
             coefficients_r4(1:nvars) = coefficients
-            if (options%debug) then
-                do v=1,nvars
-                    output_coeff(v,:) = coefficients(v)
-                enddo
-            endif
+            do v=1,nvars
+                output_coeff(v,:) = coefficients(v)
+            enddo
+
             call System_Clock(timetwo)
             timers(2) = timers(2) + (timetwo-timeone)
 
@@ -490,15 +497,18 @@ contains
                 where( coefficients >  1e20 ) coefficients =  1e20
                 where( coefficients < -1e20 ) coefficients = -1e20
                 coefficients_r4(nvars+1:nvars*2) = coefficients
-                if (options%debug) then
-                    do v = 1,nvars
-                        output_coeff(v+nvars,:) = coefficients(v)
-                    enddo
-                endif
+                do v = 1,nvars
+                    output_coeff(v+nvars,:) = coefficients(v)
+                enddo
             endif
             call System_Clock(timetwo)
             timers(3) = timers(3) + (timetwo-timeone)
 
+        elseif (options%pure_regression .and. options%read_coefficients) then
+            coefficients_r4(1:nvars) = output_coeff(1:nvars,1)
+            if (logistic_threshold/=kFILL_VALUE) then
+                coefficients_r4(nvars+1:nvars*2) = output_coeff(nvars+1:nvars*2,1)
+            endif
         endif
 
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -531,7 +541,7 @@ contains
             elseif (options%analog_regression) then
                 call downscale_analog_regression(predictor(i,:), atm, obs, coefficients_r4,     &
                                                  output(i), errors(i), logistic(i),             &
-                                                 options, timers, [xptn,ypnt,i], cur_time=i)
+                                                 options, timers, [xpnt,ypnt,i], cur_time=i)
 
                 if (options%debug) then
                     do v=1,nvars
@@ -546,8 +556,10 @@ contains
             !!
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             elseif (options%pure_regression) then
-                ! to test matmul(predictor, output_coeff(:,1)) should provide all time values efficiently?
-                call apply_pure_regression(output(i), predictor(i,:), coefficients_r4, logistic(i),  logistic_threshold, timers)
+                ! to test should provide all time values efficiently? i.e. no time loop
+                ! output   = matmul(predictor, coefficients_r4(:nvars))
+                ! logistic = 1.0 / (1.0 + exp(-matmul(predictor, coefficients_r4(nvars+1:nvars*2))))
+                call apply_pure_regression(output(i), predictor(i,:), coefficients_r4, logistic(i),  logistic_threshold, timers, used_vars)
 
             endif
         end do
@@ -650,12 +662,6 @@ contains
                     coefficients(1) = 1e20
                     call System_Clock(timeone)
                 endif
-                ! if the regression picked a vaguely valid value <0 then just set it to 0?
-                ! But since this is just the mean expected value, it can have a positive error term added to it resulting
-                ! in a net positive value, so for now we will accept "negative" precipitation amounts
-                ! if (output<0) then
-                !     output=0
-                ! endif
 
             elseif (n_packed > 0) then
                 output = sum(pack(obs_analogs, threshold_packing)) / n_packed
@@ -809,26 +815,52 @@ contains
 
     end subroutine downscale_pure_analog
 
-    subroutine apply_pure_regression(output, x, B, logistic, threshold, timers)
+    subroutine apply_pure_regression(output, x, B, logistic, threshold, timers, used_vars)
         implicit none
         real,       intent(in),     dimension(:)    :: x, B
         real,       intent(inout)                   :: output, logistic
         real,       intent(in)                      :: threshold
         integer*8,  intent(inout),  dimension(:)    :: timers
+        integer,    intent(in),     dimension(:)    :: used_vars
 
         integer*8   :: timeone, timetwo
-        integer     :: nvars
+        integer     :: i, nvars, nextcoef
 
         nvars = size(x)
         call System_Clock(timeone)
-        output = dot_product(x, B(1:nvars))
+
+        ! need to handle the fact that the regression code might skip one or more variables
+        if (minval(used_vars)<0) then
+            output  = 0
+            nextcoef= 1
+            do i=1,nvars
+                if (used_vars(i)>0) then
+                    output = output + x(i) * B(nextcoef)
+                    nextcoef = nextcoef+1
+                endif
+            enddo
+        else
+            output = dot_product(x, B(1:nvars))
+        endif
         call System_Clock(timetwo)
         timers(2) = timers(2) + (timetwo-timeone)
 
         call System_Clock(timeone)
 
         if (threshold/=kFILL_VALUE) then
-            logistic = 1.0 / (1.0 + exp(-dot_product(x, B(nvars+1:nvars*2))))
+            if (minval(used_vars)<0) then
+                logistic  = 0
+                nextcoef= nvars+1
+                do i=1,nvars
+                    if (used_vars(i)>0) then
+                        logistic = logistic + x(i) * B(nextcoef)
+                        nextcoef = nextcoef+1
+                    endif
+                enddo
+                logistic = 1.0 / (1.0 + exp(-logistic))
+            else
+                logistic = 1.0 / (1.0 + exp(-dot_product(x, B(nvars+1:nvars*2))))
+            endif
         endif
         call System_Clock(timetwo)
         timers(3) = timers(3) + (timetwo-timeone)
@@ -869,11 +901,16 @@ contains
                     !$omp end critical (print_lock)
                 endif
             endif
+            ! limit to +/- ~20 sigma
+            where(abs(var%data(:,i,j)) >  MAX_ALLOWED_SIGMA) var%data(:,i,j) =  MAX_ALLOWED_SIGMA
+            where(abs(var%data(:,i,j)) < -MAX_ALLOWED_SIGMA) var%data(:,i,j) = -MAX_ALLOWED_SIGMA
+            
             ! shift to a 0-based range so that variables such as precip have a testable non-value
             var%min_val(i,j) = minval(var%data(:,i,j))
-
-            var%data(:,i,j) = var%data(:,i,j) - norm_data%min_val(i,j)
-            where(abs(var%data(:,i,j)) < 1e-10) var%data(:,i,j)=0
+            ! this has the potential to make 0 precip values >0 (or <0) for predictors
+            ! var%data(:,i,j) = var%data(:,i,j) - norm_data%min_val(i,j)
+            ! this has the potential to make a bunch of small precip values effectively 0 and something else should be done
+            ! where(abs(var%data(:,i,j)) < 0) var%data(:,i,j) = 0
         enddo
 
 
@@ -963,8 +1000,10 @@ contains
             if (options%debug) then
                 allocate(output%variables(v)%obs         (tr_size, nx, ny), stat=Mem_Error)
                 if (Mem_Error /= 0) call memory_error(Mem_Error, "out%variables(v)%obs v="//trim(str(v)), [tr_size,nx,ny])
+
                 allocate(output%variables(v)%training    (tr_size, nx, ny, n_atm_variables+1), stat=Mem_Error)
                 if (Mem_Error /= 0) call memory_error(Mem_Error, "out%variables(v)%training v="//trim(str(v)), [tr_size,nx,ny, n_atm_variables+1])
+
                 allocate(output%variables(v)%predictors  (noutput, nx, ny, n_atm_variables+1), stat=Mem_Error)
                 if (Mem_Error /= 0) call memory_error(Mem_Error, "out%variables(v)%predictors v="//trim(str(v)), [noutput,nx,ny, n_atm_variables+1])
 
@@ -981,10 +1020,13 @@ contains
                 output%variables(v)%obs          = 0
                 output%variables(v)%coefficients = 0
             else
-                ! unfortunately coefficients has to be allocated even if it is not used because it is indexed
-                ! however, it does not need a complete time sequence or variable size because they are never indexed
-                allocate(output%variables(v)%coefficients(n_atm_variables+1, 2, nx, ny), stat=Mem_Error)
-                if (Mem_Error /= 0) call memory_error(Mem_Error, "out%variables(v)%coefficients v="//trim(str(v)), [2,2,nx,ny])
+                if (options%logistic_threshold/=kFILL_VALUE) then
+                    allocate(output%variables(v)%coefficients((n_atm_variables+1)*2, 1, nx, ny), stat=Mem_Error)
+                    if (Mem_Error /= 0) call memory_error(Mem_Error, "out%variables(v)%coefficients v="//trim(str(v)), [(n_atm_variables+1)*2,1,nx,ny])
+                else
+                    allocate(output%variables(v)%coefficients(n_atm_variables+1, 1, nx, ny), stat=Mem_Error)
+                    if (Mem_Error /= 0) call memory_error(Mem_Error, "out%variables(v)%coefficients v="//trim(str(v)), [n_atm_variables+1,1,nx,ny])
+                endif
             endif
 
         end do
@@ -1004,5 +1046,57 @@ contains
 
     end subroutine memory_error
 
+    !>------------------------------------------------
+    !! Read the regression coefficients from a specified netcdf file
+    !!
+    !! Needs to add more error checking! file existance, etc. 
+    !!
+    !!------------------------------------------------
+    subroutine read_coefficients(output, options)
+        implicit none
+        type(results),  intent(inout)   :: output
+        type(config),   intent(inout)   :: options
+        
+        real, allocatable :: coefficients(:,:,:,:)
+        integer :: i, ntimes, v, nvars
+        logical :: no_error
+
+        no_error = .True.
+        nvars = size(output%variables)
+        
+        do v=1, nvars
+            if (file_exists(options%coefficients_files(v))) then
+                call io_read(options%coefficients_files(v), "coefficients", coefficients)
+
+                if (size(output%variables(v)%coefficients, 1) /= size(coefficients, 1)) then
+                    write(*,*) "WARNING: input regression coefficients in file do not match the expected number of variables."
+                    no_error = .False.
+                endif
+                if (size(output%variables(v)%coefficients, 3) /= size(coefficients, 3)) then
+                    write(*,*) "WARNING: input regression coefficients in file do not match the expected number of x grid points."
+                    no_error = .False.
+                endif
+                if (size(output%variables(v)%coefficients, 4) /= size(coefficients, 4)) then
+                    write(*,*) "WARNING: input regression coefficients in file do not match the expected number of y grid points."
+                    no_error = .False.
+                endif
+                    
+                if (no_error) then
+                    ntimes = size(output%variables(v)%coefficients, 2)
+                    do i=1, ntimes
+                        output%variables(v)%coefficients(:,i,:,:) = coefficients(:,1,:,:)
+                    enddo
+                endif
+                deallocate(coefficients) ! probably not needed
+            else
+                write(*,*) "WARNING: coefficients_file does not exist:"//trim(options%coefficients_files(v))
+                no_error = .False.
+            endif
+            
+            if (.not.no_error) then
+                options%read_coefficients = .False.
+            endif
+        enddo
+    end subroutine read_coefficients
 
 end module downscaling_mod
