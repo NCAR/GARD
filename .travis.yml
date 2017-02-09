@@ -7,7 +7,7 @@ os:
 env: TESTID='GARD_linux'
 addons:
   apt:
-    source:
+    sources:
       - ubuntu-toolchain-r-test
     packages:
       - gfortran-6
