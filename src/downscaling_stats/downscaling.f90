@@ -17,6 +17,8 @@ module downscaling_mod
     real, parameter :: N_RANDOM_SAMPLES = 10000
     real :: random_sample(N_RANDOM_SAMPLES)
 
+    integer, parameter :: stats_point(3) = [298,127,1]![36,131,1]  ! [70,75,1]
+
 
 contains
     subroutine downscale(training_atm, training_obs, predictors, output, options)
@@ -128,7 +130,7 @@ contains
 
             allocate( observed_data (nobs), STAT = Mem_Error)
             if (Mem_Error /= 0) call memory_error(Mem_Error, "observed_data", [nobs])
-            
+
             train_data=0
             pred_data=0
             ! constant coefficient for regressions... might be better to keep this in the point downscaling section?
@@ -255,9 +257,21 @@ contains
                             endif
                             current_threshold = output%variables(v)%logistic_threshold
                             observed_data     = training_obs%variables(v)%data(:,i,j)
+                            if (maxval(abs([i,j] - stats_point(1:2)))==0) then
+                                !$omp critical (print_lock)
+                                print*, "pre-QQ_n xform:",maxval(observed_data)
+                                !$omp end critical (print_lock)
+                            endif
+
                             call transform_data(options%obs%input_Xforms(v), observed_data, 1, nobs, &
                                                 qm_io=qq_normal, threshold=current_threshold)
 
+                            if (maxval(abs([i,j] - stats_point(1:2)))==0) then
+                                !$omp critical (print_lock)
+                                print*, "post-QQ_n xform:",maxval(observed_data)
+                                print*, qq_normal
+                                !$omp end critical (print_lock)
+                            endif
                             ! if (output%variables(v)%logistic_threshold /= current_threshold) then
                             !     !$omp critical (print_lock)
                             !     print*, output%variables(v)%logistic_threshold, current_threshold
@@ -535,7 +549,7 @@ contains
                     newmin = newmin - 0.001 * abs(newmin)
 
                     if (newmin < threshold) then
-                        where(mask) pred_data(p_xf_start:p_xf_stop) = pred_data(p_xf_start:p_xf_stop) + (newmin - threshold)
+                        where(.not.mask) pred_data(p_xf_start:p_xf_stop) = pred_data(p_xf_start:p_xf_stop) + (newmin - threshold)
                         threshold = (newmin - threshold)
                     endif
                     pred_data(p_xf_start:p_xf_stop) = unpack( thresholded_training, mask, pred_data(p_xf_start:p_xf_stop))
@@ -712,7 +726,7 @@ contains
             if (options%pure_analog) then
                 call downscale_pure_analog(predictor(i,:), atm, obs, coefficients_r4,     &
                                            output(i), errors(i), logistic(i), obs_in,     &
-                                           options, timers, cur_time=i)
+                                           options, logistic_threshold, timers, cur_time=i)
 
                 if (options%debug) then
                     do v=1,nvars
@@ -728,7 +742,7 @@ contains
             elseif (options%analog_regression) then
                 call downscale_analog_regression(predictor(i,:), atm, obs, coefficients_r4,     &
                                                  output(i), errors(i), logistic(i), obs_in,     &
-                                                 options, timers, [xpnt,ypnt,i], cur_time=i)
+                                                 options, logistic_threshold, timers, [xpnt,ypnt,i], cur_time=i)
 
                 if (options%debug) then
                     do v=1,nvars
@@ -753,38 +767,38 @@ contains
 
     end function downscale_point
 
-    subroutine downscale_analog_regression(x, atm, obs, output_coeff, output, error, logistic, obs_in, options, timers, cur_point, cur_time)
+    subroutine downscale_analog_regression(x, atm, obs, output_coeff, output, error, logistic, obs_in, options, logistic_threshold, timers, cur_point, cur_time)
         implicit none
         real,           intent(in),     dimension(:,:)  :: atm
         real,           intent(in),     dimension(:)    :: x, obs, obs_in
         real,           intent(inout),  dimension(:)    :: output_coeff
         real,           intent(inout)                   :: output, logistic, error
         type(config),   intent(in)                      :: options
+        real,           intent(in)                      :: logistic_threshold
         integer*8,      intent(inout),  dimension(:)    :: timers
 
         integer,        intent(in),     dimension(3)    :: cur_point
         integer,        intent(in),     optional        :: cur_time
         integer     :: test
 
-        real,    dimension(:),   allocatable :: obs_analogs
+        real,    dimension(:),   allocatable :: obs_analogs, obs_in_analogs
         real,    dimension(:,:), allocatable :: regression_data
         integer, dimension(:),   allocatable :: analogs
         real(8), dimension(:),   allocatable :: coefficients
         integer*8   :: timeone, timetwo
-        real        :: analog_threshold, logistic_threshold
+        real        :: analog_threshold
         integer     :: real_analogs, selected_analog, nvars, n_analogs
         integer     :: j, a
 
         ! variables for handling packing e.g. precip to only use positive values in computing the amount
         real,    dimension(:,:),allocatable :: threshold_atm
-        real,    dimension(:),  allocatable :: threshold_obs
+        real,    dimension(:),  allocatable :: threshold_obs, threshold_obs_unsmoothed
         logical, dimension(:),  allocatable :: threshold_packing
         real,    dimension(:),  allocatable :: weights, packed_weights
         integer :: n_packed
 
         n_analogs           = options%n_analogs
         analog_threshold    = options%analog_threshold
-        logistic_threshold  = options%logistic_threshold
         nvars               = size(x)
 
         call System_Clock(timeone)
@@ -799,62 +813,159 @@ contains
         allocate(coefficients(nvars))
         allocate(regression_data(real_analogs, nvars))
         allocate(obs_analogs(real_analogs))
+        allocate(obs_in_analogs(real_analogs))
         if (logistic_threshold/=kFILL_VALUE) then
             allocate(threshold_packing(real_analogs))
         endif
 
         do a=1,real_analogs
             obs_analogs(a) = obs(analogs(a))
+            obs_in_analogs(a) = obs_in(analogs(a))
             regression_data(a,:) = atm(analogs(a),:)
         enddo
+
+        if (maxval(abs(cur_point - stats_point))==0) then
+            !$omp critical (print_lock)
+            print*, "-------------------"
+            print*, "-------------------"
+            print*, logistic_threshold
+            print*, cur_point
+            print*, "-------------------"
+            print*, x
+            print*, "-------------------"
+            print*, "analogs"
+            print*, analogs
+            print*, "-------------------"
+            print*, "obs_analogs"
+            print*, obs_analogs
+            print*, "-------------------"
+            print*, "regression_data"
+            print*, regression_data
+            print*, "-------------------"
+            print*, "-------------------"
+            !$omp end critical (print_lock)
+        endif
+
+
         call System_Clock(timetwo)
         timers(1) = timers(1) + (timetwo-timeone)
 
         call System_Clock(timeone)
         if (logistic_threshold==kFILL_VALUE) then
-            output = compute_regression(x, regression_data, obs_analogs, coefficients, obs_in, error, weights)
+            output = compute_regression(x, regression_data, obs_analogs, coefficients, obs_in_analogs, error, weights)
         else
 
-            threshold_packing = obs_analogs > logistic_threshold
+            threshold_packing = obs_in_analogs > logistic_threshold
             n_packed = count(threshold_packing)
 
             if (n_packed > (nvars*5)) then
                 allocate(threshold_atm(n_packed, nvars))
                 allocate(threshold_obs(n_packed))
+                allocate(threshold_obs_unsmoothed(n_packed))
                 do j=1,nvars
                     threshold_atm(:,j) = pack(regression_data(:,j), threshold_packing)
                 enddo
                 threshold_obs = pack(obs_analogs, threshold_packing)
+                threshold_obs_unsmoothed = pack(obs_in_analogs, threshold_packing)
                 if (options%analog_weights) then
                     allocate(packed_weights(n_packed))
                     packed_weights = pack(weights, threshold_packing)
                 endif
 
-                output = compute_regression(x, threshold_atm, threshold_obs, coefficients, obs_in, error, packed_weights)
+                output = compute_regression(x, threshold_atm, threshold_obs, coefficients, threshold_obs_unsmoothed, error, packed_weights)
 
-                if ((output>maxval(threshold_obs)*1.2)                        &
-                    .or.(output<(logistic_threshold-2))                       &
-                    .or.(abs(coefficients(1))>(maxval(threshold_obs) * 1.5))) then
+                if (maxval(abs(cur_point - stats_point))==0) then
+                    !$omp critical (print_lock)
+                    print*, "-------------------"
+                    print*, "Analog_regression output"
+                    print*, output
+                    print*, "-------------------"
+                    print*, error
+                    print*, "-------------------"
+                    print*, "coefficients"
+                    print*, coefficients
+                    print*, "Check conditions:"
+                    print*, maxval(threshold_obs)
+                    print*, maxval(threshold_obs_unsmoothed)
+                    print*, logistic_threshold
+                    print*, "-------------------"
+                    print*, "Input obs"
+                    print*, threshold_obs
+                    print*, "-------------------"
+                    print*, "Input atm"
+                    print*, threshold_atm
+                    print*, "-------------------"
+                    print*, "-------------------"
+                    !$omp end critical (print_lock)
+                endif
+
+                if ((output>maxval(threshold_obs_unsmoothed)*1.2)                      &
+                    .or.(output<(logistic_threshold-2))                                &
+                    .or.(abs(coefficients(1))>(maxval(threshold_obs_unsmoothed) * 1.5))) then
 
                     call System_Clock(timetwo)
                     timers(2) = timers(2) + (timetwo-timeone)
                     ! revert to a pure analog approach.  By passing analogs and weights, it will not recompute which analogs to use
                     ! it will just compute the analog mean, pop, and error statistics
                     if (present(cur_time)) then
-                        call downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, obs_in, options, timers, analogs, weights, cur_time)
+                        call downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, obs_in, options, logistic_threshold, timers, analogs, weights, cur_time)
                     else
-                        call downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, obs_in, options, timers, analogs, weights)
+                        call downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, obs_in, options, logistic_threshold, timers, analogs, weights)
                     endif
                     coefficients(1:nvars) = output_coeff(1:nvars)
                     coefficients(1) = 1e20
                     call System_Clock(timeone)
+                    if (maxval(abs(cur_point - stats_point))==0) then
+                        !$omp critical (print_lock)
+                        print*, "-------------------"
+                        print*, "analog output unstable regression"
+                        print*, "error properties:"
+                        print*, maxval(threshold_obs_unsmoothed)
+                        print*, coefficients(1)
+                        print*, "output"
+                        print*, output
+                        print*, "-------------------"
+                        print*, threshold_obs
+                        print*, "-------------------"
+                        !$omp end critical (print_lock)
+                    endif
                 endif
 
+
             elseif (n_packed > 0) then
-                output = sum(pack(obs_analogs, threshold_packing)) / n_packed
+                call System_Clock(timetwo)
+                timers(2) = timers(2) + (timetwo-timeone)
+                if (present(cur_time)) then
+                    call downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, obs_in, options, logistic_threshold, timers, analogs, weights, cur_time)
+                else
+                    call downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, obs_in, options, logistic_threshold, timers, analogs, weights)
+                endif
+                call System_Clock(timeone)
+                if (maxval(abs(cur_point - stats_point))==0) then
+                    !$omp critical (print_lock)
+                    print*, "-------------------"
+                    print*, "analog output (not enough data points)"
+                    print*, output
+                    print*, "-------------------"
+                    print*, error
+                    print*, "-------------------"
+                    print*, "pop"
+                    print*, logistic
+                    print*, "-------------------"
+                    print*, "output"
+                    print*, output
+                    print*, "-------------------"
+                    print*, "coefficients"
+                    print*, coefficients
+                    print*, "-------------------"
+                    print*, "-------------------"
+                    !$omp end critical (print_lock)
+                endif
+                ! output = sum(pack(obs_analogs, threshold_packing)) / n_packed
             else
                 ! note, for precip (and a 0 threshold), this could just be setting output, error, logistic, and coefficients to 0
                 output = compute_regression(x, regression_data, obs_analogs, coefficients, obs_in, error, weights)
+
             endif
 
         endif
@@ -908,19 +1019,20 @@ contains
         timers(3) = timers(3) + (timetwo-timeone)
     end subroutine downscale_analog_regression
 
-    subroutine downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, obs_in, options, timers, input_analogs, input_weights, cur_time)
+    subroutine downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, obs_in, options, logistic_threshold, timers, input_analogs, input_weights, cur_time)
         implicit none
         real,           intent(in),     dimension(:,:)  :: atm
         real,           intent(in),     dimension(:)    :: x, obs, obs_in
         real,           intent(inout),  dimension(:)    :: output_coeff
         real,           intent(inout)                   :: output, logistic, error
         type(config),   intent(in)                      :: options
+        real,           intent(in)                      :: logistic_threshold
         integer*8,      intent(inout),  dimension(:)    :: timers
         integer,        intent(in),     dimension(:),   optional    :: input_analogs
         real,           intent(in),     dimension(:),   optional    :: input_weights
         integer,        intent(in),     optional        :: cur_time
 
-        real        :: analog_threshold, logistic_threshold
+        real        :: analog_threshold
         integer*8   :: timeone, timetwo
         integer     :: real_analogs, selected_analog, nvars, n_analogs
         integer, dimension(:), allocatable :: analogs
@@ -930,7 +1042,6 @@ contains
 
         n_analogs           = options%n_analogs
         analog_threshold    = options%analog_threshold
-        logistic_threshold  = options%logistic_threshold
         nvars               = size(x)
 
         call System_Clock(timeone)
@@ -992,9 +1103,9 @@ contains
         call System_Clock(timeone)
         if (logistic_threshold/=kFILL_VALUE) then
             if (options%analog_weights) then
-                logistic = compute_analog_exceedance(obs, analogs, logistic_threshold, weights)
+                logistic = compute_analog_exceedance(obs_in, analogs, logistic_threshold, weights)
             else
-                logistic = compute_analog_exceedance(obs, analogs, logistic_threshold)
+                logistic = compute_analog_exceedance(obs_in, analogs, logistic_threshold)
             endif
         endif
         call System_Clock(timetwo)
