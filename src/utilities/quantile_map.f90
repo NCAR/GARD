@@ -89,6 +89,7 @@ contains
         denominator     = qm%end_idx(1) - qm%start_idx(1)
         if (denominator < SMALL_VALUE) then
             qm%slope(1) = 0
+            qm%offset(2) = qm%offset(1)
         else
             bottom = top
             top = 1 + match_step
@@ -104,14 +105,16 @@ contains
             bottom          = max(int(input_i),1)
             top             = int(input_i + input_step)
             qm%end_idx(i)   = sum(input_data_sorted( bottom:top )) / (top - bottom + 1)
-            bottom          = max(int(match_i),1)
-            top             = int(match_i + match_step)
-            qm%offset(i+1)  = sum(data_to_match_sorted( bottom:top ))/ (top - bottom + 1)
 
             denominator     = qm%end_idx(i) - qm%start_idx(i)
             if (denominator < SMALL_VALUE) then
-                qm%slope(i) = 0
+                qm%offset(i+1) = qm%offset(i)
+                qm%slope(i)    = 0
             else
+                bottom          = max(int(match_i),1)
+                top             = int(match_i + match_step)
+                qm%offset(i+1)  = sum(data_to_match_sorted( bottom:top ))/ (top - bottom + 1)
+
                 qm%slope(i) = (qm%offset(i+1) - qm%offset(i)) &
                              / denominator
             endif
