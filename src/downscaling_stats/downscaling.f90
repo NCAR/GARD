@@ -17,9 +17,6 @@ module downscaling_mod
     real, parameter :: N_RANDOM_SAMPLES = 10000
     real :: random_sample(N_RANDOM_SAMPLES)
 
-    integer, parameter :: stats_point(3) = [298,127,1]![36,131,1]  ! [70,75,1]
-
-
 contains
     subroutine downscale(training_atm, training_obs, predictors, output, options)
             implicit none
@@ -257,26 +254,9 @@ contains
                             endif
                             current_threshold = output%variables(v)%logistic_threshold
                             observed_data     = training_obs%variables(v)%data(:,i,j)
-                            if (maxval(abs([i,j] - stats_point(1:2)))==0) then
-                                !$omp critical (print_lock)
-                                print*, "pre-QQ_n xform:",maxval(observed_data)
-                                !$omp end critical (print_lock)
-                            endif
 
                             call transform_data(options%obs%input_Xforms(v), observed_data, 1, nobs, &
                                                 qm_io=qq_normal, threshold=current_threshold)
-
-                            if (maxval(abs([i,j] - stats_point(1:2)))==0) then
-                                !$omp critical (print_lock)
-                                print*, "post-QQ_n xform:",maxval(observed_data)
-                                print*, qq_normal
-                                !$omp end critical (print_lock)
-                            endif
-                            ! if (output%variables(v)%logistic_threshold /= current_threshold) then
-                            !     !$omp critical (print_lock)
-                            !     print*, output%variables(v)%logistic_threshold, current_threshold
-                            !     !$omp end critical (print_lock)
-                            ! endif
 
                             ! As tempting as it may be, associate statements are not threadsafe!!!
                             output%variables(v)%data(:,i,j) = downscale_point(                                         &
@@ -824,29 +804,6 @@ contains
             regression_data(a,:) = atm(analogs(a),:)
         enddo
 
-        if (maxval(abs(cur_point - stats_point))==0) then
-            !$omp critical (print_lock)
-            print*, "-------------------"
-            print*, "-------------------"
-            print*, logistic_threshold
-            print*, cur_point
-            print*, "-------------------"
-            print*, x
-            print*, "-------------------"
-            print*, "analogs"
-            print*, analogs
-            print*, "-------------------"
-            print*, "obs_analogs"
-            print*, obs_analogs
-            print*, "-------------------"
-            print*, "regression_data"
-            print*, regression_data
-            print*, "-------------------"
-            print*, "-------------------"
-            !$omp end critical (print_lock)
-        endif
-
-
         call System_Clock(timetwo)
         timers(1) = timers(1) + (timetwo-timeone)
 
@@ -874,31 +831,6 @@ contains
 
                 output = compute_regression(x, threshold_atm, threshold_obs, coefficients, threshold_obs_unsmoothed, error, packed_weights)
 
-                if (maxval(abs(cur_point - stats_point))==0) then
-                    !$omp critical (print_lock)
-                    print*, "-------------------"
-                    print*, "Analog_regression output"
-                    print*, output
-                    print*, "-------------------"
-                    print*, error
-                    print*, "-------------------"
-                    print*, "coefficients"
-                    print*, coefficients
-                    print*, "Check conditions:"
-                    print*, maxval(threshold_obs)
-                    print*, maxval(threshold_obs_unsmoothed)
-                    print*, logistic_threshold
-                    print*, "-------------------"
-                    print*, "Input obs"
-                    print*, threshold_obs
-                    print*, "-------------------"
-                    print*, "Input atm"
-                    print*, threshold_atm
-                    print*, "-------------------"
-                    print*, "-------------------"
-                    !$omp end critical (print_lock)
-                endif
-
                 if ((output>maxval(threshold_obs_unsmoothed)*1.2)                      &
                     .or.(output<(logistic_threshold-2))                                &
                     .or.(abs(coefficients(1))>(maxval(threshold_obs_unsmoothed) * 1.5))) then
@@ -915,20 +847,6 @@ contains
                     coefficients(1:nvars) = output_coeff(1:nvars)
                     coefficients(1) = 1e20
                     call System_Clock(timeone)
-                    if (maxval(abs(cur_point - stats_point))==0) then
-                        !$omp critical (print_lock)
-                        print*, "-------------------"
-                        print*, "analog output unstable regression"
-                        print*, "error properties:"
-                        print*, maxval(threshold_obs_unsmoothed)
-                        print*, coefficients(1)
-                        print*, "output"
-                        print*, output
-                        print*, "-------------------"
-                        print*, threshold_obs
-                        print*, "-------------------"
-                        !$omp end critical (print_lock)
-                    endif
                 endif
 
 
@@ -941,29 +859,8 @@ contains
                     call downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, obs_in, options, logistic_threshold, timers, analogs, weights)
                 endif
                 call System_Clock(timeone)
-                if (maxval(abs(cur_point - stats_point))==0) then
-                    !$omp critical (print_lock)
-                    print*, "-------------------"
-                    print*, "analog output (not enough data points)"
-                    print*, output
-                    print*, "-------------------"
-                    print*, error
-                    print*, "-------------------"
-                    print*, "pop"
-                    print*, logistic
-                    print*, "-------------------"
-                    print*, "output"
-                    print*, output
-                    print*, "-------------------"
-                    print*, "coefficients"
-                    print*, coefficients
-                    print*, "-------------------"
-                    print*, "-------------------"
-                    !$omp end critical (print_lock)
-                endif
-                ! output = sum(pack(obs_analogs, threshold_packing)) / n_packed
             else
-                ! note, for precip (and a 0 threshold), this could just be setting output, error, logistic, and coefficients to 0
+                ! note, for precip (and a "0" threshold), this could just be setting output, error, logistic, and coefficients to "0"
                 output = compute_regression(x, regression_data, obs_analogs, coefficients, obs_in, error, weights)
 
             endif
