@@ -9,7 +9,7 @@ addons:
     source:
       - ubuntu-toolchain-r-test
     packages:
-      - gfortran
+      - gfortran-5
       - libnetcdf-dev
       - liblapack-dev
 script:
