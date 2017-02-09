@@ -280,7 +280,7 @@ contains
                             call transform_data(options%post_correction_Xform(v), &
                                                 output      %variables(v)%data(:,i,j), post_start, post_end, &
                                                 training_obs%variables(v)%data(:,i,j),      1    , nobs,     &
-                                                threshold=current_threshold)
+                                                threshold=output%variables(v)%logistic_threshold)
 
                         enddo
 
@@ -401,16 +401,20 @@ contains
         real,               intent(inout),optional  :: threshold
         real,               intent(in), optional    :: threshold_delta
 
-
         ! local variables needed by the quantile mapping transform
         type(qm_correction_type) :: qm
         real, dimension(:), allocatable :: temporary, thresholded_training
         real :: newmin
-        logical :: reverse_internal
         logical, allocatable :: mask(:)
+        logical :: reverse_internal
+        real :: internal_threshold
+
+        internal_threshold = kFILL_VALUE
+        if (present(threshold)) internal_threshold = threshold
 
         reverse_internal = .False.
         if (present(reverse)) reverse_internal = reverse
+
         ! transform the relevant data (e.g. quantile map or other)
         select case (abs(transform_type))
 
@@ -429,14 +433,15 @@ contains
                     stop
                 endif
 
-                if (threshold/=kFILL_VALUE) then
+                if (internal_threshold/=kFILL_VALUE) then
+
                     allocate(mask(p_xf_start:p_xf_stop))
-                    mask = pred_data(p_xf_start:p_xf_stop) > threshold
+                    mask = pred_data(p_xf_start:p_xf_stop) > internal_threshold
                     allocate( temporary( count(mask) ) )
-                    allocate( thresholded_training ( count(train_data(t_xf_start:t_xf_stop) > threshold) ))
+                    allocate( thresholded_training ( count(train_data(t_xf_start:t_xf_stop) > internal_threshold) ))
 
                     temporary            = pack(  pred_data(p_xf_start:p_xf_stop), mask=mask )
-                    thresholded_training = pack( train_data(t_xf_start:t_xf_stop), mask=(train_data(t_xf_start:t_xf_stop) > threshold))
+                    thresholded_training = pack( train_data(t_xf_start:t_xf_stop), mask=(train_data(t_xf_start:t_xf_stop) > internal_threshold))
 
                     call develop_qm(temporary, thresholded_training,    &
                                     qm, n_segments = N_ATM_QM_SEGMENTS)
@@ -449,6 +454,7 @@ contains
 
                     deallocate(thresholded_training, temporary, mask)
                 else
+
                     call develop_qm(pred_data( p_xf_start:p_xf_stop), &
                                     train_data(t_xf_start:t_xf_stop), &
                                     qm, n_segments = N_ATM_QM_SEGMENTS)
@@ -500,22 +506,22 @@ contains
 
                 if (present(threshold_delta)) then
                     allocate(mask(size(pred_data)))
-                    mask = pred_data <= threshold
+                    mask = pred_data <= internal_threshold
                 endif
 
                 call reverse_qm(pred_data, qm_io)
 
                 if (present(threshold_delta)) then
                     where(mask) pred_data = pred_data + threshold_delta
-                    threshold = threshold + threshold_delta
+                    if (present(threshold)) threshold = threshold + threshold_delta
                     deallocate(mask)
                 endif
             else
 
 
-                if (threshold/=kFILL_VALUE) then
+                if (internal_threshold/=kFILL_VALUE) then
                     allocate(mask(p_xf_start:p_xf_stop))
-                    mask = pred_data(p_xf_start:p_xf_stop) > threshold
+                    mask = pred_data(p_xf_start:p_xf_stop) > internal_threshold
                     allocate( temporary( count(mask) ) )
                     temporary = pack(  pred_data(p_xf_start:p_xf_stop), mask=mask)
 
@@ -528,9 +534,9 @@ contains
                     newmin = minval(thresholded_training)
                     newmin = newmin - 0.001 * abs(newmin)
 
-                    if (newmin < threshold) then
-                        where(.not.mask) pred_data(p_xf_start:p_xf_stop) = pred_data(p_xf_start:p_xf_stop) + (newmin - threshold)
-                        threshold = (newmin - threshold)
+                    if (newmin < internal_threshold) then
+                        where(.not.mask) pred_data(p_xf_start:p_xf_stop) = pred_data(p_xf_start:p_xf_stop) + (newmin - internal_threshold)
+                        if (present(threshold)) threshold = (newmin - threshold)
                     endif
                     pred_data(p_xf_start:p_xf_stop) = unpack( thresholded_training, mask, pred_data(p_xf_start:p_xf_stop))
 
