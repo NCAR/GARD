@@ -320,6 +320,10 @@ REGRESSION_TEST_OBJS = 			\
 	$(BUILD)regression.o		\
 	$(BUILD)test_regression.o
 
+RANDOM_TEST_OBJS = 				\
+	$(BUILD)test_random.o		\
+	$(BUILD)random.o			\
+	$(BUILD)model_constants.o
 
 # These are the primary user facing rules
 #
@@ -330,7 +334,7 @@ model: gard
 
 all: gard test
 
-test: test_calendar test_sort test_qm test_config test_regression
+test: test_calendar test_sort test_qm test_config test_regression test_random
 
 install: gard
 	cp gard $(INSTALL_DIR)/
@@ -359,8 +363,12 @@ test_qm : $(QM_TEST_OBJS)
 test_sort : $(SORT_TEST_OBJS)
 	$(FC) -o $@ $^ $(LDFLAGS)
 
+test_random : $(RANDOM_TEST_OBJS)
+	$(FC) -o $@ $^ $(LDFLAGS)
+
 test_config : $(CONFIG_TEST_OBJS)
 	$(FC) -o $@ $^ $(LDFLAGS)
+
 
 
 # specify specific builds and dependencies.
@@ -379,6 +387,9 @@ $(BUILD)test_qm.o: tests/test_qm.f90 $(BUILD)data_structures.o $(BUILD)quantile_
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)test_config.o: tests/test_config.f90 $(BUILD)data_structures.o $(BUILD)model_constants.o $(BUILD)configuration.o
+	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
+
+$(BUILD)test_random.o: tests/test_random.f90 $(BUILD)random.o $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 
