@@ -1,16 +1,15 @@
 sudo: false
 language: fortran
 compiler:
-  - gfortran-6
+  - gfortran
 os:
   - linux
-env: TESTID='GARD_linux'
 addons:
   apt:
     sources:
       - ubuntu-toolchain-r-test
     packages:
-      - gfortran-6
+      - gfortran
       - libnetcdf-dev
       - liblapack-dev
 script:
