@@ -77,7 +77,7 @@ contains
             sigma = sigma + (random_values(i) - mean)**2
         enddo
         sigma = sqrt(sigma / (n_random_values - 1))
-        if (abs(sigma - 1) > 1e-2) then
+        if (abs(sigma - 1) > 1e-1) then
             print*, " Error failed computing standard deviation: ", sigma
             passing = .False.
         endif
