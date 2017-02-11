@@ -7,8 +7,10 @@ program test_random
     print*, "test_normal_to_cdf_conversion"
     call test_normal_to_cdf_conversion()
 
-    print*, "test_box_muller_random"
-    call test_box_muller_random()
+    print*, "test_box_muller_random(10000)"
+    call test_box_muller_random(10000)
+    print*, "test_box_muller_random(999)"
+    call test_box_muller_random(999)
 
 contains
 
@@ -50,10 +52,10 @@ contains
         endif
     end subroutine test_normal_to_cdf_conversion
 
-    subroutine test_box_muller_random()
+    subroutine test_box_muller_random(n_random_values)
         implicit none
 
-        integer, parameter :: n_random_values = 10000
+        integer, intent(in) :: n_random_values
 
         real :: random_values(n_random_values)
         real :: sigma, mean
