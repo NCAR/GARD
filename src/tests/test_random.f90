@@ -7,9 +7,10 @@ program test_random
     print*, "test_normal_to_cdf_conversion"
     call test_normal_to_cdf_conversion()
 
+    print*, "test_box_muller_random"
+    call test_box_muller_random()
 
 contains
-
 
     subroutine test_normal_to_cdf_conversion()
 
@@ -49,5 +50,52 @@ contains
         endif
     end subroutine test_normal_to_cdf_conversion
 
+    subroutine test_box_muller_random()
+        implicit none
+
+        integer, parameter :: n_random_values = 10000
+
+        real :: random_values(n_random_values)
+        real :: sigma, mean
+        integer :: i
+        logical :: passing
+
+        passing = .True.
+
+        call box_muller_random(random_values)
+
+        mean = sum(random_values) / size(random_values)
+        if (abs(mean) > 1e-2) then
+            print*, " Error failed computing mean: ",mean
+            passing = .False.
+        endif
+
+        sigma = 0
+        do i = 1, n_random_values
+            sigma = sigma + (random_values(i) - mean)**2
+        enddo
+        sigma = sqrt(sigma / (n_random_values - 1))
+        if (abs(sigma - 1) > 1e-2) then
+            print*, " Error failed computing standard deviation: ", sigma
+            passing = .False.
+        endif
+
+
+        if (minval(random_values) > (-3)) then
+            print*, " Error failed computing minimum value: ", minval(random_values)
+            passing = .False.
+        endif
+
+        if (maxval(random_values) < (3)) then
+            print*, " Error failed computing maximum value: ", maxval(random_values)
+            passing = .False.
+        endif
+
+        if (passing) then
+            print*, " PASSED"
+        else
+            print*, " FAILED"
+        endif
+    end subroutine test_box_muller_random
 
 end program test_random
