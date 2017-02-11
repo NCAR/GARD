@@ -10,7 +10,7 @@ program test_random
     print*, "test_box_muller_random(10000)"
     call test_box_muller_random(10000)
     print*, "test_box_muller_random(999)"
-    call test_box_muller_random(999)
+    call test_box_muller_random(9999)
 
 contains
 
