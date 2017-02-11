@@ -282,6 +282,7 @@ OBJS =  \
 	$(BUILD)obs_io.o    		\
 	$(BUILD)geo_reader.o      	\
     $(BUILD)basic_stats.o     	\
+	$(BUILD)random.o            \
 	$(BUILD)sorting.o			\
 	$(BUILD)quantile_mapping.o  \
 	$(BUILD)analogs.o       	\
@@ -399,6 +400,9 @@ $(BUILD)quantile_mapping.o: utilities/quantile_map.f90 $(BUILD)data_structures.o
 $(BUILD)sorting.o: utilities/sorting.f90 utilities/qsort_inline.inc
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
+$(BUILD)random.o: utilities/random.f90 $(BUILD)model_constants.o
+	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
+
 $(BUILD)basic_stats.o: utilities/basic_stats.f90
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
@@ -454,7 +458,7 @@ $(BUILD)atmosphere_io.o: io/atmosphere_io.f90 $(BUILD)data_structures.o  \
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)downscaling.o: downscaling_stats/downscaling.f90 $(BUILD)data_structures.o $(BUILD)model_constants.o \
-					$(BUILD)quantile_mapping.o $(BUILD)regression.o $(BUILD)analogs.o
+					$(BUILD)quantile_mapping.o $(BUILD)regression.o $(BUILD)analogs.o $(BUILD)random.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)analogs.o: downscaling_stats/analogs.f90 $(BUILD)string.o

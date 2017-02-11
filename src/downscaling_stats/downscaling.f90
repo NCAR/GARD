@@ -9,6 +9,7 @@ module downscaling_mod
     use time_util,          only : setup_time_indices
     use basic_stats_mod,    only : stddev
     use io_routines,        only : file_exists, io_read
+    use random_mod,         only : box_muller_random
     implicit none
 
     integer*8, dimension(10) :: master_timers
@@ -560,46 +561,6 @@ contains
         end select
     end subroutine transform_data
 
-    !>------------------------------------------------
-    !! Use the Box-Muller Transform to convert uniform to normal random deviates
-    !!
-    !! Note random_sample should be an allocated 1D real array
-    !! On return, random_sample will be filled with random normal (0,1) data
-    !!
-    !! Caveat: this transform is unable to generate extremely high values (>6.66)
-    !! Having switched to double precision it may do better now.
-    !!
-    !-------------------------------------------------
-    subroutine box_muller_random(random_sample)
-        implicit none
-        real, intent(inout) :: random_sample(:)
-        integer :: n,i
-
-        double precision :: u1, u2, s
-        double precision, allocatable :: double_random(:)
-
-        n = size(random_sample)
-        allocate(double_random(n))
-        call random_number(double_random)
-
-        do i=1,n,2
-            u1 = double_random(i)
-            if (i<n) then
-                u2 = double_random(i+1)
-            else
-                call random_number(u2)
-            endif
-
-            s = sqrt(-2 * log(u1))
-            random_sample(i) = s * cos(2 * kPI * u2)
-            if (i<n) then
-                random_sample(i+1) = s * sin(2 * kPI * u2)
-            endif
-
-        enddo
-
-    end subroutine box_muller_random
-
     function downscale_point(predictor, atm, obs_in, errors, output_coeff, logistic, logistic_threshold, options, timers, xpnt, ypnt) result(output)
         implicit none
         real,    dimension(:,:), intent(inout):: predictor, atm ! (ntimes, nvars)
@@ -645,7 +606,9 @@ contains
             return
         endif
 
-        allocate(obs, source=obs_in)
+        allocate(obs(size(obs_in)))
+        obs = obs_in
+
         if (options%time_smooth > 0) then
             do i=1, n
                 start = max(1, i - options%time_smooth)
