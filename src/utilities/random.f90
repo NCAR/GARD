@@ -74,6 +74,12 @@ contains
         
     end function real_normal_cdf
 
+    !>------------------------------------------------
+    !! Computes an approximation to the normal CDF based on Aludaat and Alodat (2008)
+    !!
+    !! Aludaat, K.M. and Alodat, M.T. (2008). A note on approximating the normal distribution function. Applied Mathematical Sciences, Vol 2, no 9, pgs 425-429.
+    !!
+    !!------------------------------------------------
     function double_normal_cdf(normal) result(cdf)
         implicit none
         double precision :: normal
@@ -87,6 +93,10 @@ contains
         
     end function double_normal_cdf
 
+    !>------------------------------------------------
+    !! Create a look up table to convert from Uniform random number to Normal random
+    !!
+    !!------------------------------------------------
     subroutine create_cdf_lookup_table()
         implicit none
         
@@ -120,7 +130,10 @@ contains
         
     end subroutine create_cdf_lookup_table
 
-    ! perform a binary search through LUT to find value, then interpolate between the two closest entries. 
+    !>------------------------------------------------
+    !! Perform a binary search through LUT to find value, then interpolate between the two closest entries. 
+    !!
+    !!------------------------------------------------
     function look_up(value, LUT) result(output)
         implicit none
         double precision, intent(in)  :: value
@@ -168,7 +181,10 @@ contains
     end function look_up
         
 
-    ! calculate index into precomputed LUT to find cdf_value, then interpolate between the two closest entries. 
+    !>------------------------------------------------
+    !! Calculate index into precomputed LUT to find cdf_value, then interpolate between the two closest entries. 
+    !!
+    !!------------------------------------------------
     function get_random_from_cdf(cdf_value) result(random_normal)
         implicit none
         real, intent(in)  :: cdf_value
