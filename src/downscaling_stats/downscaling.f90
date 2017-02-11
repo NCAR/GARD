@@ -12,10 +12,11 @@ module downscaling_mod
     use random_mod,         only : box_muller_random
     implicit none
 
+    real,    parameter :: LOG_FILL_VALUE = 1e-30
+    real,    parameter :: MAX_ALLOWED_SIGMA = 20
+    integer, parameter :: N_RANDOM_SAMPLES = 10000
+
     integer*8, dimension(10) :: master_timers
-    real, parameter :: LOG_FILL_VALUE = 1e-30
-    real, parameter :: MAX_ALLOWED_SIGMA = 20
-    real, parameter :: N_RANDOM_SAMPLES = 10000
     real :: random_sample(N_RANDOM_SAMPLES)
 
 contains
