@@ -45,7 +45,7 @@ contains
 
         ! iterate over all values to test, if expected value is more than 2e-3 away from the actual result it fails
         do i = 1, ntest_values
-            normal = get_random_from_cdf( cdf_values(i) )
+            normal = get_normal_from_cdf( cdf_values(i) )
             if ((abs(normal_values(i) - normal ) > 1e-2) .and. (abs(normal_values(i) - normal )/abs(normal_values(i)) > 2e-1)) then
                 passing = .False.
                 print*, ""
