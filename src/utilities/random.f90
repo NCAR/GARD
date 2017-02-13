@@ -4,6 +4,7 @@ module random_mod
 
     implicit none
 
+    private
     double precision, parameter :: root_pi_over_8 = 0.626657068658 ! sqrt(kPI/8)
 
     integer, parameter :: size_of_normal_cdf_lookup_table = 1000000
@@ -12,6 +13,8 @@ module random_mod
     interface normal_cdf
         module procedure real_normal_cdf, double_normal_cdf
     end interface
+    
+    public :: normal_cdf, box_muller_random, get_normal_from_cdf
     
 contains
     
@@ -185,7 +188,7 @@ contains
     !! Calculate index into precomputed LUT to find cdf_value, then interpolate between the two closest entries. 
     !!
     !!------------------------------------------------
-    function get_random_from_cdf(cdf_value) result(random_normal)
+    function get_normal_from_cdf(cdf_value) result(random_normal)
         implicit none
         real, intent(in)  :: cdf_value
         real :: random_normal
@@ -223,34 +226,7 @@ contains
             endif
         endif
         
-    end function get_random_from_cdf
+    end function get_normal_from_cdf
 
-    subroutine sample_distribution(output, mean_values, error_term, uniform_random_values, exceedence_probability, threshold)
-        implicit none
-        real, intent(out) :: output(:)
-        real, intent(in)  :: mean_values(:), error_term(:), uniform_random_values(:)
-        real, intent(in), optional :: exceedence_probability(:)
-        real, intent(in), optional :: threshold
-        
-        integer :: i,n
-        real :: random_normal, poe, threshold_internal
-        
-        threshold_internal = 0
-        if (present(threshold)) threshold_internal = threshold
-        
-        n = size(mean_values)
-        
-        do i=1,n
-            if (present(exceedence_probability)) then
-                if (exceedence_probability(i) > (1-uniform_random_values(i))) then
-
-                    random_normal = get_random_from_cdf(uniform_random_values(i) - exceedence_probability(i) / (1-exceedence_probability(i)) )
-
-                endif
-            endif
-            
-        enddo
-        output = 1
-    end subroutine sample_distribution
 
 end module random_mod

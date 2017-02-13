@@ -283,6 +283,7 @@ OBJS =  \
 	$(BUILD)geo_reader.o      	\
     $(BUILD)basic_stats.o     	\
 	$(BUILD)random.o            \
+	$(BUILD)sampling.o			\
 	$(BUILD)sorting.o			\
 	$(BUILD)quantile_mapping.o  \
 	$(BUILD)analogs.o       	\
@@ -412,6 +413,9 @@ $(BUILD)sorting.o: utilities/sorting.f90 utilities/qsort_inline.inc
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)random.o: utilities/random.f90 $(BUILD)model_constants.o
+	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
+
+$(BUILD)sampling.o: downscaling_stats/sampling.f90 $(BUILD)random.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)basic_stats.o: utilities/basic_stats.f90

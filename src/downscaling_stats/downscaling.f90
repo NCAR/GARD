@@ -10,6 +10,7 @@ module downscaling_mod
     use basic_stats_mod,    only : stddev
     use io_routines,        only : file_exists, io_read
     use random_mod,         only : box_muller_random
+    use sampling_mod,       only : sample_distribution
     implicit none
 
     real,    parameter :: LOG_FILL_VALUE = 1e-30
@@ -18,6 +19,8 @@ module downscaling_mod
 
     integer*8, dimension(10) :: master_timers
     real :: random_sample(N_RANDOM_SAMPLES)
+    
+    logical :: post_process_errors = .False.
 
 contains
     subroutine downscale(training_atm, training_obs, predictors, output, options)
@@ -270,6 +273,19 @@ contains
                                                     output%variables(v)%logistic    (           :,           i, j),    &
                                                     current_threshold, options, timers, i,j)
 
+                            if (post_process_errors) then
+                                if (current_threshold /= kFILL_VALUE) then
+                                    call sample_distribution(output%variables(v)%data(:,i,j),                            &
+                                                             output%variables(v)%data(:,i,j),                            &
+                                                             output%variables(v)%errors(:,i, j),                         &
+                                                             exceedence_probability=output%variables(v)%logistic(:,i,j), &
+                                                             threshold = current_threshold)
+                                else
+                                    call sample_distribution(output%variables(v)%data(:,i,j),                            &
+                                                             output%variables(v)%data(:,i,j),                            &
+                                                             output%variables(v)%errors(:,i, j))
+                                endif
+                            endif
                             ! if the input data were transformed with e.g. a cube root or log transform, then reverse that transformation for the output
                             call System_Clock(timeone)
                             call transform_data(options%obs%input_Xforms(v), output%variables(v)%data(:,i,j), 1, noutput, &
