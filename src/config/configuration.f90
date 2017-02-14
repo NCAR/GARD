@@ -90,7 +90,7 @@ contains
         training_file    = options%options_filename
         prediction_file  = options%options_filename
         observation_file = options%options_filename
-        
+
         start_date       = ""
         end_date         = ""
         start_train      = ""
@@ -99,7 +99,7 @@ contains
         end_transform    = ""
         post_start       = ""
         post_end         = ""
-        
+
         output_file      = "gard_out_"
         n_analogs        = -1
         n_log_analogs    = -1
@@ -129,26 +129,52 @@ contains
 
         ! this is the time to make predictions over
         call options%first_time%init("gregorian")
+        if (start_date=="") then
+            stop "ERROR must set a processing start date"
+        endif
         call options%first_time%set(start_date)
         call options%last_time%init("gregorian")
+        if (end_date=="") then
+            stop "ERROR must set a processing end date"
+        endif
         call options%last_time%set(end_date)
 
         ! this it the time period to use for calibration of the regression variables
         call options%training_start%init("gregorian")
+        if (start_train=="") then
+            stop "ERROR must set a training start date"
+        endif
         call options%training_start%set(start_train)
         call options%training_stop%init("gregorian")
+        if (end_train=="") then
+            stop "ERROR must set a training end date"
+        endif
         call options%training_stop%set(end_train)
 
         ! this is the time period to use when calculating e.g. quantile mapping transformations
         call options%transform_start%init("gregorian")
+        if (start_transform=="") then
+            stop "ERROR must set a transform start date"
+        endif
         call options%transform_start%set(start_transform)
         call options%transform_stop%init("gregorian")
+        if (end_transform=="") then
+            stop "ERROR must set a transform end date"
+        endif
         call options%transform_stop%set(end_transform)
         ! this is the time period to use when calculating e.g. quantile mapping transformations for post processing
-        call options%post_start%init("gregorian")
-        call options%post_start%set(post_start)
-        call options%post_end%init("gregorian")
-        call options%post_end%set(post_end)
+        if (maxval(post_correction_Xform) /= kNO_TRANSFORM) then
+            call options%post_start%init("gregorian")
+            if (post_start=="") then
+                stop "ERROR must set a post-processing start date"
+            endif
+            call options%post_start%set(post_start)
+            call options%post_end%init("gregorian")
+            if (post_end=="") then
+                stop "ERROR must set a post-processing end date"
+            endif
+            call options%post_end%set(post_end)
+        endif
 
         options%training_file       = training_file
         options%prediction_file     = prediction_file
@@ -172,11 +198,11 @@ contains
         options%debug = debug
         options%interactive = interactive
         module_debug = options%debug
-        
+
         options%read_coefficients  = read_coefficients
         options%write_coefficients = write_coefficients
         options%coefficients_files = coefficients_files
-        
+
         allocate(options%post_correction_Xform(MAX_NUMBER_VARS))
         options%post_correction_Xform = post_correction_Xform
     end subroutine read_base_options
