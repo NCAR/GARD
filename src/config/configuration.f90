@@ -158,13 +158,13 @@ contains
         ! this is the time period to use when calculating e.g. quantile mapping transformations
         call options%transform_start%init("gregorian")
         if (start_transform==end_transform) then
-            Print* "WARNING: If you are using any transforms start and end date should not be the same"
+            write(*,*) "WARNING: If you are using any transforms start and end date should not be the same"
         endif
         call options%transform_start%set(start_transform)
         call options%transform_stop%init("gregorian")
         call options%transform_stop%set(end_transform)
         ! this is the time period to use when calculating e.g. quantile mapping transformations for post processing
-        if (maxval(post_correction_Xform) /= kNO_TRANSFORM) then
+        if (maxval(post_correction_transform) /= kNO_TRANSFORM) then
             call options%post_start%init("gregorian")
             if (start_post=="") then
                 stop "ERROR must set a post-processing start date"
