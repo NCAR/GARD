@@ -1,5 +1,6 @@
 module downscaling_mod
 
+    USE ieee_arithmetic
     use data_structures
     use string,             only : str
     use regression_mod,     only : compute_regression, compute_logistic_regression
@@ -873,12 +874,18 @@ contains
                     call System_Clock(timetwo)
                     timers(9) = timers(9) + (timetwo-timeone)
 
-                    ! compute the logistic as the probability of threshold exceedance in the analog population
                     call System_Clock(timeone)
-                    logistic = compute_analog_exceedance(obs, analogs(1:options%n_log_analogs), logistic_threshold)
+                    if (options%analog_weights) then
+                        ! compute the logistic as the weighted probability of threshold exceedance in the analog population
+                        logistic = compute_analog_exceedance(obs, analogs(1:options%n_log_analogs), logistic_threshold, weights)
+                    else
+                        ! compute the logistic as the probability of threshold exceedance in the analog population
+                        logistic = compute_analog_exceedance(obs, analogs(1:options%n_log_analogs), logistic_threshold)
+                    endif
                 else
 
                     if (options%analog_weights) then
+                        ! compute the logistic as the weighted probability of threshold exceedance in the analog population
                         logistic = compute_analog_exceedance(obs, analogs, logistic_threshold, weights)
                     else
                         ! compute the logistic as the probability of threshold exceedance in the analog population
@@ -888,8 +895,18 @@ contains
 
             else
                 logistic = compute_logistic_regression(x, regression_data, obs_analogs, coefficients, logistic_threshold)
-                where( coefficients >  1e20 ) coefficients =  1e20
-                where( coefficients < -1e20 ) coefficients = -1e20
+
+                ! Check for severe errors in the logistic regression.  This can happen with some input data.
+                ! If it fails, fall back to the analog exceedence calculation
+                if (ieee_is_nan(logistic)) then
+                    if (options%analog_weights) then
+                        logistic = compute_analog_exceedance(obs, analogs, logistic_threshold, weights)
+                    else
+                        ! compute the logistic as the probability of threshold exceedance in the analog population
+                        logistic = compute_analog_exceedance(obs, analogs, logistic_threshold)
+                    endif
+
+                endif
                 if (options%debug) then
                     do j = 1,nvars
                         output_coeff(j+nvars) = coefficients(j)
