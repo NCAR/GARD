@@ -1133,8 +1133,8 @@ contains
         write(*,*) "Predictors"
         call setup_time_indices(predictors, options)
 
-        n_obs_train = training_obs%training_end - training_obs%training_start
-        n_atm_train = training_atm%training_end - training_atm%training_start
+        n_obs_train = training_obs%training_stop - training_obs%training_start
+        n_atm_train = training_atm%training_stop - training_atm%training_start
 
         if (n_obs_train /= n_atm_train) then
             stop "ERROR Inconsistent time periods in training atm and obs data"
