@@ -33,10 +33,10 @@ contains
 
         allocate(varlist(nvars))
         varlist = -1
-        varlist(1) = 1   ! this assumes there is a constant passed in for the first variable... 
-        useable_vars = 1 ! the constant 
-        
-        ! find all vars that have some variability through time. 
+        varlist(1) = 1   ! this assumes there is a constant passed in for the first variable...
+        useable_vars = 1 ! the constant
+
+        ! find all vars that have some variability through time.
         do i=2,nvars
             nonzero_count = 0
             do j=1,ntimes
@@ -45,7 +45,7 @@ contains
                 endif
             enddo
             ! need at least two data points that are different from the first data point
-            ! to ensure that the regression on that variable might be useful. 
+            ! to ensure that the regression on that variable might be useful.
             if ( nonzero_count > 2 ) then
                 useable_vars = useable_vars + 1
                 varlist(i) = i
@@ -116,8 +116,10 @@ contains
             if (present(weights)) then
                 if (allocated(weights)) then
                     if (size(weights)/=size(training_y_lp)) then
+                        !$omp critical (print_lock)
                         write(*,*) "ERROR size of weights /= data"
                         write(*,*), shape(weights), shape(training_y_lp)
+                        !$omp end critical (print_lock)
                     endif
                     if (present(y_test)) then
                         error = sqrt( sum(((training_y_lp - y_test)**2)*weights) / sum(weights) )
@@ -171,39 +173,27 @@ contains
 
         nrhs = 1
 
-        if (max(maxval(X), maxval(Y)) > 1e8) then
-            print*, "ERROR regression inputs out of range"
-            print*, maxval(X), maxval(Y)
-            innerINFO = -1
+        ! passing working_space in and out *could* be more efficient.  Only used in tests right now
+        if (present(working_space)) then
+            ! First find the optimal work size (LWORK)
+            LWORK = -1
+            CALL SGELS( 'N', M, N, NRHS, X, LDX, Y, LDY, working_space, LWORK, innerINFO )
+            LWORK = MIN( size(working_space), INT( working_space( 1 ) ) )
+
+            ! Now solve the equations X*B = Y
+            CALL SGELS( 'N', M, N, NRHS, X, LDX, Y, LDY, working_space, LWORK, innerINFO )
         else
-            if (present(working_space)) then
-                ! First find the optimal work size (LWORK)
-                LWORK = -1
-                CALL SGELS( 'N', M, N, NRHS, X, LDX, Y, LDY, working_space, LWORK, innerINFO )
-                LWORK = MIN( size(working_space), INT( working_space( 1 ) ) )
+            ! First find the optimal work size (LWORK)
+            LWORK = -1
+            CALL SGELS( 'N', M, N, NRHS, X, LDX, Y, LDY, WORK, LWORK, innerINFO )
+            LWORK = MIN( 1000, INT( WORK( 1 ) ) )
 
-                ! Now solve the equations X*B = Y
-                CALL SGELS( 'N', M, N, NRHS, X, LDX, Y, LDY, working_space, LWORK, innerINFO )
-            else
-                ! First find the optimal work size (LWORK)
-                LWORK = -1
-                CALL SGELS( 'N', M, N, NRHS, X, LDX, Y, LDY, WORK, LWORK, innerINFO )
-                LWORK = MIN( 1000, INT( WORK( 1 ) ) )
-
-                ! Now solve the equations X*B = Y
-                CALL SGELS( 'N', M, N, NRHS, X, LDX, Y, LDY, WORK, LWORK, innerINFO )
-            endif
-            if (innerINFO/=0) then
-                ! !$omp critical (print_lock)
-                ! if (innerINFO<0) then
-                !     write(*,*) "ERROR in SGELS with argument:", 0-innerINFO
-                ! else
-                !     write(*,*) "ERROR in SGELS A does not have full rank, position:",innerINFO
-                ! endif
-                ! !$omp end critical (print_lock)
-                Y(1) = sum(Y)/size(Y)
-                Y(2:)= 0
-            endif
+            ! Now solve the equations X*B = Y
+            CALL SGELS( 'N', M, N, NRHS, X, LDX, Y, LDY, WORK, LWORK, innerINFO )
+        endif
+        if (innerINFO/=0) then
+            Y(1) = sum(Y)/size(Y)
+            Y(2:)= 0
         endif
 
         if (present(info)) info = innerINFO
