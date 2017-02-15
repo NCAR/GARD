@@ -171,33 +171,39 @@ contains
 
         nrhs = 1
 
-        if (present(working_space)) then
-            ! First find the optimal work size (LWORK)
-            LWORK = -1
-            CALL SGELS( 'N', M, N, NRHS, X, LDX, Y, LDY, working_space, LWORK, innerINFO )
-            LWORK = MIN( size(working_space), INT( working_space( 1 ) ) )
-
-            ! Now solve the equations X*B = Y
-            CALL SGELS( 'N', M, N, NRHS, X, LDX, Y, LDY, working_space, LWORK, innerINFO )
+        if (max(maxval(X), maxval(Y)) > 1e8) then
+            print*, "ERROR regression inputs out of range"
+            print*, maxval(X), maxval(Y)
+            innerINFO = -1
         else
-            ! First find the optimal work size (LWORK)
-            LWORK = -1
-            CALL SGELS( 'N', M, N, NRHS, X, LDX, Y, LDY, WORK, LWORK, innerINFO )
-            LWORK = MIN( 1000, INT( WORK( 1 ) ) )
+            if (present(working_space)) then
+                ! First find the optimal work size (LWORK)
+                LWORK = -1
+                CALL SGELS( 'N', M, N, NRHS, X, LDX, Y, LDY, working_space, LWORK, innerINFO )
+                LWORK = MIN( size(working_space), INT( working_space( 1 ) ) )
 
-            ! Now solve the equations X*B = Y
-            CALL SGELS( 'N', M, N, NRHS, X, LDX, Y, LDY, WORK, LWORK, innerINFO )
-        endif
-        if (innerINFO/=0) then
-            ! !$omp critical (print_lock)
-            ! if (innerINFO<0) then
-            !     write(*,*) "ERROR in SGELS with argument:", 0-innerINFO
-            ! else
-            !     write(*,*) "ERROR in SGELS A does not have full rank, position:",innerINFO
-            ! endif
-            ! !$omp end critical (print_lock)
-            Y(1) = sum(Y)/size(Y)
-            Y(2:)= 0
+                ! Now solve the equations X*B = Y
+                CALL SGELS( 'N', M, N, NRHS, X, LDX, Y, LDY, working_space, LWORK, innerINFO )
+            else
+                ! First find the optimal work size (LWORK)
+                LWORK = -1
+                CALL SGELS( 'N', M, N, NRHS, X, LDX, Y, LDY, WORK, LWORK, innerINFO )
+                LWORK = MIN( 1000, INT( WORK( 1 ) ) )
+
+                ! Now solve the equations X*B = Y
+                CALL SGELS( 'N', M, N, NRHS, X, LDX, Y, LDY, WORK, LWORK, innerINFO )
+            endif
+            if (innerINFO/=0) then
+                ! !$omp critical (print_lock)
+                ! if (innerINFO<0) then
+                !     write(*,*) "ERROR in SGELS with argument:", 0-innerINFO
+                ! else
+                !     write(*,*) "ERROR in SGELS A does not have full rank, position:",innerINFO
+                ! endif
+                ! !$omp end critical (print_lock)
+                Y(1) = sum(Y)/size(Y)
+                Y(2:)= 0
+            endif
         endif
 
         if (present(info)) info = innerINFO
