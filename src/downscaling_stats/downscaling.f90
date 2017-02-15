@@ -19,7 +19,7 @@ module downscaling_mod
 
     integer*8, dimension(10) :: master_timers
     real :: random_sample(N_RANDOM_SAMPLES)
-    
+
     logical :: post_process_errors = .False.
 
 contains
@@ -1121,6 +1121,7 @@ contains
         type(atm),    intent(inout) :: training_atm, predictors
         type(obs),    intent(inout) :: training_obs
         type(config), intent(in) :: options
+        integer :: n_atm_train, n_obs_train
 
         write(*,*) "-------------------"
         write(*,*) "Training ATM"
@@ -1131,6 +1132,13 @@ contains
         write(*,*) "-------------------"
         write(*,*) "Predictors"
         call setup_time_indices(predictors, options)
+
+        n_obs_train = training_obs%training_end - training_obs%training_start
+        n_atm_train = training_atm%training_end - training_atm%training_start
+
+        if (n_obs_train /= n_atm_train) then
+            stop "ERROR Inconsistent time periods in training atm and obs data"
+        endif
 
     end subroutine setup_timing
 
