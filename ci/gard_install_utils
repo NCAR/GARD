@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 set -e
+set -x
 
 export CC=/usr/bin/gcc-6
 export FC=/usr/bin/gfortran-6
@@ -80,8 +81,14 @@ function gard_install {
     cd ${TRAVIS_BUILD_DIR}
     sed -i "s|NCDF_PATH = /usr/local|NCDF_PATH = ${INSTALLDIR}|" src/makefile
     sed -i "s|LAPACK_PATH = /usr/local|LAPACK_PATH = /usr|" src/makefile
-    make -C src -j4 test
-    make -C src -j4
+    make -C src clean; make -C src -j4 test
+    make -C src clean; make -C src -j4 MODE=debugslow
+    make -C src clean; make -C src -j4 MODE=debug
+    make -C src clean; make -C src -j4 MODE=debugompslow
+    make -C src clean; make -C src -j4 MODE=debugomp
+    make -C src clean; make -C src -j4 MODE=profile
+    make -C src clean; make -C src -j4 MODE=fast
+    make -C src clean; make -C src -j4
     echo "GARD install succeeded"
 }
 
