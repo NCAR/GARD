@@ -19,6 +19,7 @@ module downscaling_mod
     integer, parameter :: N_RANDOM_SAMPLES = 10000
 
     integer*8, dimension(10) :: master_timers
+
     real :: random_sample(N_RANDOM_SAMPLES)
 
     logical :: post_process_errors = .False.
@@ -274,6 +275,7 @@ contains
                                                     output%variables(v)%logistic    (           :,           i, j),    &
                                                     current_threshold, options, timers, i,j)
 
+
                             if (post_process_errors) then
                                 if (current_threshold /= kFILL_VALUE) then
                                     call sample_distribution(output%variables(v)%data(:,i,j),                            &
@@ -287,6 +289,7 @@ contains
                                                              output%variables(v)%errors(:,i, j))
                                 endif
                             endif
+
                             ! if the input data were transformed with e.g. a cube root or log transform, then reverse that transformation for the output
                             call System_Clock(timeone)
                             call transform_data(options%obs%input_Xforms(v), output%variables(v)%data(:,i,j), 1, noutput, &

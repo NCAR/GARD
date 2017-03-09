@@ -126,6 +126,7 @@ contains
                     else
                         error = sqrt( sum(((training_y_lp - training_y)**2)*weights) / sum(weights) )
                     endif
+
                 else
                     if (present(y_test)) then
                         error = sqrt( sum((training_y_lp - y_test)**2) / ntimes )
