@@ -1,5 +1,6 @@
 module downscaling_mod
 
+    USE ieee_arithmetic
     use data_structures
     use string,             only : str
     use regression_mod,     only : compute_regression, compute_logistic_regression
@@ -9,13 +10,19 @@ module downscaling_mod
     use time_util,          only : setup_time_indices
     use basic_stats_mod,    only : stddev
     use io_routines,        only : file_exists, io_read
+    use random_mod,         only : box_muller_random
+    use sampling_mod,       only : sample_distribution
     implicit none
 
+    real,    parameter :: LOG_FILL_VALUE = 1e-30
+    real,    parameter :: MAX_ALLOWED_SIGMA = 20
+    integer, parameter :: N_RANDOM_SAMPLES = 10000
+
     integer*8, dimension(10) :: master_timers
-    real, parameter :: LOG_FILL_VALUE = 1e-30
-    real, parameter :: MAX_ALLOWED_SIGMA = 20
-    real, parameter :: N_RANDOM_SAMPLES = 10000
+
     real :: random_sample(N_RANDOM_SAMPLES)
+
+    logical :: post_process_errors = .False.
 
 contains
     subroutine downscale(training_atm, training_obs, predictors, output, options)
@@ -267,6 +274,21 @@ contains
                                                     output%variables(v)%coefficients(           :,  :,       i, j),    &
                                                     output%variables(v)%logistic    (           :,           i, j),    &
                                                     current_threshold, options, timers, i,j)
+
+
+                            if (post_process_errors) then
+                                if (current_threshold /= kFILL_VALUE) then
+                                    call sample_distribution(output%variables(v)%data(:,i,j),                            &
+                                                             output%variables(v)%data(:,i,j),                            &
+                                                             output%variables(v)%errors(:,i, j),                         &
+                                                             exceedence_probability=output%variables(v)%logistic(:,i,j), &
+                                                             threshold = current_threshold)
+                                else
+                                    call sample_distribution(output%variables(v)%data(:,i,j),                            &
+                                                             output%variables(v)%data(:,i,j),                            &
+                                                             output%variables(v)%errors(:,i, j))
+                                endif
+                            endif
 
                             ! if the input data were transformed with e.g. a cube root or log transform, then reverse that transformation for the output
                             call System_Clock(timeone)
@@ -560,46 +582,6 @@ contains
         end select
     end subroutine transform_data
 
-    !>------------------------------------------------
-    !! Use the Box-Muller Transform to convert uniform to normal random deviates
-    !!
-    !! Note random_sample should be an allocated 1D real array
-    !! On return, random_sample will be filled with random normal (0,1) data
-    !!
-    !! Caveat: this transform is unable to generate extremely high values (>6.66)
-    !! Having switched to double precision it may do better now.
-    !!
-    !-------------------------------------------------
-    subroutine box_muller_random(random_sample)
-        implicit none
-        real, intent(inout) :: random_sample(:)
-        integer :: n,i
-
-        double precision :: u1, u2, s
-        double precision, allocatable :: double_random(:)
-
-        n = size(random_sample)
-        allocate(double_random(n))
-        call random_number(double_random)
-
-        do i=1,n,2
-            u1 = double_random(i)
-            if (i<n) then
-                u2 = double_random(i+1)
-            else
-                call random_number(u2)
-            endif
-
-            s = sqrt(-2 * log(u1))
-            random_sample(i) = s * cos(2 * kPI * u2)
-            if (i<n) then
-                random_sample(i+1) = s * sin(2 * kPI * u2)
-            endif
-
-        enddo
-
-    end subroutine box_muller_random
-
     function downscale_point(predictor, atm, obs_in, errors, output_coeff, logistic, logistic_threshold, options, timers, xpnt, ypnt) result(output)
         implicit none
         real,    dimension(:,:), intent(inout):: predictor, atm ! (ntimes, nvars)
@@ -645,7 +627,9 @@ contains
             return
         endif
 
-        allocate(obs, source=obs_in)
+        allocate(obs(size(obs_in)))
+        obs = obs_in
+
         if (options%time_smooth > 0) then
             do i=1, n
                 start = max(1, i - options%time_smooth)
@@ -893,12 +877,18 @@ contains
                     call System_Clock(timetwo)
                     timers(9) = timers(9) + (timetwo-timeone)
 
-                    ! compute the logistic as the probability of threshold exceedance in the analog population
                     call System_Clock(timeone)
-                    logistic = compute_analog_exceedance(obs, analogs(1:options%n_log_analogs), logistic_threshold)
+                    if (options%analog_weights) then
+                        ! compute the logistic as the weighted probability of threshold exceedance in the analog population
+                        logistic = compute_analog_exceedance(obs, analogs(1:options%n_log_analogs), logistic_threshold, weights)
+                    else
+                        ! compute the logistic as the probability of threshold exceedance in the analog population
+                        logistic = compute_analog_exceedance(obs, analogs(1:options%n_log_analogs), logistic_threshold)
+                    endif
                 else
 
                     if (options%analog_weights) then
+                        ! compute the logistic as the weighted probability of threshold exceedance in the analog population
                         logistic = compute_analog_exceedance(obs, analogs, logistic_threshold, weights)
                     else
                         ! compute the logistic as the probability of threshold exceedance in the analog population
@@ -908,8 +898,18 @@ contains
 
             else
                 logistic = compute_logistic_regression(x, regression_data, obs_analogs, coefficients, logistic_threshold)
-                where( coefficients >  1e20 ) coefficients =  1e20
-                where( coefficients < -1e20 ) coefficients = -1e20
+
+                ! Check for severe errors in the logistic regression.  This can happen with some input data.
+                ! If it fails, fall back to the analog exceedence calculation
+                if (ieee_is_nan(logistic)) then
+                    if (options%analog_weights) then
+                        logistic = compute_analog_exceedance(obs, analogs, logistic_threshold, weights)
+                    else
+                        ! compute the logistic as the probability of threshold exceedance in the analog population
+                        logistic = compute_analog_exceedance(obs, analogs, logistic_threshold)
+                    endif
+
+                endif
                 if (options%debug) then
                     do j = 1,nvars
                         output_coeff(j+nvars) = coefficients(j)
@@ -1141,6 +1141,7 @@ contains
         type(atm),    intent(inout) :: training_atm, predictors
         type(obs),    intent(inout) :: training_obs
         type(config), intent(in) :: options
+        integer :: n_atm_train, n_obs_train
 
         write(*,*) "-------------------"
         write(*,*) "Training ATM"
@@ -1151,6 +1152,13 @@ contains
         write(*,*) "-------------------"
         write(*,*) "Predictors"
         call setup_time_indices(predictors, options)
+
+        n_obs_train = training_obs%training_stop - training_obs%training_start
+        n_atm_train = training_atm%training_stop - training_atm%training_start
+
+        if (n_obs_train /= n_atm_train) then
+            stop "ERROR Inconsistent time periods in training atm and obs data"
+        endif
 
     end subroutine setup_timing
 
