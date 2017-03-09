@@ -59,14 +59,15 @@ contains
 
         integer :: name_unit, n_analogs, n_log_analogs, pass_through_var
         character(len=MAXSTRINGLENGTH)      :: name, start_date, end_date, start_train, end_train
-        character(len=MAXSTRINGLENGTH)      :: start_transform, end_transform, post_start, post_end
+        character(len=MAXSTRINGLENGTH)      :: start_transform, end_transform, start_post, end_post
         character(len=MAXFILELENGTH)        :: training_file, prediction_file, observation_file, output_file
-        integer, dimension(MAX_NUMBER_VARS) :: post_correction_Xform
+        integer, dimension(MAX_NUMBER_VARS) :: post_correction_transform
         logical :: pure_analog, analog_regression, pure_regression, pass_through, debug, interactive
         logical :: sample_analog, logistic_from_analog_exceedance, weight_analogs
         logical :: read_coefficients, write_coefficients
         character(len=MAXFILELENGTH)    :: coefficients_files(MAX_NUMBER_VARS)
         real    :: logistic_threshold, analog_threshold
+        integer :: time_smooth
 
         ! setup the namelist
         namelist /parameters/   name, debug, interactive,                           &
@@ -74,14 +75,15 @@ contains
                                 output_file,                                        &
                                 start_date, end_date, start_train, end_train,       &
                                 start_transform, end_transform,                     &
-                                post_start, post_end,                               &
+                                start_post, end_post,                               &
                                 n_analogs, n_log_analogs, logistic_threshold,       &
                                 pure_analog, analog_regression, pure_regression,    &
                                 sample_analog, logistic_from_analog_exceedance,     &
                                 analog_threshold, weight_analogs,                   &
                                 pass_through, pass_through_var,                     &
                                 read_coefficients, write_coefficients,              &
-                                coefficients_files, post_correction_Xform
+                                coefficients_files, post_correction_transform,      &
+                                time_smooth
 
         options%version = kVERSION_STRING
         options%options_filename = get_options_file()
@@ -118,7 +120,8 @@ contains
         read_coefficients= .False.
         write_coefficients=.False.
         coefficients_files= ""
-        post_correction_Xform = kNO_TRANSFORM
+        post_correction_transform = kNO_TRANSFORM
+        time_smooth       = 0
 
         options%name = options%options_filename
 
@@ -126,6 +129,7 @@ contains
         open(io_newunit(name_unit), file=trim(options%options_filename))
         read(name_unit,nml=parameters)
         close(name_unit)
+
 
         ! this is the time to make predictions over
         call options%first_time%init("gregorian")
@@ -191,6 +195,7 @@ contains
         options%logistic_threshold  = logistic_threshold
         options%sample_analog       = sample_analog
         options%logistic_from_analog_exceedance  = logistic_from_analog_exceedance
+        options%time_smooth         = time_smooth
 
         options%pass_through        = pass_through
         options%pass_through_var    = pass_through_var
@@ -204,7 +209,8 @@ contains
         options%coefficients_files = coefficients_files
 
         allocate(options%post_correction_Xform(MAX_NUMBER_VARS))
-        options%post_correction_Xform = post_correction_Xform
+        options%post_correction_Xform = post_correction_transform
+
     end subroutine read_base_options
 
 
