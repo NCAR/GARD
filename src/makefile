@@ -282,6 +282,8 @@ OBJS =  \
 	$(BUILD)obs_io.o    		\
 	$(BUILD)geo_reader.o      	\
     $(BUILD)basic_stats.o     	\
+	$(BUILD)random.o            \
+	$(BUILD)sampling.o			\
 	$(BUILD)sorting.o			\
 	$(BUILD)quantile_mapping.o  \
 	$(BUILD)analogs.o       	\
@@ -319,6 +321,10 @@ REGRESSION_TEST_OBJS = 			\
 	$(BUILD)regression.o		\
 	$(BUILD)test_regression.o
 
+RANDOM_TEST_OBJS = 				\
+	$(BUILD)test_random.o		\
+	$(BUILD)random.o			\
+	$(BUILD)model_constants.o
 
 # These are the primary user facing rules
 #
@@ -329,7 +335,7 @@ model: gard
 
 all: gard test
 
-test: test_calendar test_sort test_qm test_config test_regression
+test: test_calendar test_sort test_qm test_config test_regression test_random
 
 install: gard
 	cp gard $(INSTALL_DIR)/
@@ -358,8 +364,12 @@ test_qm : $(QM_TEST_OBJS)
 test_sort : $(SORT_TEST_OBJS)
 	$(FC) -o $@ $^ $(LDFLAGS)
 
+test_random : $(RANDOM_TEST_OBJS)
+	$(FC) -o $@ $^ $(LDFLAGS)
+
 test_config : $(CONFIG_TEST_OBJS)
 	$(FC) -o $@ $^ $(LDFLAGS)
+
 
 
 # specify specific builds and dependencies.
@@ -380,6 +390,9 @@ $(BUILD)test_qm.o: tests/test_qm.f90 $(BUILD)data_structures.o $(BUILD)quantile_
 $(BUILD)test_config.o: tests/test_config.f90 $(BUILD)data_structures.o $(BUILD)model_constants.o $(BUILD)configuration.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
+$(BUILD)test_random.o: tests/test_random.f90 $(BUILD)random.o $(BUILD)model_constants.o
+	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
+
 
 # Date and time relevant objects
 $(BUILD)time.o: timing/time.f90 $(BUILD)model_constants.o
@@ -397,6 +410,12 @@ $(BUILD)quantile_mapping.o: utilities/quantile_map.f90 $(BUILD)data_structures.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)sorting.o: utilities/sorting.f90 utilities/qsort_inline.inc
+	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
+
+$(BUILD)random.o: utilities/random.f90 $(BUILD)model_constants.o
+	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
+
+$(BUILD)sampling.o: downscaling_stats/sampling.f90 $(BUILD)random.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)basic_stats.o: utilities/basic_stats.f90
@@ -454,7 +473,7 @@ $(BUILD)atmosphere_io.o: io/atmosphere_io.f90 $(BUILD)data_structures.o  \
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)downscaling.o: downscaling_stats/downscaling.f90 $(BUILD)data_structures.o $(BUILD)model_constants.o \
-					$(BUILD)quantile_mapping.o $(BUILD)regression.o $(BUILD)analogs.o
+					$(BUILD)quantile_mapping.o $(BUILD)regression.o $(BUILD)analogs.o $(BUILD)random.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)analogs.o: downscaling_stats/analogs.f90 $(BUILD)string.o

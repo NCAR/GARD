@@ -58,14 +58,16 @@ contains
         type(config), intent(inout)     :: options
 
         integer :: name_unit, n_analogs, n_log_analogs, pass_through_var
-        character(len=MAXSTRINGLENGTH)  :: name, start_date, end_date, start_train, end_train
-        character(len=MAXSTRINGLENGTH)  :: start_transform, end_transform
-        character(len=MAXFILELENGTH)    :: training_file, prediction_file, observation_file, output_file
+        character(len=MAXSTRINGLENGTH)      :: name, start_date, end_date, start_train, end_train
+        character(len=MAXSTRINGLENGTH)      :: start_transform, end_transform, start_post, end_post
+        character(len=MAXFILELENGTH)        :: training_file, prediction_file, observation_file, output_file
+        integer, dimension(MAX_NUMBER_VARS) :: post_correction_transform
         logical :: pure_analog, analog_regression, pure_regression, pass_through, debug, interactive
         logical :: sample_analog, logistic_from_analog_exceedance, weight_analogs
         logical :: read_coefficients, write_coefficients
         character(len=MAXFILELENGTH)    :: coefficients_files(MAX_NUMBER_VARS)
         real    :: logistic_threshold, analog_threshold
+        integer :: time_smooth
 
         ! setup the namelist
         namelist /parameters/   name, debug, interactive,                           &
@@ -73,13 +75,15 @@ contains
                                 output_file,                                        &
                                 start_date, end_date, start_train, end_train,       &
                                 start_transform, end_transform,                     &
+                                start_post, end_post,                               &
                                 n_analogs, n_log_analogs, logistic_threshold,       &
                                 pure_analog, analog_regression, pure_regression,    &
                                 sample_analog, logistic_from_analog_exceedance,     &
                                 analog_threshold, weight_analogs,                   &
                                 pass_through, pass_through_var,                     &
                                 read_coefficients, write_coefficients,              &
-                                coefficients_files
+                                coefficients_files, post_correction_transform,      &
+                                time_smooth
 
         options%version = kVERSION_STRING
         options%options_filename = get_options_file()
@@ -88,12 +92,16 @@ contains
         training_file    = options%options_filename
         prediction_file  = options%options_filename
         observation_file = options%options_filename
+
         start_date       = ""
         end_date         = ""
         start_train      = ""
         end_train        = ""
-        start_transform  = ""
-        end_transform    = ""
+        start_transform  = "1980-01-01 00:00:00"
+        end_transform    = "1980-01-01 00:00:00"
+        start_post       = ""
+        end_post         = ""
+
         output_file      = "gard_out_"
         n_analogs        = -1
         n_log_analogs    = -1
@@ -112,6 +120,8 @@ contains
         read_coefficients= .False.
         write_coefficients=.False.
         coefficients_files= ""
+        post_correction_transform = kNO_TRANSFORM
+        time_smooth       = 0
 
         options%name = options%options_filename
 
@@ -120,23 +130,52 @@ contains
         read(name_unit,nml=parameters)
         close(name_unit)
 
+
         ! this is the time to make predictions over
         call options%first_time%init("gregorian")
+        if (start_date=="") then
+            stop "ERROR must set a processing start date"
+        endif
         call options%first_time%set(start_date)
         call options%last_time%init("gregorian")
+        if (end_date=="") then
+            stop "ERROR must set a processing end date"
+        endif
         call options%last_time%set(end_date)
 
         ! this it the time period to use for calibration of the regression variables
         call options%training_start%init("gregorian")
+        if (start_train=="") then
+            stop "ERROR must set a training start date"
+        endif
         call options%training_start%set(start_train)
         call options%training_stop%init("gregorian")
+        if (end_train=="") then
+            stop "ERROR must set a training end date"
+        endif
         call options%training_stop%set(end_train)
 
         ! this is the time period to use when calculating e.g. quantile mapping transformations
         call options%transform_start%init("gregorian")
+        if (start_transform==end_transform) then
+            write(*,*) "WARNING: If you are using any transforms start and end date should not be the same"
+        endif
         call options%transform_start%set(start_transform)
         call options%transform_stop%init("gregorian")
         call options%transform_stop%set(end_transform)
+        ! this is the time period to use when calculating e.g. quantile mapping transformations for post processing
+        if (maxval(post_correction_transform) /= kNO_TRANSFORM) then
+            call options%post_start%init("gregorian")
+            if (start_post=="") then
+                stop "ERROR must set a post-processing start date"
+            endif
+            call options%post_start%set(start_post)
+            call options%post_end%init("gregorian")
+            if (end_post=="") then
+                stop "ERROR must set a post-processing end date"
+            endif
+            call options%post_end%set(end_post)
+        endif
 
         options%training_file       = training_file
         options%prediction_file     = prediction_file
@@ -153,6 +192,7 @@ contains
         options%logistic_threshold  = logistic_threshold
         options%sample_analog       = sample_analog
         options%logistic_from_analog_exceedance  = logistic_from_analog_exceedance
+        options%time_smooth         = time_smooth
 
         options%pass_through        = pass_through
         options%pass_through_var    = pass_through_var
@@ -160,10 +200,14 @@ contains
         options%debug = debug
         options%interactive = interactive
         module_debug = options%debug
-        
+
         options%read_coefficients  = read_coefficients
         options%write_coefficients = write_coefficients
         options%coefficients_files = coefficients_files
+
+        allocate(options%post_correction_Xform(MAX_NUMBER_VARS))
+        options%post_correction_Xform = post_correction_transform
+
     end subroutine read_base_options
 
 

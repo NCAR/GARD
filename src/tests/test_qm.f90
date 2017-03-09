@@ -17,7 +17,7 @@ program test_qm
 
     implicit none
     logical :: verbose
-    integer*8, parameter :: n = 100000
+    integer*8, parameter :: n = 10000
     real, parameter :: acceptable_error = 1 ! 1e-3 <- use this with more QM segments and train on the complete dataset
 
     real, allocatable, dimension(:) :: input_data, matching_data
@@ -109,13 +109,19 @@ contains
             print*, "To match:",sum(matching_data)/n
             print*, "   min/max",minval(matching_data),maxval(matching_data)
             print*, "---------------------------"
+            if (n < 20) then
+                print*, input_data
+                print*, "---------------------------"
+                print*, matching_data
+                print*, "---------------------------"
+            endif
         endif
 
         call system_clock(start_time)
         !-------------------------------
         ! Develop the Quantile mapping
         !-------------------------------
-        call develop_qm(input_data(1:size(input_data)/2), matching_data, qm, 300)! min(size(input_data)/2, size(matching_data)/2))
+        call develop_qm(input_data(1:size(input_data)/2), matching_data, qm, min(300,min(size(input_data)/2, size(matching_data)/2)))
 
         call system_clock(end_time, COUNT_RATE, COUNT_MAX)
         if (start_time>end_time) end_time=end_time+COUNT_MAX
@@ -185,6 +191,10 @@ contains
             print*, "Q-Mapped Min/Max = ",minval(qmdata),   maxval(qmdata)
             print*, "Original Min/Max = ",minval(original), maxval(original)
             print*, "---------------------------"
+            if (n < 20) then
+                print*, qmdata
+                print*, "---------------------------"
+            endif
             print*, "   Elapsed time = ", time
         endif
         call pass_fail(error, "  Stddev:")

@@ -35,4 +35,5 @@ test_regression
 test_calendar
 test_qm
 test_config
+test_random
 gard

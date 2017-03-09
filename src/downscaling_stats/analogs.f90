@@ -43,6 +43,10 @@ contains
         ! fast selection (O(n_inputs log(nanalogs)) worst case, typically closer to O(n_inputs))
         if (n>0) then
             if (.not.allocated(analogs)) allocate(analogs(n))
+            if (size(analogs) < n) then
+                deallocate(analogs)
+                allocate(analogs(n))
+            endif
             call top_n_analogs(distances, n, analogs)
         elseif (threshold>0) then
             distances = distances / nvars ! normalize by the number of variables so the supplied threshold doesn't have to changes
