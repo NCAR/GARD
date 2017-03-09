@@ -78,7 +78,7 @@ function gard_before_install {
 function gard_install {
     echo gard_install
     cd ${TRAVIS_BUILD_DIR}
-    sed -i "s|NCDF_PATH = /usr/local|NCDF_PATH = /usr|" src/makefile
+    sed -i "s|NCDF_PATH = /usr/local|NCDF_PATH = ${INSTALLDIR}|" src/makefile
     sed -i "s|LAPACK_PATH = /usr/local|LAPACK_PATH = /usr|" src/makefile
     make -C src -j4 test
     make -C src -j4
