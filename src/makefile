@@ -111,6 +111,13 @@ ifeq ($(FC), gfortran)
 	PREPROC=-cpp
 	MODOUTPUT=-J $(BUILD)
 endif
+ifeq ($(FC), gfortran-6)
+	COMP=-fopenmp -lgomp -O3 -ffree-line-length-none -ftree-vectorize -fimplicit-none -funroll-loops \
+		-fno-protect-parens -ffast-math #-flto #
+	LINK=-fopenmp -lgomp
+	PREPROC=-cpp
+	MODOUTPUT=-J $(BUILD)
+endif
 # Intel fortran
 ifeq ($(FC), ifort)
 	COMP= -u -qopenmp -O3 -no-prec-div -xHost -ftz
