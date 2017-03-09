@@ -17,7 +17,7 @@
 ###################################################################
 ###################################################################
 
-FC=gfortran
+FC=gfortran-6
 NCDF_PATH = /usr/local
 LAPACK_PATH = /usr/local
 INSTALL_DIR = ~/bin
@@ -52,7 +52,7 @@ ifeq ($(NODENAME), Nomad.local)
 	LAPACK_PATH=/usr/local/opt/lapack
 endif
 
-ifeq ($(NODENAME), foil.local)
+ifeq ($(NODENAME), foil.hydro.washington.edu)
 	FC=gfortran
 	NCDF_PATH=/opt/local
 	LAPACK_PATH=/opt/local/lib/lapack
