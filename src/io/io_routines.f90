@@ -922,7 +922,7 @@ contains
         ! Close the file, freeing all resources.
         call check( nf90_close(ncid) )
     end subroutine io_write2d
-    
+
     subroutine io_write1d(filename,varname,data_out)
         implicit none
         ! This is the name of the data file and variable we will read.
@@ -1218,7 +1218,7 @@ contains
             print *, trim(nf90_strerror(status))
             if(present(extra)) then
                 ! print any optionally provided context
-                write(*,*), trim(extra)
+                write(*,*) trim(extra)
             endif
             ! STOP the program execute
             stop "Stopped"

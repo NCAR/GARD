@@ -61,17 +61,18 @@ contains
 
                     ! if random number is greater than the non-exceedence probability, then we have exceeded it...
                     ! rescale the uniform random number for the region of exceedence and convert to a normal random number
-                    random_normal = get_normal_from_cdf((uniform(i) - (1 - exceedence_probability(i))) / (exceedence_probability(i)) )
-                    
+                    random_normal = get_normal_from_cdf((uniform(i) - (1 - exceedence_probability(i))) &
+                                    / (exceedence_probability(i)))
+
                     ! ultimately this is the same equation as below for variables without an exceedence threshold
                     output(i) = mean_values(i) + error_term(i) * random_normal
-                    
+
                     ! also check, if the random term has pushed the value below the threshold anyway, then just set to the threshold
                     if (output(i) < threshold_internal) then
                         output(i) = threshold_internal
                     endif
                 else
-                    ! if this value did not exceed the threshold, then just set it to the threshold. 
+                    ! if this value did not exceed the threshold, then just set it to the threshold.
                     output(i) = threshold_internal
                 endif
             else
