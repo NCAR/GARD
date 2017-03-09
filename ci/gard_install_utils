@@ -86,7 +86,13 @@ function gard_install {
 }
 
 function gard_script {
-    ./src/gard
+    cd ./src
+    ./gard
+    ./test_calendar
+    ./test_random
+    ./test_regression
+    ./test_config ../run/downscale_options.txt
+    cd ../
     echo "GARD script succeeded"
 }
 
