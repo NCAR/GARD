@@ -86,7 +86,7 @@ function gard_install {
 }
 
 function gard_script {
-    ./src/gard.exe
+    ./src/gard
     echo "GARD script succeeded"
 }
 
