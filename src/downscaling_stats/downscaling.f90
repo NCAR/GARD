@@ -34,7 +34,7 @@ contains
             ! prediction period index variables
             integer :: p_start, p_end
             ! training index variables
-            integer :: t_tr_start, t_tr_stop, o_tr_start, o_tr_stop, tr_size
+            integer :: t_tr_start, t_tr_stop, o_tr_start, o_tr_stop, tr_size, post_start, post_end
             ! variables to store timing data for profiling code
             integer*8 :: timeone, timetwo, master_timeone, master_timetwo, master_time_post_init
             integer*8, dimension(10) :: timers
@@ -56,6 +56,8 @@ contains
             t_tr_stop  = training_atm%training_stop
             o_tr_start = training_obs%training_start
             o_tr_stop  = training_obs%training_stop
+            post_start = training_atm%post_start
+            post_end   = training_atm%post_end
 
             ntimes     = size(predictors%variables(1)%data,1)
             ntrain     = size(training_atm%variables(1)%data,1)
@@ -104,9 +106,10 @@ contains
             !!                                       !!
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             !$omp parallel default(shared)                                                              &
-            !$omp private(train_data, pred_data, i, j, v, timeone, timetwo, Mem_Error)                  &
+            !$omp      private(train_data, pred_data, i, j, v, timeone, timetwo, Mem_Error)             &
             !$omp firstprivate(nx,ny,n_atm_variables, n_obs_variables, noutput, ntrain, nobs, ntimes)   &
-            !$omp firstprivate(p_start, p_end, t_tr_start, t_tr_stop, o_tr_start, o_tr_stop, timers)
+            !$omp firstprivate(p_start, p_end, t_tr_start, t_tr_stop, o_tr_start, o_tr_stop)            &
+            !$omp firstprivate(post_start, post_end, timers)
 
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             !!
@@ -260,6 +263,9 @@ contains
                             call System_Clock(timetwo)
                             timers(6) = timers(6) + (timetwo-timeone)
 
+                            call transform_data(options%post_correction_Xform(v), &
+                                                output      %variables(v)%data(:,i,j), post_start, post_end, &
+                                                training_obs%variables(v)%data(:,i,j),      1    , nobs)
 
                         enddo
 
