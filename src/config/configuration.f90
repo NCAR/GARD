@@ -20,7 +20,6 @@ module config_mod
     logical :: module_debug
     public :: read_config
     public :: read_files_list, read_data_type, get_options_file ! only need to be public for test_config
-    use init_mod,       only : print_model_init
 contains
 
     !>------------------------------------------------
