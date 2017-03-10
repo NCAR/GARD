@@ -397,7 +397,7 @@ $(BUILD)test_sort.o: tests/test_sort.f90 $(BUILD)sorting.o
 $(BUILD)test_qm.o: tests/test_qm.f90 $(BUILD)data_structures.o $(BUILD)quantile_mapping.o $(BUILD)basic_stats.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
-$(BUILD)test_config.o: tests/test_config.f90 $(BUILD)data_structures.o $(BUILD)model_constants.o $(BUILD)configuration.o $(BUILD)init.o
+$(BUILD)test_config.o: tests/test_config.f90 $(BUILD)data_structures.o $(BUILD)model_constants.o $(BUILD)configuration.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)test_random.o: tests/test_random.f90 $(BUILD)random.o $(BUILD)model_constants.o
@@ -446,7 +446,7 @@ $(BUILD)io_routines.o: io/io_routines.f90 $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)configuration.o: config/configuration.f90 $(BUILD)data_structures.o $(BUILD)model_constants.o \
-					$(BUILD)string.o $(BUILD)io_routines.o $(BUILD)time.o $(BUILD)init.o
+					$(BUILD)string.o $(BUILD)io_routines.o $(BUILD)time.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)geo_reader.o: utilities/geo_reader.f90 $(BUILD)data_structures.o $(BUILD)model_constants.o

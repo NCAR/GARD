@@ -18,44 +18,8 @@ module init_mod
 
     implicit none
     private
-    public :: model_init, print_model_init
+    public :: model_init
 contains
-
-    !>------------------------------------------------
-    !! Prints model configuration info before running
-    !!
-    !! Prints a welcome and version string as well.
-    !! Only prints configuration info if debug == true
-    !!
-    !!------------------------------------------------
-    subroutine print_model_init()
-        implicit none
-
-        write(*,*) "Generalized Analog Regression Downscaling (GARD)"
-        write(*,*) "-----------------------------------------------------------"
-        write(*,*) "GARD Version : "//trim(kVERSION_STRING)
-        ! TODO: Add compile time options
-        write(*,*) ""
-        write(*,*) "  The Generalized Analog Regression Downscaling (GARD)"
-        write(*,*) "  downscaling tool, version "//trim(kVERSION_STRING)//", Copyright (C) 2017 The"
-        write(*,*) "  National Center for Atmospheric Research. GARD comes with"
-        write(*,*) "  ABSOLUTELY NO WARRANTY. This is free software, you may "
-        write(*,*) "  redistribute it under certain conditions; see LICENSE.txt"
-        write(*,*) "  for details."
-        write(*,*) ""
-        write(*,*) "  Online Documentation      : http://gard.readthedocs.io"
-        write(*,*) "  Report Bugs and Issues to : https://github.com/NCAR/GARD/issues"
-        write(*,*) ""
-        write(*,*) "-----------------------------------------------------------"
-        write(*,*) "Usage: gard [-h] [--version] options_file"
-        write(*,*) ""
-        write(*,*) "-h              Help information for GARD"
-        write(*,*) "--version       Print the version number"
-        write(*,*) "options_file    Input options file name"
-        write(*,*) ""
-
-    end subroutine print_model_init
-
 
     !>------------------------------------------------
     !! Initialize the model
