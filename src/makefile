@@ -96,6 +96,8 @@ endif
 
 # get GIT version info
 GIT_VERSION := $(shell git describe --long --dirty --all --always | sed -e's/heads\///')
+UNAME_S := $(shell uname -s)
+HOSTNAME := $(shell uname -n)
 
 ###################################################################
 ###################################################################
@@ -254,7 +256,7 @@ $(info $$NCDF_PATH   = ${NCDF_PATH})
 $(info $$GIT_VERSION = ${GIT_VERSION})
 $(info $$COMP        = ${COMP})
 $(info $$LINK        = ${LINK})
-$(info $$PREPROC     = ${GIT_VERSION})
+$(info $$PREPROC     = ${PREPROC})
 $(info $$MODOUTPUT   = ${MODOUTPUT})
 $(info $$MODE        = ${MODE})
 
@@ -269,7 +271,8 @@ $(info $$MODE        = ${MODE})
 # export LD_RUN_PATH=$LD_RUN_PATH:/path/to/netcdf/libraries/lib:/path/to/fftw/libraries/lib
 
 # flags forall
-FCFLAGS = $(COMP) $(PROF) -I$(NCDF_PATH)/include -I$(BUILD) $(INC_NCAR)
+FCFLAGS = $(COMP) $(PROF) -I$(NCDF_PATH)/include -I$(BUILD) $(INC_NCAR) 
+
 # libraries needed for linking
 LDFLAGS = $(LINK) $(PROF) -L$(NCDF_PATH)/lib -lnetcdf -lnetcdff $(LIB_NCAR) -L$(LAPACK_PATH)/lib -llapack #-lblas
 
@@ -443,7 +446,7 @@ $(BUILD)io_routines.o: io/io_routines.f90 $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)configuration.o: config/configuration.f90 $(BUILD)data_structures.o $(BUILD)model_constants.o \
-					$(BUILD)string.o $(BUILD)io_routines.o $(BUILD)time.o
+					$(BUILD)string.o $(BUILD)io_routines.o $(BUILD)time.o $(BUILD)init.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)geo_reader.o: utilities/geo_reader.f90 $(BUILD)data_structures.o $(BUILD)model_constants.o

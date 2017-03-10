@@ -12,6 +12,7 @@ module config_mod
     use model_constants
     use string,      only : str
     use io_routines, only : io_newunit
+    use init_mod,    only : print_model_init
 
     implicit none
     private
@@ -764,11 +765,13 @@ contains
             call get_command_argument(1,options_file, status=error)
 
             if (trim(options_file) == '--version') then
-              write(*, *) 'GARD '//trim(kVERSION_STRING)
-              exit
+                write(*, *) 'GARD '//trim(kVERSION_STRING)
+                stop
             elseif (trim(options_file) == '-h') then
-              call print_model_init()
-              exit
+                call print_model_init()
+                stop
+            else
+               call print_model_init()
             endif
 
             ! if there was an error, return the default filename
@@ -781,8 +784,8 @@ contains
                 stop "ERROR: options filename too long"
             endif
         else
-            ! if not commandline options were given, assume a default filename
-            options_file = kDEFAULT_OPTIONS_FILENAME
+            call print_model_init()
+            stop
         endif
 
         ! check to see if the expected filename even exists on disk
