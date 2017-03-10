@@ -19,6 +19,7 @@ module config_mod
     logical :: module_debug
     public :: read_config
     public :: read_files_list, read_data_type, get_options_file ! only need to be public for test_config
+    use init_mod,       only : print_model_init
 contains
 
     !>------------------------------------------------
@@ -761,6 +762,14 @@ contains
         if (command_argument_count()>0) then
             ! read the commandline argument
             call get_command_argument(1,options_file, status=error)
+
+            if (trim(options_file) == '--version') then
+              write(*, *) 'GARD '//trim(kVERSION_STRING)
+              exit
+            elseif (trim(options_file) == '-h') then
+              call print_model_init()
+              exit
+            endif
 
             ! if there was an error, return the default filename
             if (error>0) then
