@@ -1,6 +1,6 @@
 !>------------------------------------------------
 !! Reads the configuration input file
-!! Also looks for commandline arguments to for an config filename
+!! Also looks for command line arguments to for an config filename
 !!
 !!  @author
 !!  Ethan Gutmann (gutmann@ucar.edu)
@@ -19,6 +19,7 @@ module config_mod
     logical :: module_debug
     public :: read_config
     public :: read_files_list, read_data_type, get_options_file ! only need to be public for test_config
+    public :: print_model_init
 contains
 
     !>------------------------------------------------
@@ -762,6 +763,16 @@ contains
             ! read the commandline argument
             call get_command_argument(1,options_file, status=error)
 
+            if (trim(options_file) == '--version') then
+                write(*, *) 'GARD '//trim(kVERSION_STRING)
+                stop
+            elseif (trim(options_file) == '-h') then
+                call print_model_init()
+                stop
+            else
+               call print_model_init()
+            endif
+
             ! if there was an error, return the default filename
             if (error>0) then
                 options_file = kDEFAULT_OPTIONS_FILENAME
@@ -772,8 +783,8 @@ contains
                 stop "ERROR: options filename too long"
             endif
         else
-            ! if not commandline options were given, assume a default filename
-            options_file = kDEFAULT_OPTIONS_FILENAME
+            call print_model_init()
+            stop
         endif
 
         ! check to see if the expected filename even exists on disk
@@ -785,5 +796,38 @@ contains
         endif
         write(*,*) "Using options file = ", trim(options_file)
     end function get_options_file
+
+    !>------------------------------------------------
+    !! Prints model configuration info before running
+    !!
+    !! Prints a welcome and version string as well.
+    !!------------------------------------------------
+    subroutine print_model_init()
+        implicit none
+
+        write(*,*) "Generalized Analog Regression Downscaling (GARD)"
+        write(*,*) "-----------------------------------------------------------"
+        write(*,*) "GARD Version : "//trim(kVERSION_STRING)
+        ! TODO: Add compile time options
+        write(*,*) ""
+        write(*,*) "  The Generalized Analog Regression Downscaling (GARD)"
+        write(*,*) "  downscaling tool, version "//trim(kVERSION_STRING)//", Copyright (C) 2017 The"
+        write(*,*) "  National Center for Atmospheric Research. GARD comes with"
+        write(*,*) "  ABSOLUTELY NO WARRANTY. This is free software, you may "
+        write(*,*) "  redistribute it under certain conditions; see LICENSE.txt"
+        write(*,*) "  for details."
+        write(*,*) ""
+        write(*,*) "  Online Documentation      : http://gard.readthedocs.io"
+        write(*,*) "  Report Bugs and Issues to : https://github.com/NCAR/GARD/issues"
+        write(*,*) ""
+        write(*,*) "-----------------------------------------------------------"
+        write(*,*) "Usage: gard [-h] [--version] options_file"
+        write(*,*) ""
+        write(*,*) "-h              Help information for GARD"
+        write(*,*) "--version       Print the version number"
+        write(*,*) "options_file    Input options file name"
+        write(*,*) ""
+
+    end subroutine print_model_init
 
 end module config_mod

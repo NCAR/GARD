@@ -118,7 +118,7 @@ contains
                     if (size(weights)/=size(training_y_lp)) then
                         !$omp critical (print_lock)
                         write(*,*) "ERROR size of weights /= data"
-                        write(*,*), shape(weights), shape(training_y_lp)
+                        write(*,*) shape(weights), shape(training_y_lp)
                         !$omp end critical (print_lock)
                     endif
                     if (present(y_test)) then
@@ -207,8 +207,8 @@ contains
         real, intent(inout), dimension(:,:) :: X
         real, intent(inout), dimension(:)   :: Y, W
         real(8), intent(inout), dimension(:)   :: B
-        real, dimension(:,:), allocatable :: X_weighted, W_full
-        real, dimension(:),   allocatable :: Y_weighted, Bs, output_y
+        real, dimension(:,:), allocatable :: W_full
+        real, dimension(:),   allocatable :: Bs, output_y
 
         real, dimension(10000) :: WORK
         integer :: i, n, m, nrhs, LDX, LDY, LDW, LWORK, INFO, p
@@ -281,7 +281,6 @@ contains
         real,    allocatable :: YN(:), XV(:,:)
 
         integer :: nvars, ntimes, i, t, f, it
-        real :: d
         integer :: info
 
         ! skip the logistic regression and force the result to be 1

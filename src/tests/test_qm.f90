@@ -39,7 +39,7 @@ program test_qm
 
     ! test a negative gain and offset
     call random_number(matching_data)
-    matching_data = matching_data * -3 - 3
+    matching_data = (matching_data * (-3)) - 3
     call test_mapping(input_data, matching_data, "Negative Values")
 
     ! Then test a fourth root transformation
@@ -121,7 +121,8 @@ contains
         !-------------------------------
         ! Develop the Quantile mapping
         !-------------------------------
-        call develop_qm(input_data(1:size(input_data)/2), matching_data, qm, min(300,min(size(input_data)/2, size(matching_data)/2)))
+        call develop_qm(input_data(1:size(input_data) / 2), matching_data, qm, &
+                        min(300, min(size(input_data) / 2, size(matching_data) / 2)))
 
         call system_clock(end_time, COUNT_RATE, COUNT_MAX)
         if (start_time>end_time) end_time=end_time+COUNT_MAX
@@ -138,7 +139,8 @@ contains
         call system_clock(end_time, COUNT_RATE, COUNT_MAX)
         if (start_time>end_time) end_time=end_time+COUNT_MAX
 
-        call show_results(output_data, matching_data, name, (end_time-start_time) / real(COUNT_RATE))
+        call show_results(output_data, matching_data, name, &
+                          (end_time-start_time) / real(COUNT_RATE))
     end subroutine test_mapping
 
     subroutine pass_fail(error, name)
@@ -149,7 +151,7 @@ contains
         if (abs(error) < acceptable_error) then
             print*, trim(name), " PASSED"
         else
-            print*, trim(name), " FAILED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+            print*, trim(name), " FAILED!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
         endif
 
     end subroutine pass_fail

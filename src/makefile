@@ -17,7 +17,7 @@
 ###################################################################
 ###################################################################
 
-FC=gfortran
+FC=gfortran-6
 NCDF_PATH = /usr/local
 LAPACK_PATH = /usr/local
 INSTALL_DIR = ~/bin
@@ -52,7 +52,7 @@ ifeq ($(NODENAME), Nomad.local)
 	LAPACK_PATH=/usr/local/opt/lapack
 endif
 
-ifeq ($(NODENAME), foil.local)
+ifeq ($(NODENAME), foil.hydro.washington.edu)
 	FC=gfortran
 	NCDF_PATH=/opt/local
 	LAPACK_PATH=/opt/local/lib/lapack
@@ -96,6 +96,8 @@ endif
 
 # get GIT version info
 GIT_VERSION := $(shell git describe --long --dirty --all --always | sed -e's/heads\///')
+UNAME_S := $(shell uname -s)
+HOSTNAME := $(shell uname -n)
 
 ###################################################################
 ###################################################################
@@ -105,6 +107,13 @@ GIT_VERSION := $(shell git describe --long --dirty --all --always | sed -e's/hea
 ###################################################################
 ###################################################################
 ifeq ($(FC), gfortran)
+	COMP=-fopenmp -lgomp -O3 -ffree-line-length-none -ftree-vectorize -fimplicit-none -funroll-loops \
+		-fno-protect-parens -ffast-math #-flto #
+	LINK=-fopenmp -lgomp
+	PREPROC=-cpp
+	MODOUTPUT=-J $(BUILD)
+endif
+ifeq ($(FC), gfortran-6)
 	COMP=-fopenmp -lgomp -O3 -ffree-line-length-none -ftree-vectorize -fimplicit-none -funroll-loops \
 		-fno-protect-parens -ffast-math #-flto #
 	LINK=-fopenmp -lgomp
@@ -247,7 +256,7 @@ $(info $$NCDF_PATH   = ${NCDF_PATH})
 $(info $$GIT_VERSION = ${GIT_VERSION})
 $(info $$COMP        = ${COMP})
 $(info $$LINK        = ${LINK})
-$(info $$PREPROC     = ${GIT_VERSION})
+$(info $$PREPROC     = ${PREPROC})
 $(info $$MODOUTPUT   = ${MODOUTPUT})
 $(info $$MODE        = ${MODE})
 
@@ -263,6 +272,7 @@ $(info $$MODE        = ${MODE})
 
 # flags forall
 FCFLAGS = $(COMP) $(PROF) -I$(NCDF_PATH)/include -I$(BUILD) $(INC_NCAR)
+
 # libraries needed for linking
 LDFLAGS = $(LINK) $(PROF) -L$(NCDF_PATH)/lib -lnetcdf -lnetcdff $(LIB_NCAR) -L$(LAPACK_PATH)/lib -llapack #-lblas
 
