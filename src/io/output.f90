@@ -2,7 +2,7 @@ module output_mod
     use io_routines, only : io_write
     use data_structures
     use string, only : str
-    
+
     implicit none
 
     interface shift_z_dim
@@ -13,14 +13,16 @@ contains
         implicit none
         type(config),  intent(in)   :: options
         type(results), intent(in)   :: output
-        character(len=MAXFILELENGTH):: filename
-        real, dimension(:,:,:), allocatable :: output_data
-        real, dimension(:,:,:,:), allocatable :: output_data_4d
+
+        character(len=MAXFILELENGTH)            :: filename
+        character(len=MAXFILELENGTH)            :: dimnames(3)
+        real, dimension(:,:,:),     allocatable :: output_data
+        real, dimension(:,:,:,:),   allocatable :: output_data_4d
         integer :: nvars, i, nx, ny, nt, nv
         integer :: Mem_Error
-        
+
         nvars = size(output%variables)
-        
+
         nt = size(output%variables(1)%data, 1)
         nx = size(output%variables(1)%data, 2)
         ny = size(output%variables(1)%data, 3)
@@ -34,45 +36,51 @@ contains
             if (Mem_Error /= 0) call memory_error(Mem_Error, "output_data_4d", [nx,ny,nt,nv])
         endif
 
+        dimnames = [character(len=4) :: "x", "y", "time"]
+
         do i=1,nvars
-            
+
             filename = trim(options%output_file)//trim(output%variables(i)%name)//".nc"
             call shift_z_dim(output%variables(i)%data, output_data)
-            call io_write(filename, "data", output_data)
-            
+            call io_write(filename, trim(output%variables(i)%name), output_data, dimnames)
+
             filename = trim(options%output_file)//trim(output%variables(i)%name)//"_errors.nc"
             call shift_z_dim(output%variables(i)%errors, output_data)
-            call io_write(filename, "data", output_data)
+            call io_write(filename, trim(output%variables(i)%name)//"_error", output_data, dimnames)
 
             if (options%logistic_threshold/=kFILL_VALUE) then
                 filename = trim(options%output_file)//trim(output%variables(i)%name)//"_logistic.nc"
                 call shift_z_dim(output%variables(i)%logistic, output_data)
-                call io_write(filename, "data", output_data)
+                call io_write(filename, trim(output%variables(i)%name)//"_exceedence_probability", output_data, dimnames)
             endif
 
             if (options%debug) then
                 filename = trim(options%output_file)//trim(output%variables(i)%name)//"_predictors.nc"
                 call shift_z_dim(output%variables(i)%predictors, output_data_4d)
-                call io_write(filename, "data", output_data_4d)
+                call io_write(filename, "predictors", output_data_4d)
 
                 filename = trim(options%output_file)//trim(output%variables(i)%name)//"_obs.nc"
                 call shift_z_dim(output%variables(i)%obs, output_data)
-                call io_write(filename, "data", output_data)
+                call io_write(filename, "obs", output_data)
 
                 filename = trim(options%output_file)//trim(output%variables(i)%name)//"_training.nc"
-                call io_write(filename, "data", output%variables(i)%training)
+                call io_write(filename, "training", output%variables(i)%training)
                 ! this quickly takes too much memory, so we won't bother swapping dimensions
                 ! call shift_z_dim(output%variables(i)%training, output_data_4d)
                 ! call io_write(filename, "data", output_data_4d)
-                
+
                 filename = trim(options%output_file)//trim(output%variables(i)%name)//"_coef.nc"
                 ! note other 4d vars are nt, nx, ny, nv, but coeff is nv, nt, nx, ny
                 ! call shift_z_dim(output%variables(i)%coefficients, output_data_4d)
-                ! for now skip the shift and just output as is. 
-                call io_write(filename, "data", output%variables(i)%coefficients)
+                ! for now skip the shift and just output as is.
+                call io_write(filename, "coefficients", output%variables(i)%coefficients)
+            else if ((options%write_coefficients).and.(options%pure_regression)) then
+                filename = trim(options%output_file)//trim(output%variables(i)%name)//"_coef.nc"
+                call io_write(filename, "coefficients", output%variables(i)%coefficients)
             endif
+
         enddo
-        
+
     end subroutine write_output
 
     ! for whatever reason reshape(data, [nx, ny, nt], order=[2,3,1]) doesn't work!
@@ -137,9 +145,9 @@ contains
         character(len=*), intent(in)                :: variable_name
         integer,          intent(in), dimension(:)  :: dims
 
-        write(*,*), "Error allocating memory for variable: ", trim(variable_name)
-        write(*,*), "  ERROR        = ", error
-        write(*,*), "  Dimensions   = ", dims
+        write(*,*) "Error allocating memory for variable: ", trim(variable_name)
+        write(*,*) "  ERROR        = ", error
+        write(*,*) "  Dimensions   = ", dims
 
         stop "MEMORY ALLOCATION ERROR"
 

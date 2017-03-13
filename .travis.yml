@@ -1,19 +1,27 @@
-sudo: false
+sudo: false # use container-based build
 language: fortran
-compiler:
-  - gfortran
-os:
-  - linux
+notifications:
+    email: false
+
+compiler: gfortran-6
+os: linux
+env: TESTID='gard_linux'
 addons:
   apt:
-    source:
+    sources:
       - ubuntu-toolchain-r-test
     packages:
-      - gfortran
-      - libnetcdf-dev
       - liblapack-dev
+      - libnetcdf-dev
+      - gfortran-6
+before_install:
+  - source ci/gard_install_utils
+  - gard_before_install
+install:
+   - gard_install
 script:
-  - sed -i "s|NCDF_PATH = /usr/local|NCDF_PATH = /usr|" src/makefile
-  - sed -i "s|LAPACK_PATH = /usr/local|LAPACK_PATH = /usr|" src/makefile
-  - make -C src -j4 test
-  - make -C src -j4
+  - gard_script
+after_success:
+  - gard_after_success
+after_failure:
+  - gard_after_failure

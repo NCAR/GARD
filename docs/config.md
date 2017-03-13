@@ -18,6 +18,7 @@ The namelist options are described in the tables below:
 | observation_file                | string  | No        | Options File Name    | Used to specify a separate namelist file for the observation section shown below |
 | prediction_file                 | string  | No        | Options File Name    | Used to specify a separate namelist file for the prediction section shown below  |
 | output_file                     | string  | No        | downscaled_output.nc | Downscaled output filename.                                                      |
+| pass_through_var                | integer | No        | 1                    | Select the variable to be passed through as the output if pass_through=True      |
 | n_analogs                       | integer | No (1)    | -1                   | The number of analogs to include                                                 |
 | n_log_analogs                   | integer | No (1)    | -1                   |                                                                                  |
 | analog_threshold                | real    | No (1)    | -1                   |                                                                                  |
@@ -30,11 +31,13 @@ The namelist options are described in the tables below:
 | pure_regression                 | logical | No        | FALSE                | Use pure regression downscaling approach                                         |
 | pure_analog                     | logical | No        | FALSE                | Use pure analog downscaling approach                                             |
 | analog_regression               | logical | No        | TRUE                 | Use analog regression downscaling approach                                       |
+| pass_through                    | logical | No        | False                | Pass a given predictor variable through as the output without downscaling        |
 | sample_analog                   | logical | No        | FALSE                |                                                                                  |
 | logistic_from_analog_exceedance | logical | No        | FALSE                |                                                                                  |
 | logistic_threshold              | logical | No        | -9999                |                                                                                  |
 | weight_analogs                  | logical | No        | TRUE                 |                                                                                  |
-| debug                           | logical | No        | TRUE                 |                                                                                  |
+| debug                           | logical | No        | TRUE                 | prints more output at runtime and outputs files including the coefficients used in each analog regression (or analog values) as well as the predictor data |
+| interactive                     | logical | No        | TRUE                 | Print downscaling status as a percentage on the command line                     |
 
 Notes:
 
@@ -47,55 +50,65 @@ Notes:
 | name                  | string  | Yes       | n/a     | Name of the training parameters dataset                                                  |
 | preloaded             | string  | Yes       | n/a     | filepath of the preloaded training parameters dataset                                    |
 | interpolation_method  | integer | No        | 1       | nearest neighbor= 1, bilenear =2                                                         |
-| time_indices          | integer | Yes       | -1      |                                                                                          |
+| normalization_method  | integer | No        | 0       | no normalization = 0, mean/stddev from: training data = 1                                |
+| time_indices          | integer | Yes       | -1      | list of timesteps in file to aggregate over (GEFS only)                                  |
+| time_weights          | real    | No        | 1       | list of averaging weights for individual time indices
+| agg_method            | integer | No        | 0       | per variable aggregation method when aggregating over time_indices: mean = 0, minimum = 1, maximum = 2, sum = 3 (GEFS only) |
 | nvars                 | integer | Yes       | -1      | number of variables to be used in training                                               |
-| data_type             | string  | Yes       | n/a     |                                                                                          |
-| lat_name              | string  | Yes       | n/a     |                                                                                          |
-| lon_name              | string  | Yes       | n/a     |                                                                                          |
-| time_name             | string  | Yes       | n/a     |                                                                                          |
-| nfiles                | integer | Yes       | -1      |                                                                                          |
-| input_transformations | integer | No        | 1       | no transform = 1, quantile mapping = 2, log transform = 3, cube root = 4, fifth root = 5 |
+| data_type             | string  | Yes       | n/a     | dataset type: GEFS or GCM                                                                |
+| lat_name              | string  | Yes       | n/a     | netCDF variable name for latitude                                                        |
+| lon_name              | string  | Yes       | n/a     | netCDF variable name for longitude                                                       |
+| time_name             | string  | Yes       | n/a     | netCDF variable name for time                                                            |
+| nfiles                | integer | Yes       | -1      | number of files in each file list                                                        |
+| input_transformations | integer | No        | 0       | no transform = 0, quantile mapping = 1, log transform = 2, cube root = 3, fifth root = 4 |
 | var_names             | string  | Yes       | n/a     | variables names to use in training                                                       |
-| file_list             | string  | Yes       | n/a     |                                                                                          |
-| selected_time         | integer | Yes       | -1      |                                                                                          |
+| file_list             | string  | Yes       | n/a     | path to file containing a list of training files                                         |
+| selected_time         | integer | No        | -1      | if set, only this time step will be read from each input file (GEFS only)                |
 | calendar              | string  | Yes       | n/a     |                                                                                          |
 | calendar_start_year   | integer | No        | 1900    |                                                                                          |
+| timezone_offset       | real    | No        | 0       | hours to offset time variable (e.g. `time_name`) to account for timezone.                |
+
 
 ## Prediction Parameters
 
 | Name                  | Type    | Required? | Default | Description                                                                              |
 |-----------------------|---------|-----------|---------|------------------------------------------------------------------------------------------|
-| name                  | string  | Yes       | n/a     |                                                                                          |
-| preloaded             | string  | Yes       | n/a     |                                                                                          |
+| name                  | string  | Yes       | n/a     | Name of the prediction parameters dataset                                                |
+| preloaded             | string  | Yes       | n/a     | filepath of the preloaded prediction parameters dataset                                  |
 | interpolation_method  | integer | No        | 1       | nearest neighbor= 1, bilenear =2                                                         |
-| nvars                 | integer | Yes       | -1      |                                                                                          |
-| data_type             | string  | Yes       | n/a     |                                                                                          |
-| lat_name              | string  | Yes       | n/a     |                                                                                          |
-| lon_name              | string  | Yes       | n/a     |                                                                                          |
-| time_name             | string  | Yes       | n/a     |                                                                                          |
-| nfiles                | integer | Yes       | -1      |                                                                                          |
-| transformations       | integer | No        | 2       | no transform = 1, quantile mapping = 2, log transform = 3, cube root = 4, fifth root = 5 |
-| input_transformations | integer | No        | 1       | no transform = 1, quantile mapping = 2, log transform = 3, cube root = 4, fifth root = 5 |
-| var_names             | string  | Yes       | n/a     |                                                                                          |
-| file_list             | string  | Yes       | n/a     |                                                                                          |
-| selected_time         | integer | Yes       | -1      |                                                                                          |
+| normalization_method  | integer | No        | 0       | no normalization = 0, mean/stddev from: prediction data = 1, training data = 2           |
+| time_indices          | integer | Yes       | -1      | list of timesteps in file to aggregate over (GEFS only)                                  |
+| time_weights          | real    | No        | 1       | list of averaging weights for individual time indices
+| agg_method            | integer | No        | 0       | per variable aggregation method when aggregating over time_indices: mean = 0, minimum = 1, maximum = 2, sum = 3 (GEFS only) |
+| nvars                 | integer | Yes       | -1      | number of prediction parameters to use in downscaling                                    |
+| data_type             | string  | Yes       | n/a     | dataset type: GEFS or GCM                                                                |
+| lat_name              | string  | Yes       | n/a     | netCDF variable name for latitude                                                        |
+| lon_name              | string  | Yes       | n/a     | netCDF variable name for longitude                                                       |
+| time_name             | string  | Yes       | n/a     | netCDF variable name for time                                                            |
+| nfiles                | integer | Yes       | -1      | number of files in each file list                                                        |
+| transformations       | integer | No        | 0       | no transform = 0, quantile mapping = 1, log transform = 2, cube root = 3, fifth root = 4 |
+| input_transformations | integer | No        | 0       | no transform = 0, quantile mapping = 1, log transform = 2, cube root = 3, fifth root = 4 |
+| var_names             | string  | Yes       | n/a     | variables names to use in prediction                                                     |
+| file_list             | string  | Yes       | n/a     | path to file containing a list of prediction filepaths                                       |
+| selected_time         | integer | No        | -1      | if set, only this time step will be read from each input file (GEFS only)                |
 | calendar              | string  | Yes       | n/a     |                                                                                          |
 | calendar_start_year   | integer | No        | 1900    |                                                                                          |
+| timezone_offset       | real    | No        | 0       | hours to offset time variable (e.g. `time_name`) to account for timezone.                |
 
 ## Observation Parameters
 
 | Name                  | Type    | Required? | Default       | Description                                                                              |
 |-----------------------|---------|-----------|---------------|------------------------------------------------------------------------------------------|
-| name                  | string  | Yes       | n/a           |                                                                                          |
-| preloaded             | string  | Yes       | n/a           |                                                                                          |
-| nvars                 | integer | Yes       | -1            |                                                                                          |
-| nfiles                | integer | Yes       | -1            |                                                                                          |
-| data_type             | string  | Yes       | n/a           |                                                                                          |
-| lat_name              | string  | Yes       | n/a           |                                                                                          |
-| lon_name              | string  | Yes       | n/a           |                                                                                          |
-| time_name             | string  | Yes       | n/a           |                                                                                          |
-| input_transformations | integer | No        | kNO_TRANSFORM | no transform = 1, quantile mapping = 2, log transform = 3, cube root = 4, fifth root = 5 |
-| var_names             | string  | Yes       | n/a           |                                                                                          |
-| file_list             | string  | Yes       | n/a           |                                                                                          |
+| name                  | string  | Yes       | n/a           | Name of the observation parameters dataset                                               |
+| preloaded             | string  | Yes       | n/a           | filepath of the preloaded observation parameters dataset                                 |
+| nvars                 | integer | Yes       | -1            | number of observation variables to downscale (currently must be 1)                       |
+| nfiles                | integer | Yes       | -1            | number of files in each file list                                                        |
+| data_type             | string  | Yes       | n/a           | dataset type, typically "obs"                                                            |
+| lat_name              | string  | Yes       | n/a           | netCDF variable name for latitude                                                        |
+| lon_name              | string  | Yes       | n/a           | netCDF variable name for longitude                                                       |
+| time_name             | string  | Yes       | n/a           | netCDF variable name for time                                                            |
+| input_transformations | integer | No        | 0             | no transform = 0, quantile mapping = 1, log transform = 2, cube root = 3, fifth root = 4 |
+| var_names             | string  | Yes       | n/a           | variables names to use in obs dataset                                                    |
+| file_list             | string  | Yes       | n/a           | path to file containing a list of obs filepaths                                                                                         |
 | calendar              | string  | Yes       | n/a           |                                                                                          |
 | calendar_start_year   | integer | No        | 1900          |                                                                                          |

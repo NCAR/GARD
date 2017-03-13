@@ -1,11 +1,11 @@
 program test_regression
-    
+
     use regression_mod
-    
+
     real,    dimension(:,:), allocatable :: X, TX
     real,    dimension(:),   allocatable :: Y
     real(8), dimension(:),   allocatable :: B, B_lapack
-    
+
     integer :: random_size
     real, parameter :: MAX_ERROR = 1e-4
     integer, parameter :: n=2, m=10
@@ -18,20 +18,20 @@ program test_regression
     allocate(Y(m))
     allocate(B(n))
     allocate(B_lapack(n))
-    
+
     verbose = read_verbosity()
-    
+
     do i=1,m
         X(i,1) = 1
         X(i,2) = i
         call random_number(random)
         Y(i) = i + (random-0.5)/2
     enddo
-    
+
     TX = transpose(X)
-    
+
     ! call least_squares(X, Y, TX, B)
-    ! 
+    !
     print*, "--------------------------"
     print*, "  Testing Regression "
     if (verbose) then
@@ -57,7 +57,7 @@ program test_regression
         ! print*, "--------------------------"
         ! print*, B
     endif
-    
+
     call lapack_least_squares(X, Y, B_lapack)
     if (verbose) then
         print*, "--------------------------"
@@ -79,14 +79,14 @@ program test_regression
         print*, " FAILED!!!!!!!!!!!"
     endif
     print*, "--------------------------"
-    
+
     do i=1,m
         X(i,1) = 1
         X(i,2) = i
         call random_number(random)
         Y(i) = nint(random/2 + i/real(m*1.5) )
     enddo
-    ! The random numbers above are a better way to create a test for automated large sets, 
+    ! The random numbers above are a better way to create a test for automated large sets,
     ! but it is difficult to get it to look like a clean test for small numbers, so Y is created manually here
     if (m==10) Y = [0,0,1,0,1,1,0,1,1,1]
     print*, "--------------------------"
@@ -112,7 +112,7 @@ program test_regression
             print*, X(i,2), Y(i), TX(1,i)
         enddo
     endif
-    
+
     if (m==10) Y = [0,0,0,0,0,1,1,1,1,1]
     call logistic_regression(X, Y, B)
     TX(1,:) = 1.0 / (1.0 + exp(-matmul(X, B)))
@@ -132,7 +132,7 @@ program test_regression
     else
         print*, " FAILED!!!!!!!!"
     endif
-    
+
     print*, "--------------------------"
     print*, "Testing compute_logistic_regression"
     print*, "--------------------------"
@@ -145,23 +145,23 @@ program test_regression
         print*, TX(1,1), "!=", TX(1,4)
         print*, B
     endif
-        
+
 
 
 contains
     function read_verbosity() result(verbosity)
         implicit none
-        
+
         integer :: i, count, j
         character(len=1024) :: arg
         logical :: verbosity
-        
+
         verbosity = .False.
         count = command_argument_count()
         if (count>0) then
             do j=1,count
                 call get_command_argument(j, arg)
-                
+
                 if (len_trim(arg)>0) then
                     do i=1,len_trim(arg)
                         if (i<=len("verbose")) then

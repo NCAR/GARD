@@ -17,7 +17,7 @@
 module io_routines
     use netcdf
     use model_constants
-    
+
     implicit none
     ! maximum number of dimensions for a netCDF file
     integer,parameter::io_maxDims=10
@@ -33,7 +33,7 @@ module io_routines
     !! Generic interface to the netcdf write routines
     !!------------------------------------------------------------
     interface io_write
-        module procedure io_write6d, io_write4d, io_write3d, io_write2d, io_write3di,io_write4di
+        module procedure io_write6d, io_write4d, io_write3d, io_write2d, io_write1d, io_write3di,io_write4di
     end interface
 
     !>------------------------------------------------------------
@@ -625,17 +625,17 @@ contains
         ! Open the file. NF90_CLOBBER tells netCDF we want overwrite existing files
         call check( nf90_create(filename, NF90_CLOBBER, ncid), filename)
         ! define the dimensions
-        call check( nf90_def_dim(ncid, dims(1), nx, temp_dimid) )
+        call check( nf90_def_dim(ncid, trim(dims(1)), nx, temp_dimid) )
         dimids(1)=temp_dimid
-        call check( nf90_def_dim(ncid, dims(2), nz, temp_dimid) )
+        call check( nf90_def_dim(ncid, trim(dims(2)), nz, temp_dimid) )
         dimids(2)=temp_dimid
-        call check( nf90_def_dim(ncid, dims(3), ny, temp_dimid) )
+        call check( nf90_def_dim(ncid, trim(dims(3)), ny, temp_dimid) )
         dimids(3)=temp_dimid
-        call check( nf90_def_dim(ncid, dims(4), na, temp_dimid) )
+        call check( nf90_def_dim(ncid, trim(dims(4)), na, temp_dimid) )
         dimids(4)=temp_dimid
-        call check( nf90_def_dim(ncid, dims(5), nb, temp_dimid) )
+        call check( nf90_def_dim(ncid, trim(dims(5)), nb, temp_dimid) )
         dimids(5)=temp_dimid
-        call check( nf90_def_dim(ncid, dims(6), nc, temp_dimid) )
+        call check( nf90_def_dim(ncid, trim(dims(6)), nc, temp_dimid) )
         dimids(6)=temp_dimid
 
         ! Create the variable returns varid of the data variable
@@ -649,7 +649,7 @@ contains
         ! Close the file, freeing all resources.
         call check( nf90_close(ncid), filename)
     end subroutine io_write6d
-    
+
     !>------------------------------------------------------------
     !! Same as io_write6d but for 4-dimensional data
     !!
@@ -662,12 +662,14 @@ contains
     !! @param   data_out    4-dimensional array to write to the file
     !!
     !!------------------------------------------------------------
-    subroutine io_write4d(filename,varname,data_out)
+    subroutine io_write4d(filename,varname,data_out, dimnames)
         implicit none
         ! This is the name of the file and variable we will write.
         character(len=*), intent(in) :: filename, varname
         real,intent(in) :: data_out(:,:,:,:)
+        character(len=*), optional, dimension(4), intent(in) :: dimnames
 
+        character(len=MAXDIMLENGTH), dimension(4) :: dims
         ! We are writing 4D data, assume a nx x nz x ny x nr grid.
         integer :: nx,ny,nz,nr
         integer, parameter :: ndims = 4
@@ -679,17 +681,23 @@ contains
         ny=size(data_out,3)
         nr=size(data_out,4)
 
+        if (present(dimnames)) then
+            dims = dimnames
+        else
+            dims = ["x","y","z","t"]
+        endif
+
         ! Open the file. NF90_NOWRITE tells netCDF we want read-only access to
         ! the file.
         call check( nf90_create(filename, NF90_CLOBBER, ncid), filename)
         ! define the dimensions
-        call check( nf90_def_dim(ncid, "x", nx, temp_dimid) )
+        call check( nf90_def_dim(ncid, trim(dims(1)), nx, temp_dimid) )
         dimids(1)=temp_dimid
-        call check( nf90_def_dim(ncid, "y", nz, temp_dimid) )
+        call check( nf90_def_dim(ncid, trim(dims(2)), nz, temp_dimid) )
         dimids(2)=temp_dimid
-        call check( nf90_def_dim(ncid, "z", ny, temp_dimid) )
+        call check( nf90_def_dim(ncid, trim(dims(3)), ny, temp_dimid) )
         dimids(3)=temp_dimid
-        call check( nf90_def_dim(ncid, "t", nr, temp_dimid) )
+        call check( nf90_def_dim(ncid, trim(dims(4)), nr, temp_dimid) )
         dimids(4)=temp_dimid
 
         ! Create the variable returns varid of the data variable
@@ -771,12 +779,14 @@ contains
     !! @param   data_out    3-dimensional array to write to the file
     !!
     !!------------------------------------------------------------
-    subroutine io_write3d(filename,varname,data_out)
+    subroutine io_write3d(filename,varname,data_out, dimnames)
         implicit none
         ! This is the name of the file and variable we will write.
         character(len=*), intent(in) :: filename, varname
         real,intent(in) :: data_out(:,:,:)
+        character(len=*), optional, dimension(3), intent(in) :: dimnames
 
+        character(len=MAXDIMLENGTH), dimension(3) :: dims
         ! We are reading 2D data, a nx x ny grid.
         integer :: nx,ny,nz
         integer, parameter :: ndims = 3
@@ -787,15 +797,21 @@ contains
         nz=size(data_out,2)
         ny=size(data_out,3)
 
+        if (present(dimnames)) then
+            dims = dimnames
+        else
+            dims = ["x","y","z"]
+        endif
+
         ! Open the file. NF90_NOWRITE tells netCDF we want read-only access to
         ! the file.
         call check( nf90_create(filename, NF90_CLOBBER, ncid), filename)
         ! define the dimensions
-        call check( nf90_def_dim(ncid, "x", nx, temp_dimid) )
+        call check( nf90_def_dim(ncid, trim(dims(1)), nx, temp_dimid) )
         dimids(1)=temp_dimid
-        call check( nf90_def_dim(ncid, "y", nz, temp_dimid) )
+        call check( nf90_def_dim(ncid, trim(dims(2)), nz, temp_dimid) )
         dimids(2)=temp_dimid
-        call check( nf90_def_dim(ncid, "t", ny, temp_dimid) )
+        call check( nf90_def_dim(ncid, trim(dims(3)), ny, temp_dimid) )
         dimids(3)=temp_dimid
 
         ! Create the variable returns varid of the data variable
@@ -906,6 +922,39 @@ contains
         ! Close the file, freeing all resources.
         call check( nf90_close(ncid) )
     end subroutine io_write2d
+
+    subroutine io_write1d(filename,varname,data_out)
+        implicit none
+        ! This is the name of the data file and variable we will read.
+        character(len=*), intent(in) :: filename, varname
+        real,intent(in) :: data_out(:)
+
+        ! We are reading 2D data, a nx x ny grid.
+        integer :: nx
+        integer, parameter :: ndims = 1
+        ! This will be the netCDF ID for the file and data variable.
+        integer :: ncid, varid,temp_dimid,dimids(ndims)
+
+        nx=size(data_out,1)
+
+        ! Open the file. NF90_NOWRITE tells netCDF we want read-only access to
+        ! the file.
+        call check( nf90_create(filename, NF90_CLOBBER, ncid) )
+        ! define the dimensions
+        call check( nf90_def_dim(ncid, "x", nx, temp_dimid) )
+        dimids(1)=temp_dimid
+
+        ! Create the variable returns varid of the data variable
+        call check( nf90_def_var(ncid, varname, NF90_REAL, dimids, varid), trim(filename)//":"//trim(varname))
+        ! End define mode. This tells netCDF we are done defining metadata.
+        call check( nf90_enddef(ncid) )
+
+        call check( nf90_put_var(ncid, varid, data_out), trim(filename)//":"//trim(varname))
+
+        ! Close the file, freeing all resources.
+        call check( nf90_close(ncid) )
+    end subroutine io_write1d
+
 
     !>------------------------------------------------------------
     !! Read a real type attribute from a named file from an optional variable
@@ -1169,7 +1218,7 @@ contains
             print *, trim(nf90_strerror(status))
             if(present(extra)) then
                 ! print any optionally provided context
-                write(*,*), trim(extra)
+                write(*,*) trim(extra)
             endif
             ! STOP the program execute
             stop "Stopped"
