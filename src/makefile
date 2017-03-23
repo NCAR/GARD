@@ -18,7 +18,7 @@
 ###################################################################
 
 FC=gfortran-6
-NCDF_PATH = /usr/local
+NCDF_PATH = $(shell nc-config --prefix) 
 LAPACK_PATH = /usr/local
 INSTALL_DIR = ~/bin
 RM=/bin/rm
@@ -57,6 +57,10 @@ ifeq ($(NODENAME), foil.hydro.washington.edu)
 	NCDF_PATH=/opt/local
 	LAPACK_PATH=/opt/local/lib/lapack
 endif
+ifeq ($(patsubst cheyenne%,cheyenne,$(NODENAME)), cheyenne)
+	NODENAME=cheyenne
+endif
+
 
 ifneq (,$(findstring hydro-c1,$(NODENAME)))
 	FC=ifort
@@ -72,27 +76,39 @@ ifneq (,$(findstring hydro-c1,$(NODENAME)))
 	# endif
 endif
 
-# on yellowstone:
-ifeq ($(LMOD_FAMILY_COMPILER),gnu)
-	FC=gfortran
-	NCDF_PATH=/glade/apps/opt/netcdf/4.3.0/gnu/4.8.2
+
+ifeq ($(NODENAME), yellowstone)
+	# on yellowstone:
+    ifeq ($(LMOD_FAMILY_COMPILER),gnu)
+	    FC=gfortran
+	    NCDF_PATH=/glade/apps/opt/netcdf/4.3.0/gnu/4.8.2
 	# LIBNETCDF = $(LIB_NCAR) # when netcdf includes are setup by the yellowstone module system
 	# INCNETCDF = $(INC_NCAR)
 	# LIBNETCDF = -Wl,-rpath,$(NCDF_PATH)/lib -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf # if using a compiler for which netcdf includes are
 	# INCNETCDF = -I$(NCDF_PATH)/include # NOT setup correctly by the yellowstone module system
+    endif
+    ifeq ($(LMOD_FAMILY_COMPILER),intel)
+	    FC=ifort
+	    NCDF_PATH=/glade/apps/opt/netcdf/4.3.0/intel/default
+	    # LIBNETCDF = $(LIB_NCAR) #-L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
+	    # INCNETCDF = $(INC_NCAR) #-I$(NCDF_PATH)/include # netcdf includes are setup by the yellowstone module system
+    endif
+    ifeq ($(LMOD_FAMILY_COMPILER),pgi)
+	    FC=pgf90
+	    NCDF_PATH=/glade/apps/opt/netcdf/4.3.0/pgi/default
+	    # LIBNETCDF = -rpath $(NCDF_PATH)/lib -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf # if using a compiler for which netcdf includes are
+	    # INCNETCDF = -I$(NCDF_PATH)/include # NOT setup correctly by the yellowstone module system
+    endif
 endif
-ifeq ($(LMOD_FAMILY_COMPILER),intel)
-	FC=ifort
-	NCDF_PATH=/glade/apps/opt/netcdf/4.3.0/intel/default
-	# LIBNETCDF = $(LIB_NCAR) #-L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
-	# INCNETCDF = $(INC_NCAR) #-I$(NCDF_PATH)/include # netcdf includes are setup by the yellowstone module system
+ifeq ($(NODENAME), cheyenne)
+	# on cheyenne:
+    ifeq ($(LMOD_FAMILY_COMPILER),gnu)
+        FC=gfortran
+        NCDF_PATH=/glade/u/apps/ch/opt/netcdf/4.4.1.1/gnu/6.2.0
+        LAPACK_PATH=/glade/u/apps/ch/opt/netlib/3.7.0/gnu/4.8.5
+    endif
 endif
-ifeq ($(LMOD_FAMILY_COMPILER),pgi)
-	FC=pgf90
-	NCDF_PATH=/glade/apps/opt/netcdf/4.3.0/pgi/default
-	# LIBNETCDF = -rpath $(NCDF_PATH)/lib -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf # if using a compiler for which netcdf includes are
-	# INCNETCDF = -I$(NCDF_PATH)/include # NOT setup correctly by the yellowstone module system
-endif
+
 
 # get GIT version info
 GIT_VERSION := $(shell git describe --long --dirty --all --always | sed -e's/heads\///')
@@ -253,6 +269,7 @@ endif
 $(info $$NODENAME    = ${NODENAME})
 $(info $$FC          = ${FC})
 $(info $$NCDF_PATH   = ${NCDF_PATH})
+$(info $$LAPACK_PATH = ${LAPACK_PATH})
 $(info $$GIT_VERSION = ${GIT_VERSION})
 $(info $$COMP        = ${COMP})
 $(info $$LINK        = ${LINK})
