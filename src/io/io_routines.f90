@@ -609,6 +609,8 @@ contains
         integer :: ncid, varid,temp_dimid,dimids(ndims)
         character(len=MAXDIMLENGTH), dimension(6) :: dims
 
+        write(*,*) trim(filename)
+
         if (present(dimnames)) then
             dims = dimnames
         else
@@ -623,7 +625,7 @@ contains
         nc=size(data_out,6)
 
         ! Open the file. NF90_CLOBBER tells netCDF we want overwrite existing files
-        call check( nf90_create(filename, NF90_CLOBBER, ncid), filename)
+        call check( nf90_create(filename, NF90_HDF5, ncid), filename)
         ! define the dimensions
         call check( nf90_def_dim(ncid, trim(dims(1)), nx, temp_dimid) )
         dimids(1)=temp_dimid
@@ -640,6 +642,8 @@ contains
 
         ! Create the variable returns varid of the data variable
         call check( nf90_def_var(ncid, varname, NF90_REAL, dimids, varid), trim(filename)//":"//trim(varname))
+        call check( nf90_def_var_deflate(ncid, varid, shuffle = 1, deflate = 1, deflate_level = 3), trim(filename)//":"//trim(varname))
+
         ! End define mode. This tells netCDF we are done defining metadata.
         call check( nf90_enddef(ncid) )
 
@@ -676,6 +680,8 @@ contains
         ! This will be the netCDF ID for the file and data variable.
         integer :: ncid, varid,temp_dimid,dimids(ndims)
 
+        write(*,*) trim(filename)
+
         nx=size(data_out,1)
         nz=size(data_out,2)
         ny=size(data_out,3)
@@ -689,7 +695,7 @@ contains
 
         ! Open the file. NF90_NOWRITE tells netCDF we want read-only access to
         ! the file.
-        call check( nf90_create(filename, NF90_CLOBBER, ncid), filename)
+        call check( nf90_create(filename, NF90_HDF5, ncid), filename)
         ! define the dimensions
         call check( nf90_def_dim(ncid, trim(dims(1)), nx, temp_dimid) )
         dimids(1)=temp_dimid
@@ -702,6 +708,8 @@ contains
 
         ! Create the variable returns varid of the data variable
         call check( nf90_def_var(ncid, varname, NF90_REAL, dimids, varid), trim(filename)//":"//trim(varname))
+        call check( nf90_def_var_deflate(ncid, varid, shuffle = 1, deflate = 1, deflate_level = 3), trim(filename)//":"//trim(varname))
+
         ! End define mode. This tells netCDF we are done defining metadata.
         call check( nf90_enddef(ncid) )
 
@@ -736,6 +744,8 @@ contains
         ! This will be the netCDF ID for the file and data variable.
         integer :: ncid, varid,temp_dimid,dimids(ndims)
 
+        write(*,*) trim(filename)
+
         nx=size(data_out,1)
         nz=size(data_out,2)
         ny=size(data_out,3)
@@ -743,7 +753,7 @@ contains
 
         ! Open the file. NF90_NOWRITE tells netCDF we want read-only access to
         ! the file.
-        call check( nf90_create(filename, NF90_CLOBBER, ncid), filename)
+        call check( nf90_create(filename, NF90_HDF5, ncid), filename)
         ! define the dimensions
         call check( nf90_def_dim(ncid, "x", nx, temp_dimid) )
         dimids(1)=temp_dimid
@@ -793,6 +803,8 @@ contains
         ! This will be the netCDF ID for the file and data variable.
         integer :: ncid, varid,temp_dimid,dimids(ndims)
 
+        write(*,*) trim(filename)
+
         nx=size(data_out,1)
         nz=size(data_out,2)
         ny=size(data_out,3)
@@ -805,7 +817,7 @@ contains
 
         ! Open the file. NF90_NOWRITE tells netCDF we want read-only access to
         ! the file.
-        call check( nf90_create(filename, NF90_CLOBBER, ncid), filename)
+        call check( nf90_create(filename, NF90_HDF5, ncid), filename)
         ! define the dimensions
         call check( nf90_def_dim(ncid, trim(dims(1)), nx, temp_dimid) )
         dimids(1)=temp_dimid
@@ -816,6 +828,8 @@ contains
 
         ! Create the variable returns varid of the data variable
         call check( nf90_def_var(ncid, varname, NF90_REAL, dimids, varid), trim(filename)//":"//trim(varname))
+        call check( nf90_def_var_deflate(ncid, varid, shuffle = 1, deflate = 1, deflate_level = 3), trim(filename)//":"//trim(varname))
+
         ! End define mode. This tells netCDF we are done defining metadata.
         call check( nf90_enddef(ncid) )
 
@@ -850,13 +864,15 @@ contains
         ! This will be the netCDF ID for the file and data variable.
         integer :: ncid, varid,temp_dimid,dimids(ndims)
 
+        write(*,*) trim(filename)
+
         nx=size(data_out,1)
         nz=size(data_out,2)
         ny=size(data_out,3)
 
         ! Open the file. NF90_NOWRITE tells netCDF we want read-only access to
         ! the file.
-        call check( nf90_create(filename, NF90_CLOBBER, ncid) )
+        call check( nf90_create(filename, NF90_HDF5, ncid) )
         ! define the dimensions
         call check( nf90_def_dim(ncid, "x", nx, temp_dimid) )
         dimids(1)=temp_dimid
@@ -900,12 +916,14 @@ contains
         ! This will be the netCDF ID for the file and data variable.
         integer :: ncid, varid,temp_dimid,dimids(ndims)
 
+        write(*,*) trim(filename)
+
         nx=size(data_out,1)
         ny=size(data_out,2)
 
         ! Open the file. NF90_NOWRITE tells netCDF we want read-only access to
         ! the file.
-        call check( nf90_create(filename, NF90_CLOBBER, ncid) )
+        call check( nf90_create(filename, NF90_HDF5, ncid) )
         ! define the dimensions
         call check( nf90_def_dim(ncid, "x", nx, temp_dimid) )
         dimids(1)=temp_dimid
@@ -914,6 +932,8 @@ contains
 
         ! Create the variable returns varid of the data variable
         call check( nf90_def_var(ncid, varname, NF90_REAL, dimids, varid), trim(filename)//":"//trim(varname))
+        call check( nf90_def_var_deflate(ncid, varid, shuffle = 1, deflate = 1, deflate_level = 3), trim(filename)//":"//trim(varname))
+
         ! End define mode. This tells netCDF we are done defining metadata.
         call check( nf90_enddef(ncid) )
 
@@ -935,17 +955,21 @@ contains
         ! This will be the netCDF ID for the file and data variable.
         integer :: ncid, varid,temp_dimid,dimids(ndims)
 
+        write(*,*) trim(filename)
+
         nx=size(data_out,1)
 
         ! Open the file. NF90_NOWRITE tells netCDF we want read-only access to
         ! the file.
-        call check( nf90_create(filename, NF90_CLOBBER, ncid) )
+        call check( nf90_create(filename, NF90_HDF5, ncid) )
         ! define the dimensions
         call check( nf90_def_dim(ncid, "x", nx, temp_dimid) )
         dimids(1)=temp_dimid
 
         ! Create the variable returns varid of the data variable
         call check( nf90_def_var(ncid, varname, NF90_REAL, dimids, varid), trim(filename)//":"//trim(varname))
+        call check( nf90_def_var_deflate(ncid, varid, shuffle = 1, deflate = 1, deflate_level = 3), trim(filename)//":"//trim(varname))
+
         ! End define mode. This tells netCDF we are done defining metadata.
         call check( nf90_enddef(ncid) )
 

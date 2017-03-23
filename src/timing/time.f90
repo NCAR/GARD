@@ -134,6 +134,8 @@ contains
         select case (trim(calendar_name))
             case("gregorian")
                 this%calendar = GREGORIAN
+            case("proleptic_gregorian")
+                this%calendar = GREGORIAN
             case("standard")
                 this%calendar = GREGORIAN
             case("365-day")
@@ -150,6 +152,8 @@ contains
             ! in case there are odd characters tacked on the end (as seems to happen with some netcdf files?)
             select case (trim(calendar_name(1:5)))
                 case("grego")
+                    this%calendar = GREGORIAN
+                case("prole")
                     this%calendar = GREGORIAN
                 case("stand")
                     this%calendar = GREGORIAN

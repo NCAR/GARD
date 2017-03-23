@@ -64,6 +64,7 @@ contains
                 call io_write(filename, "obs", output_data)
 
                 filename = trim(options%output_file)//trim(output%variables(i)%name)//"_training.nc"
+                write(*,*) filename
                 call io_write(filename, "training", output%variables(i)%training)
                 ! this quickly takes too much memory, so we won't bother swapping dimensions
                 ! call shift_z_dim(output%variables(i)%training, output_data_4d)
