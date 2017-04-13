@@ -74,6 +74,9 @@ function gard_before_install {
     install_netcdf_c
     # Install NetCDF fortran
     install_netcdf_fortran
+    # put installed bin directory in PATH
+    export PATH=${INSTALLDIR}/bin:$PATH
+
 }
 
 function gard_install {

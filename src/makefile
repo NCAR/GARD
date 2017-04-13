@@ -18,7 +18,7 @@
 ###################################################################
 
 FC=gfortran-6
-NCDF_PATH = $(shell nc-config --prefix) 
+NCDF_PATH = $(shell nc-config --prefix)
 LAPACK_PATH = /usr/local
 INSTALL_DIR = ~/bin
 RM=/bin/rm
