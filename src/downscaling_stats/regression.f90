@@ -1,13 +1,14 @@
 module  regression_mod
 contains
 
-    function compute_regression(x, training_x, training_y, coefficients, error, weights, used_vars) result(y)
+    function compute_regression(x, training_x, training_y, coefficients, y_test, error, weights, used_vars) result(y)
         implicit none
         real,    intent(in),    dimension(:)   :: x
         real,    intent(in),    dimension(:,:) :: training_x
         real,    intent(in),    dimension(:)   :: training_y
         real(8), intent(inout), dimension(:)   :: coefficients
         real,    intent(inout),                             optional :: error
+        real,    intent(in),    dimension(:),               optional :: y_test
         real,    intent(inout), dimension(:),  allocatable, optional :: weights
         integer, intent(inout), dimension(:),               optional :: used_vars
 
@@ -32,10 +33,10 @@ contains
 
         allocate(varlist(nvars))
         varlist = -1
-        varlist(1) = 1   ! this assumes there is a constant passed in for the first variable... 
-        useable_vars = 1 ! the constant 
-        
-        ! find all vars that have some variability through time. 
+        varlist(1) = 1   ! this assumes there is a constant passed in for the first variable...
+        useable_vars = 1 ! the constant
+
+        ! find all vars that have some variability through time.
         do i=2,nvars
             nonzero_count = 0
             do j=1,ntimes
@@ -44,7 +45,7 @@ contains
                 endif
             enddo
             ! need at least two data points that are different from the first data point
-            ! to ensure that the regression on that variable might be useful. 
+            ! to ensure that the regression on that variable might be useful.
             if ( nonzero_count > 2 ) then
                 useable_vars = useable_vars + 1
                 varlist(i) = i
@@ -115,15 +116,30 @@ contains
             if (present(weights)) then
                 if (allocated(weights)) then
                     if (size(weights)/=size(training_y_lp)) then
+                        !$omp critical (print_lock)
                         write(*,*) "ERROR size of weights /= data"
-                        write(*,*), shape(weights), shape(training_y_lp)
+                        write(*,*) shape(weights), shape(training_y_lp)
+                        !$omp end critical (print_lock)
                     endif
-                    error = sqrt( sum(((training_y_lp - training_y)**2)*weights) / sum(weights) )
+                    if (present(y_test)) then
+                        error = sqrt( sum(((training_y_lp - y_test)**2)*weights) / sum(weights) )
+                    else
+                        error = sqrt( sum(((training_y_lp - training_y)**2)*weights) / sum(weights) )
+                    endif
+
+                else
+                    if (present(y_test)) then
+                        error = sqrt( sum((training_y_lp - y_test)**2) / ntimes )
+                    else
+                        error = sqrt( sum((training_y_lp - training_y)**2) / ntimes )
+                    endif
+                endif
+            else
+                if (present(y_test)) then
+                    error = sqrt( sum((training_y_lp - y_test)**2) / ntimes )
                 else
                     error = sqrt( sum((training_y_lp - training_y)**2) / ntimes )
                 endif
-            else
-                error = sqrt( sum((training_y_lp - training_y)**2) / ntimes )
             endif
         endif
 
@@ -158,6 +174,7 @@ contains
 
         nrhs = 1
 
+        ! passing working_space in and out *could* be more efficient.  Only used in tests right now
         if (present(working_space)) then
             ! First find the optimal work size (LWORK)
             LWORK = -1
@@ -176,13 +193,6 @@ contains
             CALL SGELS( 'N', M, N, NRHS, X, LDX, Y, LDY, WORK, LWORK, innerINFO )
         endif
         if (innerINFO/=0) then
-            ! !$omp critical (print_lock)
-            ! if (innerINFO<0) then
-            !     write(*,*) "ERROR in SGELS with argument:", 0-innerINFO
-            ! else
-            !     write(*,*) "ERROR in SGELS A does not have full rank, position:",innerINFO
-            ! endif
-            ! !$omp end critical (print_lock)
             Y(1) = sum(Y)/size(Y)
             Y(2:)= 0
         endif
@@ -197,8 +207,8 @@ contains
         real, intent(inout), dimension(:,:) :: X
         real, intent(inout), dimension(:)   :: Y, W
         real(8), intent(inout), dimension(:)   :: B
-        real, dimension(:,:), allocatable :: X_weighted, W_full
-        real, dimension(:),   allocatable :: Y_weighted, Bs, output_y
+        real, dimension(:,:), allocatable :: W_full
+        real, dimension(:),   allocatable :: Bs, output_y
 
         real, dimension(10000) :: WORK
         integer :: i, n, m, nrhs, LDX, LDY, LDW, LWORK, INFO, p
@@ -271,7 +281,6 @@ contains
         real,    allocatable :: YN(:), XV(:,:)
 
         integer :: nvars, ntimes, i, t, f, it
-        real :: d
         integer :: info
 
         ! skip the logistic regression and force the result to be 1

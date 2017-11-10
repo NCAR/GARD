@@ -13,7 +13,7 @@ contains
         implicit none
         type(config),  intent(in)   :: options
         type(results), intent(in)   :: output
-        
+
         character(len=MAXFILELENGTH)            :: filename
         character(len=MAXFILELENGTH)            :: dimnames(3)
         real, dimension(:,:,:),     allocatable :: output_data
@@ -145,9 +145,9 @@ contains
         character(len=*), intent(in)                :: variable_name
         integer,          intent(in), dimension(:)  :: dims
 
-        write(*,*), "Error allocating memory for variable: ", trim(variable_name)
-        write(*,*), "  ERROR        = ", error
-        write(*,*), "  Dimensions   = ", dims
+        write(*,*) "Error allocating memory for variable: ", trim(variable_name)
+        write(*,*) "  ERROR        = ", error
+        write(*,*) "  Dimensions   = ", dims
 
         stop "MEMORY ALLOCATION ERROR"
 

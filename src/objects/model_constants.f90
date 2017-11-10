@@ -3,7 +3,7 @@ module model_constants
     implicit none
 
     ! Model source code version number
-    character(len=*),public,parameter :: kVERSION_STRING = "0.3"
+    character(len=*),public,parameter :: kVERSION_STRING = "0.4"
 
     ! ------------------------------------------------
     ! String constants
@@ -40,6 +40,7 @@ module model_constants
     integer,public,parameter :: kLOG_TRANSFORM    = 2
     integer,public,parameter :: kCUBE_ROOT        = 3
     integer,public,parameter :: kFIFTH_ROOT       = 4
+    integer,public,parameter :: kQQ_NORMAL        = 5
 
     ! ------------------------------------------------
     ! Geospatial Interpolation Type Constants
@@ -65,8 +66,9 @@ module model_constants
     ! ------------------------------------------------
     ! Other Constants
     ! ------------------------------------------------
-    integer,public,parameter :: kFILL_VALUE       = -9999
-    character(len=*),public,parameter :: kDEFAULT_OPTIONS_FILENAME = "downscale_options.txt"
+    integer,public,parameter            :: kFILL_VALUE       = -9999
+    character(len=*),public,parameter   :: kDEFAULT_OPTIONS_FILENAME = "downscale_options.txt"
+    double precision, public, parameter :: kPI = 3.14159265358979323846264338327950288419716939937510582
 
 
 

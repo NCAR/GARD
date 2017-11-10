@@ -18,44 +18,8 @@ module init_mod
 
     implicit none
     private
-    public :: model_init, print_model_init
+    public :: model_init
 contains
-
-    !>------------------------------------------------
-    !! Prints model configuration info before running
-    !!
-    !! Prints a welcome and version string as well.
-    !! Only prints configuration info if debug == true
-    !!
-    !!------------------------------------------------
-    subroutine print_model_init()
-        implicit none
-
-        write(*,*) ""
-        write(*,*) " ====================================================== "
-        write(*,*) ""
-        write(*,*) "          Downscaling Model           "
-        write(*,*) "          Version : "//trim(kVERSION_STRING)
-        write(*,*) ""
-        write(*,*) "  Developed at NCAR: "
-        write(*,*) "   The National Center for Atmospheric Research "
-        write(*,*) "   NCAR is supported by the National Science Foundation "
-        write(*,*) " ------------------------------------------------------ "
-        write(*,*) " ------------------------------------------------------ "
-        write(*,*) ""
-        write(*,*) "  WARNING WARNING WARNING WARNING WARNING WARNING "
-        write(*,*) ""
-        write(*,*) "    This is pre-release not-even-beta code. "
-        write(*,*) ""
-        write(*,*) "  WARNING WARNING WARNING WARNING WARNING WARNING "
-        write(*,*) ""
-        write(*,*) " ------------------------------------------------------ "
-        write(*,*) " ------------------------------------------------------ "
-        write(*,*) " ====================================================== "
-        write(*,*) ""
-
-    end subroutine print_model_init
-
 
     !>------------------------------------------------
     !! Initialize the model

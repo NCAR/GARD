@@ -12,7 +12,7 @@ program stat_down
     use model_constants
     use config_mod,     only : read_config
     use atm_mod,        only : read_atm
-    use init_mod,       only : model_init, print_model_init
+    use init_mod,       only : model_init
     use obs_mod,        only : read_obs
     use geo,            only : geo_LUT
     use io_routines,    only : io_write
@@ -28,8 +28,6 @@ program stat_down
     character(len=MAXSTRINGLENGTH) :: name
 
     integer :: i
-
-    call print_model_init()
 
     options = read_config()
 

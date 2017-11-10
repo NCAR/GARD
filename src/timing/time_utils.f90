@@ -18,6 +18,9 @@ contains
         input%transform_start = find_nearest_time(input%times, options%transform_start)
         input%transform_stop  = find_nearest_time(input%times, options%transform_stop)
 
+        input%post_start      = find_nearest_time(input%times, options%post_start)
+        input%post_end        = find_nearest_time(input%times, options%post_end)
+
     end subroutine setup_time_indices
 
     function find_nearest_time(time_list, match_time) result(nearest)
