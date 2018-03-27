@@ -17,7 +17,7 @@
 ###################################################################
 ###################################################################
 
-FC=gfortran-6
+# FC=gfortran-6
 NCDF_PATH = $(shell nc-config --prefix)
 LAPACK_PATH = /usr/local
 INSTALL_DIR = ~/bin
@@ -301,22 +301,32 @@ OBJS =  \
 	$(BUILD)configuration.o   	\
 	$(BUILD)init.o			  	\
 	$(BUILD)io_routines.o     	\
+	$(BUILD)io_routines_h.o    	\
 	$(BUILD)time_io.o         	\
 	$(BUILD)time_utils.o       	\
 	$(BUILD)atmosphere_io.o	  	\
+	$(BUILD)atmosphere_io_h.o	\
 	$(BUILD)gcm_io.o          	\
+	$(BUILD)gcm_io_h.o			\
 	$(BUILD)gefs_io.o          	\
+	$(BUILD)gefs_io_h.o			\
 	$(BUILD)obs_io.o    		\
+	$(BUILD)obs_io_h.o			\
 	$(BUILD)geo_reader.o      	\
     $(BUILD)basic_stats.o     	\
 	$(BUILD)random.o            \
 	$(BUILD)sampling.o			\
+	$(BUILD)sampling_h.o		\
 	$(BUILD)sorting.o			\
 	$(BUILD)quantile_mapping.o  \
 	$(BUILD)analogs.o       	\
+	$(BUILD)analogs_h.o       	\
 	$(BUILD)downscaling.o       \
+	$(BUILD)downscaling_h.o     \
 	$(BUILD)regression.o		\
+	$(BUILD)regression_h.o		\
 	$(BUILD)output.o    		\
+	$(BUILD)output_h.o    		\
 	$(BUILD)main.o
 
 
@@ -325,6 +335,7 @@ CONFIG_TEST_OBJS =    			\
 	$(BUILD)data_structures.o	\
 	$(BUILD)model_constants.o	\
 	$(BUILD)io_routines.o     	\
+	$(BUILD)io_routines_h.o    	\
 	$(BUILD)string.o     		\
 	$(BUILD)time.o				\
 	$(BUILD)test_config.o
@@ -346,6 +357,7 @@ QM_TEST_OBJS = 					\
 
 REGRESSION_TEST_OBJS = 			\
 	$(BUILD)regression.o		\
+	$(BUILD)regression_h.o		\
 	$(BUILD)test_regression.o
 
 RANDOM_TEST_OBJS = 				\
@@ -402,7 +414,7 @@ test_config : $(CONFIG_TEST_OBJS)
 # specify specific builds and dependencies.
 
 # unit tests
-$(BUILD)test_regression.o: tests/test_regression.f90 $(BUILD)regression.o
+$(BUILD)test_regression.o: tests/test_regression.f90 $(BUILD)regression_h.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)test_calendar.o: tests/test_calendar.f90 $(BUILD)time.o $(BUILD)model_constants.o
@@ -428,7 +440,7 @@ $(BUILD)time.o: timing/time.f90 $(BUILD)model_constants.o
 $(BUILD)time_utils.o: timing/time_utils.f90 $(BUILD)time.o $(BUILD)data_structures.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
-$(BUILD)time_io.o: timing/time_io.f90 $(BUILD)time.o $(BUILD)io_routines.o \
+$(BUILD)time_io.o: timing/time_io.f90 $(BUILD)time.o $(BUILD)io_routines_h.o \
 					$(BUILD)model_constants.o $(BUILD)string.o $(BUILD)data_structures.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
@@ -442,7 +454,10 @@ $(BUILD)sorting.o: utilities/sorting.f90 utilities/qsort_inline.inc
 $(BUILD)random.o: utilities/random.f90 $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
-$(BUILD)sampling.o: downscaling_stats/sampling.f90 $(BUILD)random.o
+$(BUILD)sampling_h.o: downscaling_stats/sampling_h.f90
+	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
+
+$(BUILD)sampling.o: downscaling_stats/sampling.f90 $(BUILD)random.o $(BUILD)sampling_h.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)basic_stats.o: utilities/basic_stats.f90
@@ -459,57 +474,80 @@ $(BUILD)data_structures.o: objects/data_structures.f90 $(BUILD)time.o $(BUILD)mo
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 # Input, output / configuration routines
-$(BUILD)io_routines.o: io/io_routines.f90 $(BUILD)model_constants.o
+$(BUILD)io_routines_h.o: io/io_routines_h.f90
+	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
+
+$(BUILD)io_routines.o: io/io_routines.f90 $(BUILD)model_constants.o $(BUILD)io_routines_h.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)configuration.o: config/configuration.f90 $(BUILD)data_structures.o $(BUILD)model_constants.o \
-					$(BUILD)string.o $(BUILD)io_routines.o $(BUILD)time.o
+					$(BUILD)string.o $(BUILD)io_routines_h.o $(BUILD)time.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)geo_reader.o: utilities/geo_reader.f90 $(BUILD)data_structures.o $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
-$(BUILD)init.o: main/init.f90 $(BUILD)data_structures.o $(BUILD)gcm_io.o $(BUILD)gefs_io.o \
-					$(BUILD)obs_io.o $(BUILD)model_constants.o
+$(BUILD)init.o: main/init.f90 $(BUILD)data_structures.o $(BUILD)gcm_io_h.o $(BUILD)gefs_io_h.o \
+					$(BUILD)obs_io_h.o $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
-$(BUILD)gefs_io.o: io/gefs_io.f90 $(BUILD)data_structures.o $(BUILD)string.o $(BUILD)model_constants.o \
+$(BUILD)gefs_io_h.o: io/gefs_io_h.f90 $(BUILD)data_structures.o
+	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
+
+$(BUILD)gefs_io.o: io/gefs_io.f90 $(BUILD)gefs_io_h.o $(BUILD)string.o $(BUILD)model_constants.o \
 						$(BUILD)time_io.o $(BUILD)basic_stats.o $(BUILD)geo_reader.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
-$(BUILD)gcm_io.o: io/gcm_io.f90 $(BUILD)data_structures.o $(BUILD)string.o $(BUILD)model_constants.o \
+$(BUILD)gcm_io_h.o: io/gcm_io_h.f90 $(BUILD)data_structures.o
+	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
+
+$(BUILD)gcm_io.o: io/gcm_io.f90 $(BUILD)gcm_io_h.o $(BUILD)string.o $(BUILD)model_constants.o \
 					$(BUILD)time_io.o $(BUILD)basic_stats.o $(BUILD)geo_reader.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
-$(BUILD)obs_io.o: io/obs_io.f90 $(BUILD)data_structures.o $(BUILD)string.o $(BUILD)model_constants.o \
+$(BUILD)obs_io_h.o: io/obs_io_h.f90 $(BUILD)data_structures.o
+	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
+
+$(BUILD)obs_io.o: io/obs_io.f90 $(BUILD)obs_io_h.o $(BUILD)string.o $(BUILD)model_constants.o \
 					$(BUILD)time_io.o $(BUILD)basic_stats.o $(BUILD)geo_reader.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
-$(BUILD)output.o: io/output.f90 $(BUILD)data_structures.o $(BUILD)io_routines.o
+$(BUILD)output_h.o: io/output_h.f90 $(BUILD)data_structures.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
-$(BUILD)regression.o: downscaling_stats/regression.f90
+$(BUILD)output.o: io/output.f90 $(BUILD)output_h.o $(BUILD)io_routines_h.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
-# $(BUILD)reanalysis.o: objects/reanalysis.f90 $(BUILD)data_structures.o $(BUILD)geo_reader.o \
-# 					$(BUILD)model_constants.o
-# 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
-
-$(BUILD)atmosphere_io.o: io/atmosphere_io.f90 $(BUILD)data_structures.o  \
-					$(BUILD)gcm_io.o $(BUILD)gefs_io.o $(BUILD)model_constants.o
+$(BUILD)regression_h.o: downscaling_stats/regression_h.f90
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
-$(BUILD)downscaling.o: downscaling_stats/downscaling.f90 $(BUILD)data_structures.o $(BUILD)model_constants.o \
-					$(BUILD)quantile_mapping.o $(BUILD)regression.o $(BUILD)analogs.o $(BUILD)random.o
+$(BUILD)regression.o: downscaling_stats/regression.f90 $(BUILD)regression_h.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
-$(BUILD)analogs.o: downscaling_stats/analogs.f90 $(BUILD)string.o
+$(BUILD)atmosphere_io_h.o: io/atmosphere_io_h.f90 $(BUILD)data_structures.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
+$(BUILD)atmosphere_io.o: io/atmosphere_io.f90 $(BUILD)atmosphere_io_h.o  \
+					$(BUILD)gcm_io_h.o $(BUILD)gefs_io_h.o $(BUILD)model_constants.o
+	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
-$(BUILD)main.o: main/main.f90 $(BUILD)atmosphere_io.o $(BUILD)configuration.o \
-					$(BUILD)init.o $(BUILD)model_constants.o $(BUILD)io_routines.o \
-					$(BUILD)downscaling.o $(BUILD)output.o $(BUILD)geo_reader.o
+$(BUILD)downscaling.o: downscaling_stats/downscaling.f90 $(BUILD)model_constants.o $(BUILD)downscaling_h.o \
+					$(BUILD)quantile_mapping.o $(BUILD)regression_h.o $(BUILD)analogs_h.o $(BUILD)random.o $(BUILD)sampling_h.o
+	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
+
+$(BUILD)downscaling_h.o: downscaling_stats/downscaling_h.f90 $(BUILD)data_structures.o
+	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
+
+$(BUILD)analogs_h.o: downscaling_stats/analogs_h.f90
+	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
+
+$(BUILD)analogs.o: downscaling_stats/analogs.f90 $(BUILD)string.o $(BUILD)analogs_h.o
+	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
+
+$(BUILD)main.o: main/main.f90 	$(BUILD)obs_io.o    								\
+					$(BUILD)atmosphere_io_h.o $(BUILD)configuration.o				\
+					$(BUILD)init.o $(BUILD)model_constants.o $(BUILD)io_routines_h.o\
+					$(BUILD)downscaling_h.o $(BUILD)output_h.o $(BUILD)geo_reader.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 
