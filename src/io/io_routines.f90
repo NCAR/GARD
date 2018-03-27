@@ -972,7 +972,7 @@ contains
     !! @param   var_name    OPTIONAL name of variable to read attribute from
     !!
     !!------------------------------------------------------------
-    subroutine io_read_attribute_i(filename, att_name, att_value, var_name, error)
+    module subroutine io_read_attribute_i(filename, att_name, att_value, var_name, error)
         implicit none
         character(len=*), intent(in) :: filename
         character(len=*), intent(in) :: att_name
@@ -1205,7 +1205,7 @@ contains
     !! @retval      integer a file logical unit number
     !!
     !!------------------------------------------------------------
-    integer function io_newunit(unit)
+    module integer function io_newunit(unit)
         implicit none
         integer, intent(out), optional :: unit
         ! local

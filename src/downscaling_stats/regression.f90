@@ -162,7 +162,7 @@ contains
     ! Output:
     !   B  = An n-element vector.
     !
-    module subroutine lapack_least_squares(X, Y, B, working_space, info)
+    subroutine lapack_least_squares(X, Y, B, working_space, info)
         implicit none
         real,    intent(inout), dimension(:,:) :: X
         real,    intent(inout), dimension(:)   :: Y
@@ -211,7 +211,7 @@ contains
 
     end subroutine lapack_least_squares
 
-    module subroutine weighted_least_squares(X, Y, B, W)
+    subroutine weighted_least_squares(X, Y, B, W)
         implicit none
         real, intent(inout), dimension(:,:) :: X
         real, intent(inout), dimension(:)   :: Y, W
@@ -279,7 +279,7 @@ contains
     end function compute_logistic_regression
 
 
-    module subroutine logistic_regression(X, Y, B)
+    subroutine logistic_regression(X, Y, B)
         implicit none
         real,    intent(in) :: X(:,:)
         real,    intent(in) :: Y(:)
