@@ -17,9 +17,23 @@
 ###################################################################
 ###################################################################
 
-FC=gfortran-6
-NCDF_PATH = $(shell nc-config --prefix)
-LAPACK_PATH = /usr/local
+ifeq ($(FC),)
+	FC=gfortran
+endif
+
+ifeq ($(NETCDF),)
+	NETCDF = $(shell nc-config --prefix)
+endif
+ifeq ($(NETCDF),)
+	NETCDF = /usr/local
+endif
+NCDF_PATH = $(NETCDF)
+
+ifeq ($(LAPACK),)
+	LAPACK=/usr/local/opt/lapack
+endif
+LAPACK_PATH = $(LAPACK)
+
 INSTALL_DIR = ~/bin
 RM=/bin/rm
 CP=/bin/cp
@@ -208,7 +222,6 @@ ifeq ($(MODE), debug)
 endif
 ifeq ($(MODE), debugompslow)
 	ifeq ($(FC), ifort)
-		# COMP= -qopenmp -liomp5 -debug -debug-parameters all -traceback -ftrapuv -g -fpe0 -c -u -check all -check noarg_temp_created -CB
 		COMP= -qopenmp -debug -u	-fpe0 -traceback -check all -check noarg_temp_created -fp-stack-check
 		LINK= -liomp5
 	endif
@@ -230,7 +243,6 @@ endif
 ifeq ($(MODE), debugomp)
 	ifeq ($(FC), ifort)
 		COMP= -qopenmp -debug -O3 -u -traceback -fpe0 -ftz -fast-transcendentals  -xHost
-		#-check all -check noarg_temp_created -fpe0 -fast-transcendentals -xhost
 		LINK= -liomp5
 	endif
 	ifeq ($(FC), gfortran)
@@ -264,6 +276,11 @@ ifeq ($(MODE), fast) # WARNING -ipo (included in -fast) takes forever for very l
 	ifeq ($(FC), ifort)
 		COMP= -u -qopenmp -fast -ftz #-fast-transcendentals # not available in ifort <13: -align array64byte
 	endif
+	ifeq ($(FC), gfortran)
+		COMP=-O3 -finit-real=nan -ffree-line-length-none
+		LINK=
+	endif
+
 endif
 
 $(info $$NODENAME    = ${NODENAME})
@@ -488,15 +505,12 @@ $(BUILD)obs_io.o: io/obs_io.f90 $(BUILD)data_structures.o $(BUILD)string.o $(BUI
 $(BUILD)output.o: io/output.f90 $(BUILD)data_structures.o $(BUILD)io_routines.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
-$(BUILD)regression.o: downscaling_stats/regression.f90
-	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
-
-# $(BUILD)reanalysis.o: objects/reanalysis.f90 $(BUILD)data_structures.o $(BUILD)geo_reader.o \
-# 					$(BUILD)model_constants.o
-# 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
-
 $(BUILD)atmosphere_io.o: io/atmosphere_io.f90 $(BUILD)data_structures.o  \
 					$(BUILD)gcm_io.o $(BUILD)gefs_io.o $(BUILD)model_constants.o
+	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
+
+# Statical downscaling routines
+$(BUILD)regression.o: downscaling_stats/regression.f90
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)downscaling.o: downscaling_stats/downscaling.f90 $(BUILD)data_structures.o $(BUILD)model_constants.o \
