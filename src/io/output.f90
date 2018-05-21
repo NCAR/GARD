@@ -1,5 +1,5 @@
 module output_mod
-    use io_routines, only : io_write
+    use io_routines, only : io_write, io_add_attribute
     use data_structures
     use string, only : str
 
@@ -43,15 +43,19 @@ contains
             filename = trim(options%output_file)//trim(output%variables(i)%name)//".nc"
             call shift_z_dim(output%variables(i)%data, output_data)
             call io_write(filename, trim(output%variables(i)%name), output_data, dimnames)
+            call io_add_attribute(filename, "description", "predicted mean value", trim(output%variables(i)%name))
 
             filename = trim(options%output_file)//trim(output%variables(i)%name)//"_errors.nc"
             call shift_z_dim(output%variables(i)%errors, output_data)
             call io_write(filename, trim(output%variables(i)%name)//"_error", output_data, dimnames)
+            call io_add_attribute(filename, "description", "predicted error term", trim(output%variables(i)%name)//"_error")
 
             if (options%logistic_threshold/=kFILL_VALUE) then
                 filename = trim(options%output_file)//trim(output%variables(i)%name)//"_logistic.nc"
                 call shift_z_dim(output%variables(i)%logistic, output_data)
                 call io_write(filename, trim(output%variables(i)%name)//"_exceedence_probability", output_data, dimnames)
+                call io_add_attribute(filename, "description", "probability of threshold exceedence", trim(output%variables(i)%name)//"_exceedence_probability")
+                call io_add_attribute(filename, "threshold", options%logistic_threshold, trim(output%variables(i)%name)//"_exceedence_probability")
             endif
 
             if (options%debug) then

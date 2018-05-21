@@ -623,20 +623,26 @@ contains
         nc=size(data_out,6)
 
         ! Open the file. NF90_CLOBBER tells netCDF we want overwrite existing files
-        call check( nf90_create(filename, NF90_CLOBBER, ncid), filename)
-        ! define the dimensions
-        call check( nf90_def_dim(ncid, trim(dims(1)), nx, temp_dimid) )
-        dimids(1)=temp_dimid
-        call check( nf90_def_dim(ncid, trim(dims(2)), nz, temp_dimid) )
-        dimids(2)=temp_dimid
-        call check( nf90_def_dim(ncid, trim(dims(3)), ny, temp_dimid) )
-        dimids(3)=temp_dimid
-        call check( nf90_def_dim(ncid, trim(dims(4)), na, temp_dimid) )
-        dimids(4)=temp_dimid
-        call check( nf90_def_dim(ncid, trim(dims(5)), nb, temp_dimid) )
-        dimids(5)=temp_dimid
-        call check( nf90_def_dim(ncid, trim(dims(6)), nc, temp_dimid) )
-        dimids(6)=temp_dimid
+        if (file_exists(filename)) then
+            call check( nf90_open(filename, NF90_WRITE, ncid) )
+            call check( nf90_redef(ncid) )
+        else
+            call check( nf90_create(filename, NF90_CLOBBER, ncid), filename )
+
+            ! define the dimensions
+            call check( nf90_def_dim(ncid, trim(dims(1)), nx, temp_dimid) )
+            dimids(1)=temp_dimid
+            call check( nf90_def_dim(ncid, trim(dims(2)), nz, temp_dimid) )
+            dimids(2)=temp_dimid
+            call check( nf90_def_dim(ncid, trim(dims(3)), ny, temp_dimid) )
+            dimids(3)=temp_dimid
+            call check( nf90_def_dim(ncid, trim(dims(4)), na, temp_dimid) )
+            dimids(4)=temp_dimid
+            call check( nf90_def_dim(ncid, trim(dims(5)), nb, temp_dimid) )
+            dimids(5)=temp_dimid
+            call check( nf90_def_dim(ncid, trim(dims(6)), nc, temp_dimid) )
+            dimids(6)=temp_dimid
+        endif
 
         ! Create the variable returns varid of the data variable
         call check( nf90_def_var(ncid, varname, NF90_REAL, dimids, varid), trim(filename)//":"//trim(varname))
@@ -689,16 +695,22 @@ contains
 
         ! Open the file. NF90_NOWRITE tells netCDF we want read-only access to
         ! the file.
-        call check( nf90_create(filename, NF90_CLOBBER, ncid), filename)
-        ! define the dimensions
-        call check( nf90_def_dim(ncid, trim(dims(1)), nx, temp_dimid) )
-        dimids(1)=temp_dimid
-        call check( nf90_def_dim(ncid, trim(dims(2)), nz, temp_dimid) )
-        dimids(2)=temp_dimid
-        call check( nf90_def_dim(ncid, trim(dims(3)), ny, temp_dimid) )
-        dimids(3)=temp_dimid
-        call check( nf90_def_dim(ncid, trim(dims(4)), nr, temp_dimid) )
-        dimids(4)=temp_dimid
+        if (file_exists(filename)) then
+            call check( nf90_open(filename, NF90_WRITE, ncid) )
+            call check( nf90_redef(ncid) )
+        else
+            call check( nf90_create(filename, NF90_CLOBBER, ncid), filename)
+
+            ! define the dimensions
+            call check( nf90_def_dim(ncid, trim(dims(1)), nx, temp_dimid) )
+            dimids(1)=temp_dimid
+            call check( nf90_def_dim(ncid, trim(dims(2)), nz, temp_dimid) )
+            dimids(2)=temp_dimid
+            call check( nf90_def_dim(ncid, trim(dims(3)), ny, temp_dimid) )
+            dimids(3)=temp_dimid
+            call check( nf90_def_dim(ncid, trim(dims(4)), nr, temp_dimid) )
+            dimids(4)=temp_dimid
+        endif
 
         ! Create the variable returns varid of the data variable
         call check( nf90_def_var(ncid, varname, NF90_REAL, dimids, varid), trim(filename)//":"//trim(varname))
@@ -743,16 +755,22 @@ contains
 
         ! Open the file. NF90_NOWRITE tells netCDF we want read-only access to
         ! the file.
-        call check( nf90_create(filename, NF90_CLOBBER, ncid), filename)
-        ! define the dimensions
-        call check( nf90_def_dim(ncid, "x", nx, temp_dimid) )
-        dimids(1)=temp_dimid
-        call check( nf90_def_dim(ncid, "y", nz, temp_dimid) )
-        dimids(2)=temp_dimid
-        call check( nf90_def_dim(ncid, "z", ny, temp_dimid) )
-        dimids(3)=temp_dimid
-        call check( nf90_def_dim(ncid, "t", nr, temp_dimid) )
-        dimids(4)=temp_dimid
+        if (file_exists(filename)) then
+            call check( nf90_open(filename, NF90_WRITE, ncid) )
+            call check( nf90_redef(ncid) )
+        else
+            call check( nf90_create(filename, NF90_CLOBBER, ncid), filename)
+
+            ! define the dimensions
+            call check( nf90_def_dim(ncid, "x", nx, temp_dimid) )
+            dimids(1)=temp_dimid
+            call check( nf90_def_dim(ncid, "y", nz, temp_dimid) )
+            dimids(2)=temp_dimid
+            call check( nf90_def_dim(ncid, "z", ny, temp_dimid) )
+            dimids(3)=temp_dimid
+            call check( nf90_def_dim(ncid, "t", nr, temp_dimid) )
+            dimids(4)=temp_dimid
+        endif
 
         ! Create the variable returns varid of the data variable
         call check( nf90_def_var(ncid, varname, NF90_INT, dimids, varid), trim(filename)//":"//trim(varname))
@@ -800,19 +818,25 @@ contains
         if (present(dimnames)) then
             dims = dimnames
         else
-            dims = ["x","y","z"]
+            dims = ["x","y","t"]
         endif
 
         ! Open the file. NF90_NOWRITE tells netCDF we want read-only access to
         ! the file.
-        call check( nf90_create(filename, NF90_CLOBBER, ncid), filename)
-        ! define the dimensions
-        call check( nf90_def_dim(ncid, trim(dims(1)), nx, temp_dimid) )
-        dimids(1)=temp_dimid
-        call check( nf90_def_dim(ncid, trim(dims(2)), nz, temp_dimid) )
-        dimids(2)=temp_dimid
-        call check( nf90_def_dim(ncid, trim(dims(3)), ny, temp_dimid) )
-        dimids(3)=temp_dimid
+        if (file_exists(filename)) then
+            call check( nf90_open(filename, NF90_WRITE, ncid) )
+            call check( nf90_redef(ncid) )
+        else
+            call check( nf90_create(filename, NF90_CLOBBER, ncid), filename )
+
+            ! define the dimensions
+            call check( nf90_def_dim(ncid, trim(dims(1)), nx, temp_dimid) )
+            dimids(1)=temp_dimid
+            call check( nf90_def_dim(ncid, trim(dims(2)), nz, temp_dimid) )
+            dimids(2)=temp_dimid
+            call check( nf90_def_dim(ncid, trim(dims(3)), ny, temp_dimid) )
+            dimids(3)=temp_dimid
+        endif
 
         ! Create the variable returns varid of the data variable
         call check( nf90_def_var(ncid, varname, NF90_REAL, dimids, varid), trim(filename)//":"//trim(varname))
@@ -856,14 +880,20 @@ contains
 
         ! Open the file. NF90_NOWRITE tells netCDF we want read-only access to
         ! the file.
-        call check( nf90_create(filename, NF90_CLOBBER, ncid) )
-        ! define the dimensions
-        call check( nf90_def_dim(ncid, "x", nx, temp_dimid) )
-        dimids(1)=temp_dimid
-        call check( nf90_def_dim(ncid, "y", nz, temp_dimid) )
-        dimids(2)=temp_dimid
-        call check( nf90_def_dim(ncid, "t", ny, temp_dimid) )
-        dimids(3)=temp_dimid
+        if (file_exists(filename)) then
+            call check( nf90_open(filename, NF90_WRITE, ncid) )
+            call check( nf90_redef(ncid) )
+        else
+            call check( nf90_create(filename, NF90_CLOBBER, ncid), filename )
+
+            ! define the dimensions
+            call check( nf90_def_dim(ncid, "x", nx, temp_dimid) )
+            dimids(1)=temp_dimid
+            call check( nf90_def_dim(ncid, "y", nz, temp_dimid) )
+            dimids(2)=temp_dimid
+            call check( nf90_def_dim(ncid, "t", ny, temp_dimid) )
+            dimids(3)=temp_dimid
+        endif
 
         ! Create the variable returns varid of the data variable
         call check( nf90_def_var(ncid, varname, NF90_INT, dimids, varid), trim(filename)//":"//trim(varname) )
@@ -905,12 +935,18 @@ contains
 
         ! Open the file. NF90_NOWRITE tells netCDF we want read-only access to
         ! the file.
-        call check( nf90_create(filename, NF90_CLOBBER, ncid) )
-        ! define the dimensions
-        call check( nf90_def_dim(ncid, "x", nx, temp_dimid) )
-        dimids(1)=temp_dimid
-        call check( nf90_def_dim(ncid, "y", ny, temp_dimid) )
-        dimids(2)=temp_dimid
+        if (file_exists(filename)) then
+            call check( nf90_open(filename, NF90_WRITE, ncid) )
+            call check( nf90_redef(ncid) )
+        else
+            call check( nf90_create(filename, NF90_CLOBBER, ncid), filename )
+
+            ! define the dimensions
+            call check( nf90_def_dim(ncid, "x", nx, temp_dimid) )
+            dimids(1)=temp_dimid
+            call check( nf90_def_dim(ncid, "y", ny, temp_dimid) )
+            dimids(2)=temp_dimid
+        endif
 
         ! Create the variable returns varid of the data variable
         call check( nf90_def_var(ncid, varname, NF90_REAL, dimids, varid), trim(filename)//":"//trim(varname))
@@ -922,6 +958,50 @@ contains
         ! Close the file, freeing all resources.
         call check( nf90_close(ncid) )
     end subroutine io_write2d
+
+    subroutine io_write1dd(filename,varname,data_out, dimname)
+        implicit none
+        ! This is the name of the data file and variable we will read.
+        character(len=*), intent(in) :: filename, varname
+        real,intent(in) :: data_out(:)
+        character(len=*), intent(in), optional :: dimname
+        character(len=64) :: dim
+
+        ! We are reading 2D data, a nx x ny grid.
+        integer :: nx
+        integer, parameter :: ndims = 1
+        ! This will be the netCDF ID for the file and data variable.
+        integer :: ncid, varid,temp_dimid,dimids(ndims)
+
+        dim="t"
+        if (present(dimname)) dim=dimname
+
+        nx=size(data_out,1)
+
+        ! Open the file. NF90_NOWRITE tells netCDF we want read-only access to
+        ! the file.
+        if (file_exists(filename)) then
+            call check( nf90_open(filename, NF90_WRITE, ncid) )
+            call check( nf90_redef(ncid) )
+        else
+            call check( nf90_create(filename, NF90_CLOBBER, ncid), filename )
+
+            ! define the dimensions
+            call check( nf90_def_dim(ncid, dim, nx, temp_dimid) )
+            dimids(1)=temp_dimid
+        endif
+
+        ! Create the variable returns varid of the data variable
+        call check( nf90_def_var(ncid, varname, NF90_REAL, dimids, varid), trim(filename)//":"//trim(varname))
+        ! End define mode. This tells netCDF we are done defining metadata.
+        call check( nf90_enddef(ncid) )
+
+        call check( nf90_put_var(ncid, varid, data_out), trim(filename)//":"//trim(varname))
+
+        ! Close the file, freeing all resources.
+        call check( nf90_close(ncid) )
+    end subroutine io_write1dd
+
 
     subroutine io_write1d(filename,varname,data_out)
         implicit none
@@ -939,10 +1019,16 @@ contains
 
         ! Open the file. NF90_NOWRITE tells netCDF we want read-only access to
         ! the file.
-        call check( nf90_create(filename, NF90_CLOBBER, ncid) )
-        ! define the dimensions
-        call check( nf90_def_dim(ncid, "x", nx, temp_dimid) )
-        dimids(1)=temp_dimid
+        if (file_exists(filename)) then
+            call check( nf90_open(filename, NF90_WRITE, ncid) )
+            call check( nf90_redef(ncid) )
+        else
+            call check( nf90_create(filename, NF90_CLOBBER, ncid), filename )
+
+            ! define the dimensions
+            call check( nf90_def_dim(ncid, "x", nx, temp_dimid) )
+            dimids(1)=temp_dimid
+        endif
 
         ! Create the variable returns varid of the data variable
         call check( nf90_def_var(ncid, varname, NF90_REAL, dimids, varid), trim(filename)//":"//trim(varname))
