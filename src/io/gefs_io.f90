@@ -8,9 +8,8 @@
 !!  Ethan Gutmann (gutmann@ucar.edu)
 !!
 !!------------------------------------------------
-module gefs_mod
+submodule(gefs_mod) gefs_io_implementation
 
-    use data_structures
     use model_constants
     use basic_stats_mod,only: time_mean, time_stddev, time_minval
     use string,         only: str
@@ -27,7 +26,7 @@ contains
     !! Initialize the GEFS module
     !!
     !!------------------------------------------------
-    subroutine init_GEFS_io(options)
+    module subroutine init_GEFS_io(options)
         implicit none
         type(config), intent(in) :: options
 
@@ -43,7 +42,7 @@ contains
     !! Loops through all input variables, then reads lat, lon, and time variables
     !!
     !!------------------------------------------------
-    function read_GEFS(options) result(GEFS_data)
+    module function read_GEFS(options) result(GEFS_data)
         implicit none
         class(atm_config), intent(in) :: options
         type(atm) :: GEFS_data
@@ -360,4 +359,4 @@ contains
 
     end subroutine load_data
 
-end module GEFS_mod
+end submodule gefs_io_implementation

@@ -1,7 +1,6 @@
-module downscaling_mod
+submodule(downscaling_mod) downscaling_interface
 
     USE ieee_arithmetic
-    use data_structures
     use string,             only : str
     use regression_mod,     only : compute_regression, compute_logistic_regression
     use analog_mod,         only : find_analogs, compute_analog_mean, compute_analog_error, compute_analog_exceedance
@@ -12,6 +11,7 @@ module downscaling_mod
     use io_routines,        only : file_exists, io_read
     use random_mod,         only : box_muller_random
     use sampling_mod,       only : sample_distribution
+
     implicit none
 
     real,    parameter :: LOG_FILL_VALUE = 1e-30
@@ -25,7 +25,7 @@ module downscaling_mod
     logical :: post_process_errors = .False.
 
 contains
-    subroutine downscale(training_atm, training_obs, predictors, output, options)
+    module subroutine downscale(training_atm, training_obs, predictors, output, options)
             implicit none
             type(atm),    intent(inout) :: training_atm, predictors
             type(obs),    intent(inout) :: training_obs
@@ -1322,4 +1322,4 @@ contains
         enddo
     end subroutine read_coefficients
 
-end module downscaling_mod
+end submodule downscaling_interface

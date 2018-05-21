@@ -1,7 +1,16 @@
-module  regression_mod
+!> -------------------------------------------
+!! Supply regression utilities to GARD
+!!
+!! Provides least squares regression and logistic regression
+!! includes output of both the coefficients and the residual error, optionally computed with supplied weights
+!!
+!! See regression_h header file for interface
+!!
+!! --------------------------------------------
+submodule(regression_mod) regression_implementation
 contains
 
-    function compute_regression(x, training_x, training_y, coefficients, y_test, error, weights, used_vars) result(y)
+    module function compute_regression(x, training_x, training_y, coefficients, y_test, error, weights, used_vars) result(y)
         implicit none
         real,    intent(in),    dimension(:)   :: x
         real,    intent(in),    dimension(:,:) :: training_x
@@ -242,8 +251,7 @@ contains
     end subroutine weighted_least_squares
 
 
-
-    function compute_logistic_regression(x, training_x, training_y, coefficients, threshold) result(output)
+    module function compute_logistic_regression(x, training_x, training_y, coefficients, threshold) result(output)
         implicit none
         real,    intent(in) :: x(:)
         real,    intent(in) :: training_x(:,:)
@@ -269,6 +277,7 @@ contains
         output = 1.0 / (1.0 + exp(-output))
 
     end function compute_logistic_regression
+
 
     subroutine logistic_regression(X, Y, B)
         implicit none
@@ -364,4 +373,4 @@ contains
     end subroutine logistic_regression
 
 
-end module regression_mod
+end submodule regression_implementation

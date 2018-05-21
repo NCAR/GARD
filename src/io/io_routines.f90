@@ -14,47 +14,12 @@
 !!  Ethan Gutmann (gutmann@ucar.edu)
 !!
 !!------------------------------------------------------------
-module io_routines
+submodule(io_routines) io_routines_implementation
     use netcdf
     use model_constants
 
     implicit none
-    ! maximum number of dimensions for a netCDF file
-    integer,parameter::io_maxDims=10
 
-    !>------------------------------------------------------------
-    !! Generic interface to the netcdf read routines
-    !!------------------------------------------------------------
-    interface io_read
-        module procedure io_read2d, io_read3d, io_read6d, io_read2di, io_read1d, io_read4d, io_read1dd
-    end interface
-
-    !>------------------------------------------------------------
-    !! Generic interface to the netcdf write routines
-    !!------------------------------------------------------------
-    interface io_write
-        module procedure io_write6d, io_write4d, io_write3d, io_write2d, io_write1d, io_write3di,io_write4di
-    end interface
-
-    !>------------------------------------------------------------
-    !! Generic interface to the netcdf read_attribute_TYPE routines
-    !!------------------------------------------------------------
-    interface io_read_attribute
-        module procedure io_read_attribute_r, io_read_attribute_i, io_read_attribute_c
-    end interface
-    ! to be added as necessary
-    !, io_read_attribute_d
-
-    !>------------------------------------------------------------
-    !! Generic interface to the netcdf add_attribute_TYPE routines
-    !!------------------------------------------------------------
-    interface io_add_attribute
-        module procedure io_add_attribute_r, io_add_attribute_i, io_add_attribute_c
-    end interface
-    ! to be added as necessary
-    !, io_add_attribute_d
-
-!   All routines are public
 contains
 
     !>------------------------------------------------------------
@@ -64,7 +29,7 @@ contains
     !! @retval logical true if file exists, false if it doesn't
     !!
     !!------------------------------------------------------------
-    logical function file_exists(filename)
+    module logical function file_exists(filename)
         character(len=*), intent(in) :: filename
         inquire(file=filename,exist=file_exists)
     end function file_exists
@@ -138,7 +103,7 @@ contains
     !! @retval dims(:) dims[1]=ndims, dims[i+1]=length of dimension i for a given variable
     !!
     !!------------------------------------------------------------
-    subroutine io_getdims(filename,varname,dims)
+    module subroutine io_getdims(filename,varname,dims)
         implicit none
         character(len=*), intent(in) :: filename,varname
         integer,intent(out) :: dims(:)
@@ -179,7 +144,7 @@ contains
     !! @retval data_in     Allocated 6-dimensional array with the netCDF data
     !!
     !!------------------------------------------------------------
-    subroutine io_read6d(filename,varname,data_in,extradim)
+    module subroutine io_read6d(filename,varname,data_in,extradim)
         implicit none
         ! This is the name of the data_in file and variable we will read.
         character(len=*), intent(in) :: filename, varname
@@ -238,7 +203,7 @@ contains
     !! @retval data_in     Allocated 3-dimensional array with the netCDF data
     !!
     !!------------------------------------------------------------
-    subroutine io_read4d(filename,varname,data_in,extradim)
+    module subroutine io_read4d(filename,varname,data_in,extradim)
         implicit none
         ! This is the name of the data_in file and variable we will read.
         character(len=*), intent(in) :: filename, varname
@@ -298,7 +263,7 @@ contains
     !! @retval data_in     Allocated 3-dimensional array with the netCDF data
     !!
     !!------------------------------------------------------------
-    subroutine io_read3d(filename,varname,data_in,extradim)
+    module subroutine io_read3d(filename,varname,data_in,extradim)
         implicit none
         ! This is the name of the data_in file and variable we will read.
         character(len=*), intent(in) :: filename, varname
@@ -358,7 +323,7 @@ contains
     !! @retval data_in     Allocated 2-dimensional array with the netCDF data
     !!
     !!------------------------------------------------------------
-    subroutine io_read2d(filename,varname,data_in,extradim)
+    module subroutine io_read2d(filename,varname,data_in,extradim)
         implicit none
         ! This is the name of the data_in file and variable we will read.
         character(len=*), intent(in) :: filename, varname
@@ -418,7 +383,7 @@ contains
     !! @retval data_in     Allocated 2-dimensional array with the netCDF data
     !!
     !!------------------------------------------------------------
-    subroutine io_read2di(filename,varname,data_in,extradim)
+    module subroutine io_read2di(filename,varname,data_in,extradim)
         implicit none
         ! This is the name of the data_in file and variable we will read.
         character(len=*), intent(in) :: filename, varname
@@ -478,7 +443,7 @@ contains
     !! @retval data_in     Allocated 1-dimensional array with the netCDF data
     !!
     !!------------------------------------------------------------
-    subroutine io_read1d(filename,varname,data_in,extradim)
+    module subroutine io_read1d(filename,varname,data_in,extradim)
         implicit none
         ! This is the name of the data_in file and variable we will read.
         character(len=*), intent(in) :: filename, varname
@@ -538,7 +503,7 @@ contains
     !! @retval data_in     Allocated 1-dimensional array with the netCDF data
     !!
     !!------------------------------------------------------------
-    subroutine io_read1dd(filename,varname,data_in,extradim)
+    module subroutine io_read1dd(filename,varname,data_in,extradim)
         implicit none
         ! This is the name of the data_in file and variable we will read.
         character(len=*), intent(in) :: filename, varname
@@ -595,7 +560,7 @@ contains
     !! @param   data_out    6-dimensional array to write to the file
     !!
     !!------------------------------------------------------------
-    subroutine io_write6d(filename,varname,data_out, dimnames)
+    module subroutine io_write6d(filename,varname,data_out, dimnames)
         implicit none
         ! This is the name of the file and variable we will write.
         character(len=*), intent(in) :: filename, varname
@@ -668,7 +633,7 @@ contains
     !! @param   data_out    4-dimensional array to write to the file
     !!
     !!------------------------------------------------------------
-    subroutine io_write4d(filename,varname,data_out, dimnames)
+    module subroutine io_write4d(filename,varname,data_out, dimnames)
         implicit none
         ! This is the name of the file and variable we will write.
         character(len=*), intent(in) :: filename, varname
@@ -736,7 +701,7 @@ contains
     !! @param   data_out    4-dimensional array to write to the file
     !!
     !!------------------------------------------------------------
-    subroutine io_write4di(filename,varname,data_out)
+    module subroutine io_write4di(filename,varname,data_out)
         implicit none
         ! This is the name of the file and variable we will write.
         character(len=*), intent(in) :: filename, varname
@@ -797,7 +762,7 @@ contains
     !! @param   data_out    3-dimensional array to write to the file
     !!
     !!------------------------------------------------------------
-    subroutine io_write3d(filename,varname,data_out, dimnames)
+    module subroutine io_write3d(filename,varname,data_out, dimnames)
         implicit none
         ! This is the name of the file and variable we will write.
         character(len=*), intent(in) :: filename, varname
@@ -862,7 +827,7 @@ contains
     !! @param   data_out    3-dimensional array to write to the file
     !!
     !!------------------------------------------------------------
-    subroutine io_write3di(filename,varname,data_out)
+    module subroutine io_write3di(filename,varname,data_out)
         implicit none
         ! This is the name of the data file and variable we will read.
         character(len=*), intent(in) :: filename, varname
@@ -918,7 +883,7 @@ contains
     !! @param   data_out    2-dimensional array to write to the file
     !!
     !!------------------------------------------------------------
-    subroutine io_write2d(filename,varname,data_out)
+    module subroutine io_write2d(filename,varname,data_out)
         implicit none
         ! This is the name of the data file and variable we will read.
         character(len=*), intent(in) :: filename, varname
@@ -959,11 +924,11 @@ contains
         call check( nf90_close(ncid) )
     end subroutine io_write2d
 
-    subroutine io_write1dd(filename,varname,data_out, dimname)
+    module subroutine io_write1dd(filename,varname,data_out, dimname)
         implicit none
         ! This is the name of the data file and variable we will read.
         character(len=*), intent(in) :: filename, varname
-        real,intent(in) :: data_out(:)
+        double precision,intent(in) :: data_out(:)
         character(len=*), intent(in), optional :: dimname
         character(len=64) :: dim
 
@@ -1003,7 +968,7 @@ contains
     end subroutine io_write1dd
 
 
-    subroutine io_write1d(filename,varname,data_out)
+    module subroutine io_write1d(filename,varname,data_out)
         implicit none
         ! This is the name of the data file and variable we will read.
         character(len=*), intent(in) :: filename, varname
@@ -1054,7 +1019,7 @@ contains
     !! @param   var_name    OPTIONAL name of variable to read attribute from
     !!
     !!------------------------------------------------------------
-    subroutine io_read_attribute_r(filename, att_name, att_value, var_name, error)
+    module subroutine io_read_attribute_r(filename, att_name, att_value, var_name, error)
         implicit none
         character(len=*), intent(in) :: filename
         character(len=*), intent(in) :: att_name
@@ -1093,7 +1058,7 @@ contains
     !! @param   var_name    OPTIONAL name of variable to read attribute from
     !!
     !!------------------------------------------------------------
-    subroutine io_read_attribute_i(filename, att_name, att_value, var_name, error)
+    module subroutine io_read_attribute_i(filename, att_name, att_value, var_name, error)
         implicit none
         character(len=*), intent(in) :: filename
         character(len=*), intent(in) :: att_name
@@ -1132,7 +1097,7 @@ contains
     !! @param   var_name    OPTIONAL name of variable to read attribute from
     !!
     !!------------------------------------------------------------
-    subroutine io_read_attribute_c(filename, att_name, att_value, var_name, error)
+    module subroutine io_read_attribute_c(filename, att_name, att_value, var_name, error)
         implicit none
         character(len=*), intent(in) :: filename
         character(len=*), intent(in) :: att_name
@@ -1172,7 +1137,7 @@ contains
     !! @param   var_name    OPTIONAL name of variable to write attribute to
     !!
     !!------------------------------------------------------------
-    subroutine io_add_attribute_r(filename, att_name, att_value, varname)
+    module subroutine io_add_attribute_r(filename, att_name, att_value, varname)
         implicit none
         character(len=*), intent(in)           :: filename
         character(len=*), intent(in)           :: att_name
@@ -1213,7 +1178,7 @@ contains
     !! @param   var_name    OPTIONAL name of variable to write attribute to
     !!
     !!------------------------------------------------------------
-    subroutine io_add_attribute_i(filename, att_name, att_value, varname)
+    module subroutine io_add_attribute_i(filename, att_name, att_value, varname)
         implicit none
         character(len=*), intent(in)           :: filename
         character(len=*), intent(in)           :: att_name
@@ -1254,7 +1219,7 @@ contains
     !! @param   var_name    OPTIONAL name of variable to write attribute to
     !!
     !!------------------------------------------------------------
-    subroutine io_add_attribute_c(filename, att_name, att_value, varname)
+    module subroutine io_add_attribute_c(filename, att_name, att_value, varname)
         implicit none
         character(len=*), intent(in)           :: filename
         character(len=*), intent(in)           :: att_name
@@ -1326,7 +1291,7 @@ contains
     !! @retval      integer a file logical unit number
     !!
     !!------------------------------------------------------------
-    integer function io_newunit(unit)
+    module integer function io_newunit(unit)
         implicit none
         integer, intent(out), optional :: unit
         ! local
@@ -1348,4 +1313,4 @@ contains
         if (present(unit)) unit=io_newunit
     end function io_newunit
 
-end module io_routines
+end submodule io_routines_implementation

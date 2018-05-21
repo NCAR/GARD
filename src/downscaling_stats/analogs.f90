@@ -1,14 +1,13 @@
-module analog_mod
+submodule(analog_mod) analog_implementation
 
     use string, only: str
     implicit none
 
-    integer, parameter :: MIN_NUMBER_ANALOGS = 20
-
+    ! integer, parameter :: MIN_NUMBER_ANALOGS = 20
 
 contains
 
-    subroutine find_analogs(analogs, match, input, n, threshold, weights, skip_analog)
+    module subroutine find_analogs(analogs, match, input, n, threshold, weights, skip_analog)
         implicit none
         integer, intent(inout), dimension(:), allocatable  :: analogs
         real,    intent(in),    dimension(:)   :: match
@@ -94,7 +93,7 @@ contains
     end subroutine find_analogs
 
     ! compute the mean of input[analogs]
-    function compute_analog_mean(input, analogs, weights) result(mean)
+    module function compute_analog_mean(input, analogs, weights) result(mean)
         implicit none
         real,    intent(in), dimension(:) :: input
         integer, intent(in), dimension(:) :: analogs
@@ -123,7 +122,7 @@ contains
     end function compute_analog_mean
 
     ! compute the root mean square error between input[analogs] and y_hat
-    function compute_analog_error(input, analogs, y_hat, weights) result(error)
+    module function compute_analog_error(input, analogs, y_hat, weights) result(error)
         implicit none
         real,    intent(in), dimension(:) :: input
         integer, intent(in), dimension(:) :: analogs
@@ -153,7 +152,7 @@ contains
     end function compute_analog_error
 
 
-    function compute_analog_exceedance(input, analogs, threshold, weights) result(probability)
+    module function compute_analog_exceedance(input, analogs, threshold, weights) result(probability)
         implicit none
         real,    intent(in), dimension(:) :: input
         integer, intent(in), dimension(:) :: analogs
@@ -317,4 +316,4 @@ contains
         end do
     end subroutine heapify
 
-end module analog_mod
+end submodule analog_implementation

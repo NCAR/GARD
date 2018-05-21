@@ -1,18 +1,15 @@
-module atm_mod
-    use data_structures
+submodule(atm_mod) atm_implementation
+
     use model_constants
 
     use gcm_mod,         only : read_gcm
     use gefs_mod,         only : read_gefs
-    ! use reanalysis_mod,  only : read_reanalysis
 
     implicit none
-    ! private
-    ! public read_atm
 
 contains
 
-    function read_atm(options) result(atm_data)
+    module function read_atm(options) result(atm_data)
         implicit none
         class(atm_config) :: options
         type(atm) :: atm_data
@@ -29,4 +26,4 @@ contains
 
     end function read_atm
 
-end module atm_mod
+end submodule atm_implementation

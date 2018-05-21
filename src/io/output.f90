@@ -1,6 +1,5 @@
-module output_mod
+submodule(output_mod) output_implementation
     use io_routines, only : io_write, io_add_attribute
-    use data_structures
     use string, only : str
 
     implicit none
@@ -9,7 +8,8 @@ module output_mod
         module procedure shift_z_dim_3d, shift_z_dim_4d
     end interface shift_z_dim
 contains
-    subroutine write_output(output, options)
+
+    module subroutine write_output(output, options)
         implicit none
         type(config),  intent(in)   :: options
         type(results), intent(in)   :: output
@@ -158,4 +158,4 @@ contains
     end subroutine memory_error
 
 
-end module output_mod
+end submodule output_implementation

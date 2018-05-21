@@ -53,22 +53,16 @@ module time
         ! operator overloading to permit comparison of time objects as (t1 < t2), (t1 == t2) etc.
         procedure, private :: equal
         generic,   public  :: operator(==)   => equal
-        generic,   public  :: operator(.eq.) => equal
         procedure, private :: not_equal
         generic,   public  :: operator(/=)   => not_equal
-        generic,   public  :: operator(.ne.) => not_equal
         procedure, private :: greater_than
         generic,   public  :: operator(>)    => greater_than
-        generic,   public  :: operator(.gt.) => greater_than
         procedure, private :: greater_or_eq
         generic,   public  :: operator(>=)   => greater_or_eq
-        generic,   public  :: operator(.ge.) => greater_or_eq
         procedure, private :: less_than
         generic,   public  :: operator(<)    => less_than
-        generic,   public  :: operator(.lt.) => less_than
         procedure, private :: less_or_eq
         generic,   public  :: operator(<=)   => less_or_eq
-        generic,   public  :: operator(.le.) => less_or_eq
 
     end type Time_type
 

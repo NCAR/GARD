@@ -1,10 +1,10 @@
-module sampling_mod
+submodule(sampling_mod) sampling_implementation
 
     use random_mod, only : normal_cdf, box_muller_random, get_normal_from_cdf
     implicit none
 contains
 
-    subroutine sample_distribution(output, mean_values, error_term, &
+    module subroutine sample_distribution(output, mean_values, error_term, &
                                    normal_random_values, uniform_random_values, &
                                    exceedence_probability, threshold)
         implicit none
@@ -84,4 +84,4 @@ contains
     end subroutine sample_distribution
 
 
-end module sampling_mod
+end submodule sampling_implementation
