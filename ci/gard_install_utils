@@ -5,6 +5,7 @@ set -x
 
 export CC=/usr/bin/gcc-6
 export FC=/usr/bin/gfortran-6
+export COMPILER=gnu
 
 if [ -z "$WORKDIR" ]; then
     export WORKDIR=$HOME/workdir

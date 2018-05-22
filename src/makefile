@@ -27,6 +27,27 @@ ifeq ($(FC),)
 	FC=gfortran-6
 endif
 
+ifeq ($(COMPILER),)
+	ifeq ($(FC), gfortran)
+		COMPILER=gnu
+	endif
+	ifeq ($(FC), gfortran-6)
+		COMPILER=gnu
+	endif
+	ifeq ($(FC), /usr/bin/gfortran-6)
+		COMPILER=gnu
+	endif
+	ifeq ($(FC), ifort)
+		COMPILER=intel
+	endif
+	ifeq ($(FC), pgf90)
+		COMPILER=pgi
+	endif
+	ifeq ($(COMPILER), cray)
+		COMPILER=cray
+	endif
+endif
+
 ifeq ($(NETCDF),)
 	NETCDF = $(shell nc-config --prefix)
 endif
@@ -62,11 +83,13 @@ ifeq ($(NODENAME), cheyenne)
 	# on cheyenne:
     ifeq ($(LMOD_FAMILY_COMPILER),gnu)
         FC=gfortran
+		COMPILER=gnu
         NCDF_PATH=/glade/u/apps/ch/opt/netcdf/4.4.1.1/gnu/6.2.0
         LAPACK_PATH=/glade/u/apps/ch/opt/netlib/3.7.0/gnu/4.8.5
     endif
 	ifeq ($(LMOD_FAMILY_COMPILER),intel)
 	    FC=ifort
+		COMPILER=intel
 	    NCDF_PATH=/glade/u/apps/ch/opt/netcdf/4.4.1.1/intel/17.0.1
 		LAPACK_PATH=/glade/u/apps/opt/intel/2017u1/compilers_and_libraries/linux/mkl/lib ${NCAR_LIBS_MKL} \#
 		# this is an ugly hack to get the NCAR_LIBS_MKL variable in, need to rethink a little
@@ -86,14 +109,14 @@ HOSTNAME := $(shell uname -n)
 #
 ###################################################################
 ###################################################################
-ifeq ($(FC), gfortran)
+ifeq ($(COMPILER), gnu)
 	COMP=-fopenmp -lgomp -O3 -ffree-line-length-none -ftree-vectorize -fimplicit-none -funroll-loops \
 		-fno-protect-parens -ffast-math #-flto #
 	LINK=-fopenmp -lgomp
 	PREPROC=-cpp
 	MODOUTPUT=-J $(BUILD)
 endif
-ifeq ($(FC), gfortran-6)
+ifeq ($(COMPILER), gnu)
 	COMP=-fopenmp -lgomp -O3 -ffree-line-length-none -ftree-vectorize -fimplicit-none -funroll-loops \
 		-fno-protect-parens -ffast-math #-flto #
 	LINK=-fopenmp -lgomp
@@ -101,14 +124,14 @@ ifeq ($(FC), gfortran-6)
 	MODOUTPUT=-J $(BUILD)
 endif
 # Intel fortran
-ifeq ($(FC), ifort)
+ifeq ($(COMPILER), intel)
 	COMP= -u -qopenmp -O3 -no-prec-div -xHost -ftz
 	LINK= -liomp5
 	PREPROC=-fpp
 	MODOUTPUT=-module $(BUILD)
 endif
 # PGI fortran
-ifeq ($(FC), pgf90)
+ifeq ($(COMPILER), pgi)
 	COMP=-O2 -mp -Mdclchk #-fast -O3 -mp -c -Mdclchk
 	LINK=-mp
 	PREPROC=-Mpreprocess
@@ -116,7 +139,7 @@ ifeq ($(FC), pgf90)
 endif
 
 # Cray fortran
-ifeq ($(FC), ftn)
+ifeq ($(COMPILER), cray)
 	COMP= -h omp vector2 -O2 -eI
 	LINK= -fopenmp
 	PREPROC= -eZ
@@ -131,19 +154,23 @@ endif
 ###################################################################
 ###################################################################
 ifeq ($(MODE), debugslow)
-	ifeq ($(FC), ifort)
+	ifeq ($(COMPILER), intel)
 		COMP= -debug -debug-parameters all -traceback -ftrapuv -g -fpe0 -u -check all -check noarg_temp_created -CB
 		LINK=
 	endif
-	ifeq ($(FC), gfortran)
+	ifeq ($(COMPILER), gnu)
 		COMP= -g -Wall -fbounds-check -fbacktrace -finit-real=nan -ffree-line-length-none
 		LINK=
 	endif
-	ifeq ($(FC), pgf90)
+	ifeq ($(COMPILER), gnu)
+		COMP= -g -Wall -fbounds-check -fbacktrace -finit-real=nan -ffree-line-length-none
+		LINK=
+	endif
+	ifeq ($(COMPILER), pgi)
 		COMP= -g -Mbounds -Mlist -Minfo  -Mdclchk
 		LINK=
 	endif
-	ifeq ($(FC), ftn)
+	ifeq ($(COMPILER), cray)
 		COMP=-h noomp -g -m 0 -R abcsp
 		LINK=-h noomp
 		PREPROC=-eZ
@@ -151,19 +178,19 @@ ifeq ($(MODE), debugslow)
 	endif
 endif
 ifeq ($(MODE), debug)
-	ifeq ($(FC), ifort)
+	ifeq ($(COMPILER), intel)
 		COMP= -debug -O1 -u -check all -check noarg_temp_created -traceback -fpe0 -fast-transcendentals -xhost
 		LINK=
 	endif
-	ifeq ($(FC), gfortran)
+	ifeq ($(COMPILER), gnu)
 		COMP= -O1 -g -fbounds-check -fbacktrace -finit-real=nan -ffree-line-length-none
 		LINK=
 	endif
-	ifeq ($(FC), pgf90)
+	ifeq ($(COMPILER), pgi)
 		COMP= -gopt -O1 -Mbounds -Mlist -Minfo  -Mdclchk
 		LINK=
 	endif
-	ifeq ($(FC), ftn)
+	ifeq ($(COMPILER), cray)
 		COMP=-O1 -h noomp -g
 		LINK=-h noomp
 		PREPROC=-eZ
@@ -171,19 +198,19 @@ ifeq ($(MODE), debug)
 	endif
 endif
 ifeq ($(MODE), debugompslow)
-	ifeq ($(FC), ifort)
+	ifeq ($(COMPILER), intel)
 		COMP= -qopenmp -debug -u	-fpe0 -traceback -check all -check noarg_temp_created -fp-stack-check
 		LINK= -liomp5
 	endif
-	ifeq ($(FC), gfortran)
+	ifeq ($(COMPILER), gnu)
 		COMP= -fopenmp -lgomp -g -fbounds-check -fbacktrace -finit-real=nan -ffree-line-length-none
 		LINK= -fopenmp -lgomp
 	endif
-	ifeq ($(FC), pgf90)
+	ifeq ($(COMPILER), pgi)
 		COMP= -g -Mbounds -Mlist -Minfo -mp -Mdclchk
 		LINK= -mp
 	endif
-	ifeq ($(FC), ftn)
+	ifeq ($(COMPILER), cray)
 		COMP= -g -m 0 -R abcsp
 		LINK=
 		PREPROC=-eZ
@@ -191,19 +218,19 @@ ifeq ($(MODE), debugompslow)
 	endif
 endif
 ifeq ($(MODE), debugomp)
-	ifeq ($(FC), ifort)
+	ifeq ($(COMPILER), intel)
 		COMP= -qopenmp -debug -O3 -u -traceback -fpe0 -ftz -fast-transcendentals  -xHost
 		LINK= -liomp5
 	endif
-	ifeq ($(FC), gfortran)
+	ifeq ($(COMPILER), gnu)
 		COMP= -fopenmp -lgomp -O1 -g -fbounds-check -fbacktrace -finit-real=nan -ffree-line-length-none
 		LINK= -fopenmp -lgomp
 	endif
-	ifeq ($(FC), pgf90)
+	ifeq ($(COMPILER), pgi)
 		COMP= -g -O1 -Mbounds -Mlist -Minfo -mp -Mdclchk
 		LINK= -mp
 	endif
-	ifeq ($(FC), ftn)
+	ifeq ($(COMPILER), cray)
 		COMP=-O1 -g
 		LINK=
 		PREPROC=-eZ
@@ -213,20 +240,20 @@ endif
 
 PROF=
 ifeq ($(MODE), profile)
-	ifeq ($(FC), ifort)
+	ifeq ($(COMPILER), intel)
 		PROF=-pg -debug inline-debug-info -shared-intel
 		COMP= -u -qopenmp -O3 -no-prec-div -xHost -ftz #because -fast includes -static
 		# not available in ifort <13 -align array64byte
 	endif
-	ifeq ($(FC), gfortran)
+	ifeq ($(COMPILER), gnu)
 		PROF=-g
 	endif
 endif
 ifeq ($(MODE), fast) # WARNING -ipo (included in -fast) takes forever for very little gain, and this may be unstable
-	ifeq ($(FC), ifort)
+	ifeq ($(COMPILER), intel)
 		COMP= -u -qopenmp -fast -ftz #-fast-transcendentals # not available in ifort <13: -align array64byte
 	endif
-	ifeq ($(FC), gfortran)
+	ifeq ($(COMPILER), gnu)
 		COMP=-O3 -finit-real=nan -ffree-line-length-none
 		LINK=
 	endif
