@@ -102,7 +102,7 @@ function gard_script {
     ./gard -h
     ./test_calendar
     # ./test_random
-    ./test_regression
+    # ./test_regression
     # ./test_config ../run/downscale_options.txt
     cd ../
     echo "GARD script succeeded"
