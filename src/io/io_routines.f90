@@ -883,17 +883,25 @@ contains
     !! @param   data_out    2-dimensional array to write to the file
     !!
     !!------------------------------------------------------------
-    module subroutine io_write2d(filename,varname,data_out)
+    module subroutine io_write2d(filename,varname,data_out, dimnames)
         implicit none
         ! This is the name of the data file and variable we will read.
         character(len=*), intent(in) :: filename, varname
         real,intent(in) :: data_out(:,:)
+        character(len=*), optional, dimension(2), intent(in) :: dimnames
 
         ! We are reading 2D data, a nx x ny grid.
         integer :: nx,ny
         integer, parameter :: ndims = 2
+        character(len=64), dimension(ndims) :: dims
         ! This will be the netCDF ID for the file and data variable.
-        integer :: ncid, varid,temp_dimid,dimids(ndims)
+        integer :: ncid, varid,temp_dimid,dimids(ndims), err, i
+
+        if (present(dimnames)) then
+            dims = dimnames
+        else
+            dims = ["x","y"]
+        endif
 
         nx=size(data_out,1)
         ny=size(data_out,2)
@@ -903,15 +911,23 @@ contains
         if (file_exists(filename)) then
             call check( nf90_open(filename, NF90_WRITE, ncid) )
             call check( nf90_redef(ncid) )
+
         else
             call check( nf90_create(filename, NF90_CLOBBER, ncid), filename )
 
-            ! define the dimensions
-            call check( nf90_def_dim(ncid, "x", nx, temp_dimid) )
-            dimids(1)=temp_dimid
-            call check( nf90_def_dim(ncid, "y", ny, temp_dimid) )
-            dimids(2)=temp_dimid
         endif
+        ! define the dimensions
+        ! call check( nf90_def_dim(ncid, trim(dims(1)), nx, temp_dimid) )
+        ! dimids(1)=temp_dimid
+        ! call check( nf90_def_dim(ncid, trim(dims(2)), ny, temp_dimid) )
+        ! dimids(2)=temp_dimid
+        do i=1,ndims
+            err = nf90_inq_dimid(ncid, trim(dims(i)), temp_dimid)
+            if (err /= NF90_NOERR) then
+                call check( nf90_def_dim(ncid, trim(dims(i)), nx, temp_dimid) )
+            endif
+            dimids(i)=temp_dimid
+        enddo
 
         ! Create the variable returns varid of the data variable
         call check( nf90_def_var(ncid, varname, NF90_REAL, dimids, varid), trim(filename)//":"//trim(varname))
@@ -936,7 +952,7 @@ contains
         integer :: nx
         integer, parameter :: ndims = 1
         ! This will be the netCDF ID for the file and data variable.
-        integer :: ncid, varid,temp_dimid,dimids(ndims)
+        integer :: ncid, varid,temp_dimid,dimids(ndims), err
 
         dim="t"
         if (present(dimname)) dim=dimname
@@ -952,9 +968,14 @@ contains
             call check( nf90_create(filename, NF90_CLOBBER, ncid), filename )
 
             ! define the dimensions
-            call check( nf90_def_dim(ncid, dim, nx, temp_dimid) )
+            call check( nf90_def_dim(ncid, trim(dim), nx, temp_dimid) )
             dimids(1)=temp_dimid
         endif
+        err = nf90_inq_dimid(ncid, dim, temp_dimid)
+        if (err /= NF90_NOERR) then
+            call check( nf90_def_dim(ncid, dim, nx, temp_dimid) )
+        endif
+        dimids(1)=temp_dimid
 
         ! Create the variable returns varid of the data variable
         call check( nf90_def_var(ncid, varname, NF90_REAL, dimids, varid), trim(filename)//":"//trim(varname))
