@@ -1,11 +1,17 @@
 ###################################################################
 ###################################################################
 #
-# Basic makefile to compile the circulation downscaling code.
+# Basic makefile to compile the En-GARD circulation downscaling code.
 #
 # To compile this code on your machine, edit the NCDF_PATH variable and the fortran compiler
 #
 # To build the model simply run make.
+#
+# To specify the location of the NETCDF or LAPACK libraries, or the fortran compiler
+#   make NETCDF=/usr/local LAPACK=/usr/local FC=gfortran
+#
+# Parallel compiles can speed up the compile time considerably, consider
+# 	make -j4
 #
 # The primary user facing rules are:
 # 	all		: builds the model, this is the default
@@ -37,8 +43,6 @@ LAPACK_PATH = $(LAPACK)
 INSTALL_DIR = ~/bin
 RM=/bin/rm
 CP=/bin/cp
-# LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
-# INCNETCDF = -I$(NCDF_PATH)/include
 BUILD=build/
 
 ###################################################################
@@ -50,70 +54,10 @@ BUILD=build/
 ###################################################################
 NODENAME := $(shell uname -n)
 
-ifeq ($(NODENAME), Patthar.local)
-	NODENAME=Nomad.local
-endif
-ifeq ($(NODENAME), pakaldi.local)
-	NODENAME=Nomad.local
-endif
-ifeq ($(patsubst vpn%.ucar.edu,vpn.ucar.edu,$(NODENAME)), vpn.ucar.edu)
-	NODENAME=Nomad.local
-endif
-
-ifeq ($(NODENAME), Nomad.local)
-	FC=gfortran
-	NCDF_PATH=/usr/local
-	LAPACK_PATH=/usr/local/opt/lapack
-endif
-
-ifeq ($(NODENAME), foil.hydro.washington.edu)
-	FC=gfortran
-	NCDF_PATH=/opt/local
-	LAPACK_PATH=/opt/local/lib/lapack
-endif
 ifeq ($(patsubst cheyenne%,cheyenne,$(NODENAME)), cheyenne)
 	NODENAME=cheyenne
 endif
 
-
-ifneq (,$(findstring hydro-c1,$(NODENAME)))
-	FC=ifort
-	# FC=gfortran
-	ifeq ($(FC), ifort)
-		NCDF_PATH = /opt/netcdf4-intel
-		LAPACK_PATH = /usr
-	endif
-	# Not sure this is valid for LAPACK.
-	# ifeq ($(FC), gfortran)
-	# 	NCDF_PATH = /opt/netcdf4-gcc
-	# 	LAPACK_PATH = /usr
-	# endif
-endif
-
-
-ifeq ($(NODENAME), yellowstone)
-	# on yellowstone:
-    ifeq ($(LMOD_FAMILY_COMPILER),gnu)
-	    FC=gfortran
-	    NCDF_PATH=/glade/apps/opt/netcdf/4.3.0/gnu/4.8.2
-	# LIBNETCDF = $(LIB_NCAR) # when netcdf includes are setup by the yellowstone module system
-	# INCNETCDF = $(INC_NCAR)
-	# LIBNETCDF = -Wl,-rpath,$(NCDF_PATH)/lib -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf # if using a compiler for which netcdf includes are
-	# INCNETCDF = -I$(NCDF_PATH)/include # NOT setup correctly by the yellowstone module system
-    endif
-    ifeq ($(LMOD_FAMILY_COMPILER),intel)
-	    FC=ifort
-	    NCDF_PATH=/glade/apps/opt/netcdf/4.3.0/intel/default
-	    # LIBNETCDF = $(LIB_NCAR) #-L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
-	    # INCNETCDF = $(INC_NCAR) #-I$(NCDF_PATH)/include # netcdf includes are setup by the yellowstone module system
-    endif
-    ifeq ($(LMOD_FAMILY_COMPILER),pgi)
-	    FC=pgf90
-	    NCDF_PATH=/glade/apps/opt/netcdf/4.3.0/pgi/default
-	    # LIBNETCDF = -rpath $(NCDF_PATH)/lib -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf # if using a compiler for which netcdf includes are
-	    # INCNETCDF = -I$(NCDF_PATH)/include # NOT setup correctly by the yellowstone module system
-    endif
-endif
 ifeq ($(NODENAME), cheyenne)
 	# on cheyenne:
     ifeq ($(LMOD_FAMILY_COMPILER),gnu)
@@ -437,6 +381,8 @@ test_config : $(CONFIG_TEST_OBJS)
 # specify specific builds and dependencies.
 
 # unit tests
+
+# The regression unit test is currently broken because it relied on a non-public API
 # $(BUILD)test_regression.o: tests/test_regression.f90 $(BUILD)regression_h.o
 # 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
