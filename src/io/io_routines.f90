@@ -656,7 +656,7 @@ contains
             dims = ["x","y","z","t"]
         endif
 
-        ! Open the file. NF90_NOWRITE tells netCDF we want read-only access to
+        ! Open the file. NF90_WRITE tells netCDF we want write access to
         ! the file.
         if (file_exists(filename)) then
             call check( nf90_open(filename, NF90_WRITE, ncid) )
@@ -720,7 +720,7 @@ contains
 
         dims = ["x","y","z","t"]
 
-        ! Open the file. NF90_NOWRITE tells netCDF we want read-only access to
+        ! Open the file. NF90_WRITE tells netCDF we want write access to
         ! the file.
         if (file_exists(filename)) then
             call check( nf90_open(filename, NF90_WRITE, ncid) )
@@ -790,7 +790,7 @@ contains
             dims = ["x","y","t"]
         endif
 
-        ! Open the file. NF90_NOWRITE tells netCDF we want read-only access to
+        ! Open the file. NF90_WRITE tells netCDF we want write access to
         ! the file.
         if (file_exists(filename)) then
             call check( nf90_open(filename, NF90_WRITE, ncid) )
@@ -854,7 +854,7 @@ contains
 
         dims = ["x", "y", "t"]
 
-        ! Open the file. NF90_NOWRITE tells netCDF we want read-only access to
+        ! Open the file. NF90_WRITE tells netCDF we want write access to
         ! the file.
         if (file_exists(filename)) then
             call check( nf90_open(filename, NF90_WRITE, ncid) )
@@ -921,7 +921,7 @@ contains
         nx=size(data_out,1)
         ny=size(data_out,2)
 
-        ! Open the file. NF90_NOWRITE tells netCDF we want read-only access to
+        ! Open the file. NF90_WRITE tells netCDF we want write access to
         ! the file.
         if (file_exists(filename)) then
             call check( nf90_open(filename, NF90_WRITE, ncid) )
@@ -971,7 +971,7 @@ contains
 
         nx=size(data_out,1)
 
-        ! Open the file. NF90_NOWRITE tells netCDF we want read-only access to
+        ! Open the file. NF90_WRITE tells netCDF we want write access to
         ! the file.
         if (file_exists(filename)) then
             call check( nf90_open(filename, NF90_WRITE, ncid) )
@@ -1014,7 +1014,7 @@ contains
 
         nx=size(data_out,1)
 
-        ! Open the file. NF90_NOWRITE tells netCDF we want read-only access to
+        ! Open the file. NF90_WRITE tells netCDF we want write access to
         ! the file.
         if (file_exists(filename)) then
             call check( nf90_open(filename, NF90_WRITE, ncid) )

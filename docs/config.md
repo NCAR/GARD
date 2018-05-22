@@ -1,4 +1,4 @@
-<!-- # Configuring GARD -->
+# Configuring GARD
 
 After building GARD, it is run on the command line following this syntax:
 

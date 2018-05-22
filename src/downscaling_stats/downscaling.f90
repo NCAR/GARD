@@ -905,7 +905,6 @@ contains
                 ! Check for severe errors in the logistic regression.  This can happen with some input data.
                 ! If it fails, fall back to the analog exceedence calculation
                 if (ieee_is_nan(logistic)) then
-                ! if (logistic /= logistic) then
                     if (options%analog_weights) then
                         logistic = compute_analog_exceedance(obs, analogs, logistic_threshold, weights)
                     else
