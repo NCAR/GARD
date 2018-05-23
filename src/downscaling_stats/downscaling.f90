@@ -108,6 +108,9 @@ contains
             do v=1,n_obs_variables
                 output%variables(v)%name = training_obs%variables(v)%name
             enddo
+            output%lat  = training_obs%lat
+            output%lon  = training_obs%lon
+            output%times= predictors%times(p_start:p_end)
 
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             !!                                       !!
@@ -1178,6 +1181,16 @@ contains
 
         allocate(output%variables(n_obs_variables), stat=Mem_Error)
         if (Mem_Error /= 0) call memory_error(Mem_Error, "out%variables", [n_obs_variables])
+
+        allocate(output%times(noutput), stat=Mem_Error)
+        if (Mem_Error /= 0) call memory_error(Mem_Error, "output%times(noutput)", [noutput])
+
+        allocate(output%lat(ny, nx), stat=Mem_Error)
+        if (Mem_Error /= 0) call memory_error(Mem_Error, "output%lon(ny, nx)", [ny, nx])
+
+        allocate(output%lon(ny, nx), stat=Mem_Error)
+        if (Mem_Error /= 0) call memory_error(Mem_Error, "output%lon(ny, nx)", [ny, nx])
+
 
         do v = 1,n_obs_variables
             allocate(output%variables(v)%data        (noutput, nx, ny), stat=Mem_Error)

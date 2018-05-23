@@ -1,5 +1,5 @@
 submodule(output_mod) output_implementation
-    use io_routines, only : io_write
+    use io_routines, only : io_write, io_add_attribute
     use string, only : str
 
     implicit none
@@ -8,7 +8,32 @@ submodule(output_mod) output_implementation
         module procedure shift_z_dim_3d, shift_z_dim_4d
     end interface shift_z_dim
 contains
-    
+
+    subroutine add_coordinates(filename, dimnames, lat, lon, times, year_zero)
+        implicit none
+        character(len=MAXFILELENGTH),       intent(in) :: filename
+        character(len=MAXFILELENGTH),       intent(in) :: dimnames(3)
+        real,             dimension(:,:),   intent(in) :: lat, lon
+        double precision, dimension(:),     intent(in) :: times
+        integer,                            intent(in) :: year_zero
+
+        call io_write(filename, "time", times, dimnames(3))
+        call io_add_attribute(filename, "standard_name", "time", "time")
+        call io_add_attribute(filename, "units", "days since Jan. 1, "//trim(str(year_zero)), "time")
+        call io_add_attribute(filename, "axis", "T", "time")
+
+        call io_write(filename, "lat", lat, dimnames(1:2))
+        call io_add_attribute(filename, "standard_name", "latitude", "lat")
+        call io_add_attribute(filename, "units", "degrees_north", "lat")
+        call io_add_attribute(filename, "axis", "Y", "lat")
+
+        call io_write(filename, "lon", lon, dimnames(1:2))
+        call io_add_attribute(filename, "standard_name", "longitude", "lon")
+        call io_add_attribute(filename, "units", "degrees_east", "lon")
+        call io_add_attribute(filename, "axis", "X", "lon")
+
+    end subroutine
+
     module subroutine write_output(output, options)
         implicit none
         type(config),  intent(in)   :: options
@@ -20,6 +45,7 @@ contains
         real, dimension(:,:,:,:),   allocatable :: output_data_4d
         integer :: nvars, i, nx, ny, nt, nv
         integer :: Mem_Error
+        double precision, dimension(:), allocatable :: times
 
         nvars = size(output%variables)
 
@@ -27,6 +53,11 @@ contains
         nx = size(output%variables(1)%data, 2)
         ny = size(output%variables(1)%data, 3)
         nv = size(output%variables(1)%predictors, 4)
+
+        allocate(times(nt))
+        do i=1,nt
+            times(i) = output%times(i)%mjd()
+        enddo
 
         allocate( output_data(nx,ny,nt), stat=Mem_Error )
         if (Mem_Error /= 0) call memory_error(Mem_Error, "output_data", [nx,ny,nt])
@@ -43,15 +74,24 @@ contains
             filename = trim(options%output_file)//trim(output%variables(i)%name)//".nc"
             call shift_z_dim(output%variables(i)%data, output_data)
             call io_write(filename, trim(output%variables(i)%name), output_data, dimnames)
+            call io_add_attribute(filename, "description", "predicted mean value", trim(output%variables(i)%name))
+            call io_add_attribute(filename, "coordinates", "lon lat time", trim(output%variables(i)%name))
+            call add_coordinates(filename, dimnames, output%lat, output%lon, times, output%times(1)%year_zero)
 
             filename = trim(options%output_file)//trim(output%variables(i)%name)//"_errors.nc"
             call shift_z_dim(output%variables(i)%errors, output_data)
             call io_write(filename, trim(output%variables(i)%name)//"_error", output_data, dimnames)
+            call io_add_attribute(filename, "description", "predicted error term", trim(output%variables(i)%name)//"_error")
+            call add_coordinates(filename, dimnames, output%lat, output%lon, times, output%times(1)%year_zero)
 
             if (options%logistic_threshold/=kFILL_VALUE) then
                 filename = trim(options%output_file)//trim(output%variables(i)%name)//"_logistic.nc"
                 call shift_z_dim(output%variables(i)%logistic, output_data)
                 call io_write(filename, trim(output%variables(i)%name)//"_exceedence_probability", output_data, dimnames)
+                call io_add_attribute(filename, "description", "probability of threshold exceedence", trim(output%variables(i)%name)//"_exceedence_probability")
+                call io_add_attribute(filename, "threshold", options%logistic_threshold, trim(output%variables(i)%name)//"_exceedence_probability")
+
+                call add_coordinates(filename, dimnames, output%lat, output%lon, times, output%times(1)%year_zero)
             endif
 
             if (options%debug) then

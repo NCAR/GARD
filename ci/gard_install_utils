@@ -5,6 +5,7 @@ set -x
 
 export CC=/usr/bin/gcc-6
 export FC=/usr/bin/gfortran-6
+export COMPILER=gnu
 
 if [ -z "$WORKDIR" ]; then
     export WORKDIR=$HOME/workdir
@@ -101,7 +102,7 @@ function gard_script {
     ./gard -h
     ./test_calendar
     # ./test_random
-    ./test_regression
+    # ./test_regression
     # ./test_config ../run/downscale_options.txt
     cd ../
     echo "GARD script succeeded"

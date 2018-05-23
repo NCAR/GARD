@@ -4,16 +4,16 @@
 GARD has the following dependencies:
 
 1. A Fortran compiler. GARD has been used with the following compilers:
-  - gfortran (version 4.9.2)
-  - ifort (version 15.0.2)
+  - gfortran (version >=4.9)
+  - ifort (version >=15)
 
-  GARD has also been compiled using these compilers:
+  GARD has also been compiled using these compilers but PGI does not support newer fortran constructs and is not recommended:
   - PGI (pgf)
 
 1. LAPACK — Linear Algebra PACKage.
 1. netCDF4 - Network Common Data Form.
 
-*Note: GARD allocates memory to the stack. Users should set the "The maximum stack size." to "unlimited" prior to building/running GARD. `ulimit -s unlimited`*
+*Note: GARD compiled with intel allocates memory to the stack. Users should set the "The maximum stack size." to "unlimited" prior to building/running GARD. `ulimit -s unlimited`*
 
 ## Building GARD
 
@@ -26,9 +26,9 @@ make
 
 Depending on which computer you are running GARD on, you may need to edit one or more of the following variables:
 
-- `FC`: Fortran compiler
+- `FC`: Fortran compiler (e.g. `gfortran`)
 - `NCDF_PATH`: path to netCDF installation (see `nc-config --prefix` )
-- `LAPACK_PATH`: path to lapack installation
+- `LAPACK_PATH`: path to lapack installation (e.g. `/usr/local`)
 - `INSTALL_DIR`: path to install GARD executable
 - `RM`: path to unix `rm` command
 - `CP`: path to unix `cp` command
@@ -51,4 +51,4 @@ Use the following to generate a list of e.g. GEFS precipitation files for input.
 1. Segmentation Fault
     - GARD allocates memory to the stack. Users should set the "The maximum stack size" to "unlimited" prior to building/running GARD. `ulimit -s unlimited`
 2. Random errors (e.g. debug not staying set at False)
-    - Make sure all filenames in the namelist are in quotations. 
+    - Make sure all filenames in the namelist are in quotations.

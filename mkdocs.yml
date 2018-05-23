@@ -3,4 +3,6 @@ pages:
 - Home: index.md
 - Running GARD: running.md
 - Configuring GARD: config.md
+- Data: Datasets/data.md
+- Developing: Development/code.md
 theme: readthedocs

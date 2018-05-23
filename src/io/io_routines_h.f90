@@ -31,7 +31,7 @@ module io_routines
     !! Generic interface to the netcdf write routines
     !!------------------------------------------------------------
     interface io_write
-        module procedure io_write6d, io_write4d, io_write3d, io_write2d, io_write1d, io_write3di,io_write4di
+        module procedure io_write6d, io_write4d, io_write3d, io_write2d, io_write1d, io_write1dd, io_write3di,io_write4di
     end interface
 
     !>------------------------------------------------------------
@@ -366,13 +366,23 @@ interface
     !! @param   data_out    2-dimensional array to write to the file
     !!
     !!------------------------------------------------------------
-    module subroutine io_write2d(filename,varname,data_out)
+    module subroutine io_write2d(filename,varname,data_out, dimnames)
         implicit none
         ! This is the name of the data file and variable we will read.
         character(len=*), intent(in) :: filename, varname
         real,intent(in) :: data_out(:,:)
-
+        character(len=*), optional, dimension(2), intent(in) :: dimnames
+        
     end subroutine io_write2d
+
+    module subroutine io_write1dd(filename,varname,data_out,dimname)
+        implicit none
+        ! This is the name of the data file and variable we will read.
+        character(len=*), intent(in) :: filename, varname
+        double precision,intent(in) :: data_out(:)
+        character(len=*), intent(in), optional :: dimname
+
+    end subroutine io_write1dd
 
     module subroutine io_write1d(filename,varname,data_out)
         implicit none

@@ -17,7 +17,7 @@
 # Debug Symbols
 *.dSYM
 
-# Fortran module files
+# Fortran module and sub-module files
 *.mod
 *.smod
 

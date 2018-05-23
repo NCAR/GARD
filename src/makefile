@@ -1,11 +1,17 @@
 ###################################################################
 ###################################################################
 #
-# Basic makefile to compile the circulation downscaling code.
+# Basic makefile to compile the En-GARD circulation downscaling code.
 #
 # To compile this code on your machine, edit the NCDF_PATH variable and the fortran compiler
 #
 # To build the model simply run make.
+#
+# To specify the location of the NETCDF or LAPACK libraries, or the fortran compiler
+#   make NETCDF=/usr/local LAPACK=/usr/local FC=gfortran
+#
+# Parallel compiles can speed up the compile time considerably, consider
+# 	make -j4
 #
 # The primary user facing rules are:
 # 	all		: builds the model, this is the default
@@ -17,14 +23,47 @@
 ###################################################################
 ###################################################################
 
-# FC=gfortran-6
-NCDF_PATH = $(shell nc-config --prefix)
-LAPACK_PATH = /usr/local
+ifeq ($(FC),)
+	FC=gfortran-6
+endif
+
+ifeq ($(COMPILER),)
+	ifeq ($(FC), gfortran)
+		COMPILER=gnu
+	endif
+	ifeq ($(FC), gfortran-6)
+		COMPILER=gnu
+	endif
+	ifeq ($(FC), /usr/bin/gfortran-6)
+		COMPILER=gnu
+	endif
+	ifeq ($(FC), ifort)
+		COMPILER=intel
+	endif
+	ifeq ($(FC), pgf90)
+		COMPILER=pgi
+	endif
+	ifeq ($(COMPILER), cray)
+		COMPILER=cray
+	endif
+endif
+
+ifeq ($(NETCDF),)
+	NETCDF = $(shell nc-config --prefix)
+endif
+ifeq ($(NETCDF),)
+	NETCDF = /usr/local
+endif
+NCDF_PATH = $(NETCDF)
+
+ifeq ($(LAPACK),)
+	LAPACK=/usr/local
+endif
+LAPACK_PATH = $(LAPACK)
+
 INSTALL_DIR = ~/bin
 RM=/bin/rm
 CP=/bin/cp
-# LIBNETCDF = -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
-# INCNETCDF = -I$(NCDF_PATH)/include
 BUILD=build/
 
 ###################################################################
@@ -36,79 +75,21 @@ BUILD=build/
 ###################################################################
 NODENAME := $(shell uname -n)
 
-ifeq ($(NODENAME), Patthar.local)
-	NODENAME=Nomad.local
-endif
-ifeq ($(NODENAME), pakaldi.local)
-	NODENAME=Nomad.local
-endif
-ifeq ($(patsubst vpn%.ucar.edu,vpn.ucar.edu,$(NODENAME)), vpn.ucar.edu)
-	NODENAME=Nomad.local
-endif
-
-ifeq ($(NODENAME), Nomad.local)
-	FC=gfortran
-	NCDF_PATH=/usr/local
-	LAPACK_PATH=/usr/local/opt/lapack
-endif
-
-ifeq ($(NODENAME), foil.hydro.washington.edu)
-	FC=gfortran
-	NCDF_PATH=/opt/local
-	LAPACK_PATH=/opt/local/lib/lapack
-endif
 ifeq ($(patsubst cheyenne%,cheyenne,$(NODENAME)), cheyenne)
 	NODENAME=cheyenne
 endif
 
-
-ifneq (,$(findstring hydro-c1,$(NODENAME)))
-	FC=ifort
-	# FC=gfortran
-	ifeq ($(FC), ifort)
-		NCDF_PATH = /opt/netcdf4-intel
-		LAPACK_PATH = /usr
-	endif
-	# Not sure this is valid for LAPACK.
-	# ifeq ($(FC), gfortran)
-	# 	NCDF_PATH = /opt/netcdf4-gcc
-	# 	LAPACK_PATH = /usr
-	# endif
-endif
-
-
-ifeq ($(NODENAME), yellowstone)
-	# on yellowstone:
-    ifeq ($(LMOD_FAMILY_COMPILER),gnu)
-	    FC=gfortran
-	    NCDF_PATH=/glade/apps/opt/netcdf/4.3.0/gnu/4.8.2
-	# LIBNETCDF = $(LIB_NCAR) # when netcdf includes are setup by the yellowstone module system
-	# INCNETCDF = $(INC_NCAR)
-	# LIBNETCDF = -Wl,-rpath,$(NCDF_PATH)/lib -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf # if using a compiler for which netcdf includes are
-	# INCNETCDF = -I$(NCDF_PATH)/include # NOT setup correctly by the yellowstone module system
-    endif
-    ifeq ($(LMOD_FAMILY_COMPILER),intel)
-	    FC=ifort
-	    NCDF_PATH=/glade/apps/opt/netcdf/4.3.0/intel/default
-	    # LIBNETCDF = $(LIB_NCAR) #-L$(NCDF_PATH)/lib -lnetcdff -lnetcdf
-	    # INCNETCDF = $(INC_NCAR) #-I$(NCDF_PATH)/include # netcdf includes are setup by the yellowstone module system
-    endif
-    ifeq ($(LMOD_FAMILY_COMPILER),pgi)
-	    FC=pgf90
-	    NCDF_PATH=/glade/apps/opt/netcdf/4.3.0/pgi/default
-	    # LIBNETCDF = -rpath $(NCDF_PATH)/lib -L$(NCDF_PATH)/lib -lnetcdff -lnetcdf # if using a compiler for which netcdf includes are
-	    # INCNETCDF = -I$(NCDF_PATH)/include # NOT setup correctly by the yellowstone module system
-    endif
-endif
 ifeq ($(NODENAME), cheyenne)
 	# on cheyenne:
     ifeq ($(LMOD_FAMILY_COMPILER),gnu)
         FC=gfortran
+		COMPILER=gnu
         NCDF_PATH=/glade/u/apps/ch/opt/netcdf/4.4.1.1/gnu/6.2.0
         LAPACK_PATH=/glade/u/apps/ch/opt/netlib/3.7.0/gnu/4.8.5
     endif
 	ifeq ($(LMOD_FAMILY_COMPILER),intel)
 	    FC=ifort
+		COMPILER=intel
 	    NCDF_PATH=/glade/u/apps/ch/opt/netcdf/4.4.1.1/intel/17.0.1
 		LAPACK_PATH=/glade/u/apps/opt/intel/2017u1/compilers_and_libraries/linux/mkl/lib ${NCAR_LIBS_MKL} \#
 		# this is an ugly hack to get the NCAR_LIBS_MKL variable in, need to rethink a little
@@ -128,14 +109,14 @@ HOSTNAME := $(shell uname -n)
 #
 ###################################################################
 ###################################################################
-ifeq ($(FC), gfortran)
+ifeq ($(COMPILER), gnu)
 	COMP=-fopenmp -lgomp -O3 -ffree-line-length-none -ftree-vectorize -fimplicit-none -funroll-loops \
 		-fno-protect-parens -ffast-math #-flto #
 	LINK=-fopenmp -lgomp
 	PREPROC=-cpp
 	MODOUTPUT=-J $(BUILD)
 endif
-ifeq ($(FC), gfortran-6)
+ifeq ($(COMPILER), gnu)
 	COMP=-fopenmp -lgomp -O3 -ffree-line-length-none -ftree-vectorize -fimplicit-none -funroll-loops \
 		-fno-protect-parens -ffast-math #-flto #
 	LINK=-fopenmp -lgomp
@@ -143,14 +124,14 @@ ifeq ($(FC), gfortran-6)
 	MODOUTPUT=-J $(BUILD)
 endif
 # Intel fortran
-ifeq ($(FC), ifort)
+ifeq ($(COMPILER), intel)
 	COMP= -u -qopenmp -O3 -no-prec-div -xHost -ftz
 	LINK= -liomp5
 	PREPROC=-fpp
 	MODOUTPUT=-module $(BUILD)
 endif
 # PGI fortran
-ifeq ($(FC), pgf90)
+ifeq ($(COMPILER), pgi)
 	COMP=-O2 -mp -Mdclchk #-fast -O3 -mp -c -Mdclchk
 	LINK=-mp
 	PREPROC=-Mpreprocess
@@ -158,7 +139,7 @@ ifeq ($(FC), pgf90)
 endif
 
 # Cray fortran
-ifeq ($(FC), ftn)
+ifeq ($(COMPILER), cray)
 	COMP= -h omp vector2 -O2 -eI
 	LINK= -fopenmp
 	PREPROC= -eZ
@@ -173,19 +154,23 @@ endif
 ###################################################################
 ###################################################################
 ifeq ($(MODE), debugslow)
-	ifeq ($(FC), ifort)
+	ifeq ($(COMPILER), intel)
 		COMP= -debug -debug-parameters all -traceback -ftrapuv -g -fpe0 -u -check all -check noarg_temp_created -CB
 		LINK=
 	endif
-	ifeq ($(FC), gfortran)
+	ifeq ($(COMPILER), gnu)
 		COMP= -g -Wall -fbounds-check -fbacktrace -finit-real=nan -ffree-line-length-none
 		LINK=
 	endif
-	ifeq ($(FC), pgf90)
+	ifeq ($(COMPILER), gnu)
+		COMP= -g -Wall -fbounds-check -fbacktrace -finit-real=nan -ffree-line-length-none
+		LINK=
+	endif
+	ifeq ($(COMPILER), pgi)
 		COMP= -g -Mbounds -Mlist -Minfo  -Mdclchk
 		LINK=
 	endif
-	ifeq ($(FC), ftn)
+	ifeq ($(COMPILER), cray)
 		COMP=-h noomp -g -m 0 -R abcsp
 		LINK=-h noomp
 		PREPROC=-eZ
@@ -193,19 +178,19 @@ ifeq ($(MODE), debugslow)
 	endif
 endif
 ifeq ($(MODE), debug)
-	ifeq ($(FC), ifort)
+	ifeq ($(COMPILER), intel)
 		COMP= -debug -O1 -u -check all -check noarg_temp_created -traceback -fpe0 -fast-transcendentals -xhost
 		LINK=
 	endif
-	ifeq ($(FC), gfortran)
+	ifeq ($(COMPILER), gnu)
 		COMP= -O1 -g -fbounds-check -fbacktrace -finit-real=nan -ffree-line-length-none
 		LINK=
 	endif
-	ifeq ($(FC), pgf90)
+	ifeq ($(COMPILER), pgi)
 		COMP= -gopt -O1 -Mbounds -Mlist -Minfo  -Mdclchk
 		LINK=
 	endif
-	ifeq ($(FC), ftn)
+	ifeq ($(COMPILER), cray)
 		COMP=-O1 -h noomp -g
 		LINK=-h noomp
 		PREPROC=-eZ
@@ -213,20 +198,19 @@ ifeq ($(MODE), debug)
 	endif
 endif
 ifeq ($(MODE), debugompslow)
-	ifeq ($(FC), ifort)
-		# COMP= -qopenmp -liomp5 -debug -debug-parameters all -traceback -ftrapuv -g -fpe0 -c -u -check all -check noarg_temp_created -CB
+	ifeq ($(COMPILER), intel)
 		COMP= -qopenmp -debug -u	-fpe0 -traceback -check all -check noarg_temp_created -fp-stack-check
 		LINK= -liomp5
 	endif
-	ifeq ($(FC), gfortran)
+	ifeq ($(COMPILER), gnu)
 		COMP= -fopenmp -lgomp -g -fbounds-check -fbacktrace -finit-real=nan -ffree-line-length-none
 		LINK= -fopenmp -lgomp
 	endif
-	ifeq ($(FC), pgf90)
+	ifeq ($(COMPILER), pgi)
 		COMP= -g -Mbounds -Mlist -Minfo -mp -Mdclchk
 		LINK= -mp
 	endif
-	ifeq ($(FC), ftn)
+	ifeq ($(COMPILER), cray)
 		COMP= -g -m 0 -R abcsp
 		LINK=
 		PREPROC=-eZ
@@ -234,20 +218,19 @@ ifeq ($(MODE), debugompslow)
 	endif
 endif
 ifeq ($(MODE), debugomp)
-	ifeq ($(FC), ifort)
+	ifeq ($(COMPILER), intel)
 		COMP= -qopenmp -debug -O3 -u -traceback -fpe0 -ftz -fast-transcendentals  -xHost
-		#-check all -check noarg_temp_created -fpe0 -fast-transcendentals -xhost
 		LINK= -liomp5
 	endif
-	ifeq ($(FC), gfortran)
+	ifeq ($(COMPILER), gnu)
 		COMP= -fopenmp -lgomp -O1 -g -fbounds-check -fbacktrace -finit-real=nan -ffree-line-length-none
 		LINK= -fopenmp -lgomp
 	endif
-	ifeq ($(FC), pgf90)
+	ifeq ($(COMPILER), pgi)
 		COMP= -g -O1 -Mbounds -Mlist -Minfo -mp -Mdclchk
 		LINK= -mp
 	endif
-	ifeq ($(FC), ftn)
+	ifeq ($(COMPILER), cray)
 		COMP=-O1 -g
 		LINK=
 		PREPROC=-eZ
@@ -257,19 +240,24 @@ endif
 
 PROF=
 ifeq ($(MODE), profile)
-	ifeq ($(FC), ifort)
+	ifeq ($(COMPILER), intel)
 		PROF=-pg -debug inline-debug-info -shared-intel
 		COMP= -u -qopenmp -O3 -no-prec-div -xHost -ftz #because -fast includes -static
 		# not available in ifort <13 -align array64byte
 	endif
-	ifeq ($(FC), gfortran)
+	ifeq ($(COMPILER), gnu)
 		PROF=-g
 	endif
 endif
 ifeq ($(MODE), fast) # WARNING -ipo (included in -fast) takes forever for very little gain, and this may be unstable
-	ifeq ($(FC), ifort)
+	ifeq ($(COMPILER), intel)
 		COMP= -u -qopenmp -fast -ftz #-fast-transcendentals # not available in ifort <13: -align array64byte
 	endif
+	ifeq ($(COMPILER), gnu)
+		COMP=-O3 -finit-real=nan -ffree-line-length-none
+		LINK=
+	endif
+
 endif
 
 $(info $$NODENAME    = ${NODENAME})
@@ -380,7 +368,7 @@ model: gard
 
 all: gard test
 
-test: test_calendar test_sort test_qm test_config test_regression test_random
+test: test_calendar test_sort test_qm test_config test_random  #test_regression
 
 install: gard
 	cp gard $(INSTALL_DIR)/
@@ -397,8 +385,8 @@ gard: $(OBJS)
 	$(FC) -o $@ $^ $(LDFLAGS)
 
 # various unit tests
-test_regression : $(REGRESSION_TEST_OBJS)
-	$(FC) -o $@ $^ $(LDFLAGS)
+# test_regression : $(REGRESSION_TEST_OBJS)
+# 	$(FC) -o $@ $^ $(LDFLAGS)
 
 test_calendar : $(CAL_TEST_OBJS)
 	$(FC) -o $@ $^ $(LDFLAGS)
@@ -420,8 +408,10 @@ test_config : $(CONFIG_TEST_OBJS)
 # specify specific builds and dependencies.
 
 # unit tests
-$(BUILD)test_regression.o: tests/test_regression.f90 $(BUILD)regression_h.o
-	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
+
+# The regression unit test is currently broken because it relied on a non-public API
+# $(BUILD)test_regression.o: tests/test_regression.f90 $(BUILD)regression_h.o
+# 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
 $(BUILD)test_calendar.o: tests/test_calendar.f90 $(BUILD)time.o $(BUILD)model_constants.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
@@ -527,6 +517,7 @@ $(BUILD)output.o: io/output.f90 $(BUILD)output_h.o $(BUILD)io_routines_h.o
 $(BUILD)regression_h.o: downscaling_stats/regression_h.f90
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
+# Statical downscaling routines
 $(BUILD)regression.o: downscaling_stats/regression.f90 $(BUILD)regression_h.o
 	$(FC) $(FCFLAGS) -c $< $(MODOUTPUT) -o $@
 
