@@ -40,7 +40,7 @@ Regardless of the training data used, the data files should be netcdf with at le
     dimensions:
             lat = 71 ;
             lon = 107 ;
-            time = 365 ;
+            time = UNLIMITED ; // (365 currently)
     variables:
         float XLAT(lat, lon) ;
                 XLAT:description = "LATITUDE, SOUTH IS NEGATIVE" ;
@@ -53,7 +53,7 @@ Regardless of the training data used, the data files should be netcdf with at le
                 XTIME:description = "minutes since 1979-01-01 00:00:00" ;
                 XTIME:calendar = "standard" ;
         float PREC_TOT(time, lat, lon) ;
-                PREC_TOT:description = "ACCUMULATED CUMULUS PRECIPITATION OVER prec_acc_dt PERIODS OF TIME" ;
+                PREC_TOT:description = "Time step accumulated precipitation" ;
                 PREC_TOT:units = "mm" ;
         float U(time, lat, lon) ;
                 U:description = "eastward-wind component" ;
@@ -75,8 +75,4 @@ The predictor data to be used should be as similar as possible to the training d
 
 ### Example
 
-    GARD predictor data should look similar to the training data.
-
-    The variable names and grid spacing do not need to be the same, but they should overlap.
-
-    Even though variables names do not need to be the same, they should represent the same quantity.
+GARD predictor data should look similar to the training data. The variable names and grid spacing do not need to be the same, but they should overlap. Even though variables names do not need to be the same, they should represent the same quantity.
