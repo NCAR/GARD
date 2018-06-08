@@ -1106,8 +1106,8 @@ contains
                 endif
             endif
             ! limit to +/- ~20 sigma
-            where(abs(var%data(:,i,j)) >  MAX_ALLOWED_SIGMA) var%data(:,i,j) =  MAX_ALLOWED_SIGMA
-            where(abs(var%data(:,i,j)) < -MAX_ALLOWED_SIGMA) var%data(:,i,j) = -MAX_ALLOWED_SIGMA
+            where(var%data(:,i,j) >  MAX_ALLOWED_SIGMA) var%data(:,i,j) =  MAX_ALLOWED_SIGMA
+            where(var%data(:,i,j) < -MAX_ALLOWED_SIGMA) var%data(:,i,j) = -MAX_ALLOWED_SIGMA
 
             ! shift to a 0-based range so that variables such as precip have a testable non-value
             var%min_val(i,j) = minval(var%data(:,i,j))
