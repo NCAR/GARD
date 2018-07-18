@@ -387,11 +387,15 @@ contains
         real, dimension(:),     intent(inout) :: output
         integer :: k,x,y
         real    :: w
+        real, allocatable :: center(:)
+
+        allocate(center(size(output)))
 
         ! interpolation is performed using the bilinear weights computing in the geolut
         select case (method)
         case (kBILINEAR)
             output = 0
+            center = 0
             do k = 1,4
                 ! %x contains the x coordinate each elements
                 x = geolut%x(k,i,j)
@@ -399,8 +403,16 @@ contains
                 y = geolut%y(k,i,j)
                 ! %w contains the weight each elements
                 w = geolut%w(k,i,j)
-                output = output + input_data(:, x, y) * w
+
+                ! for triangulation we need to compute the center point
+                center = center + input_data(:, x, y)
+                ! and only use the edge points for the first two vertices
+                if (k < 3) then
+                    output = output + input_data(:, x, y) * w
+                endif
             end do
+            output = output + center/4 * geolut%w(3,i,j)
+
         case (kNEAREST)
             ! %x contains the nearest x coordinate
             x = geolut%x(1,i,j)
@@ -1106,8 +1118,8 @@ contains
                 endif
             endif
             ! limit to +/- ~20 sigma
-            where(abs(var%data(:,i,j)) >  MAX_ALLOWED_SIGMA) var%data(:,i,j) =  MAX_ALLOWED_SIGMA
-            where(abs(var%data(:,i,j)) < -MAX_ALLOWED_SIGMA) var%data(:,i,j) = -MAX_ALLOWED_SIGMA
+            where(var%data(:,i,j) >  MAX_ALLOWED_SIGMA) var%data(:,i,j) =  MAX_ALLOWED_SIGMA
+            where(var%data(:,i,j) < -MAX_ALLOWED_SIGMA) var%data(:,i,j) = -MAX_ALLOWED_SIGMA
 
             ! shift to a 0-based range so that variables such as precip have a testable non-value
             var%min_val(i,j) = minval(var%data(:,i,j))

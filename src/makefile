@@ -24,7 +24,10 @@
 ###################################################################
 
 ifeq ($(FC),)
-	FC=gfortran-6
+	FC=$F90
+	ifeq ($(F90),)
+		FC=gfortran-6
+	endif
 endif
 
 ifeq ($(COMPILER),)
@@ -84,13 +87,11 @@ ifeq ($(NODENAME), cheyenne)
     ifeq ($(LMOD_FAMILY_COMPILER),gnu)
         FC=gfortran
 		COMPILER=gnu
-        NCDF_PATH=/glade/u/apps/ch/opt/netcdf/4.4.1.1/gnu/6.2.0
         LAPACK_PATH=/glade/u/apps/ch/opt/netlib/3.7.0/gnu/4.8.5
     endif
 	ifeq ($(LMOD_FAMILY_COMPILER),intel)
 	    FC=ifort
 		COMPILER=intel
-	    NCDF_PATH=/glade/u/apps/ch/opt/netcdf/4.4.1.1/intel/17.0.1
 		LAPACK_PATH=/glade/u/apps/opt/intel/2017u1/compilers_and_libraries/linux/mkl/lib ${NCAR_LIBS_MKL} \#
 		# this is an ugly hack to get the NCAR_LIBS_MKL variable in, need to rethink a little
     endif
