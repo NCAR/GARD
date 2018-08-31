@@ -127,7 +127,7 @@ contains
             write(*,*) x1, y1
             write(*,*) x2, y2
             write(*,*) x3, y3
-            stop "Denominator in triangulation is broken"
+            ! stop "Denominator in triangulation is broken"
         endif
 
         ! This is the core of the algorithm.
@@ -148,7 +148,7 @@ contains
             write(*,*) x2, y2
             write(*,*) x3, y3
             write(*,*) w1, w2, w3
-            stop "Triangulation is broken"
+            ! stop "Triangulation is broken"
         endif
         w1=max(0.,w1); w2=max(0.,w2); w3=max(0.,w3);
 
@@ -789,7 +789,7 @@ contains
         write(*,*) lo%lon(pos%x, pos%y), lo%lat(pos%x, pos%y)
         write(*,*) pos
         write(*,*) nx, ny
-        stop "Failed to find point"
+        ! stop "Failed to find point"
         ! enforce that surround points fall within the bounds of the full domain
 
     end function find_surrounding
@@ -798,10 +798,11 @@ contains
     !!  Compute the geographic look up table from LOw resolution grid to HIgh resolution grid
     !!
     !!------------------------------------------------------------
-    subroutine geo_LUT(hi, lo)
+    subroutine geo_LUT(hi, lo, interpolation_method)
         implicit none
         class(interpolable_type), intent(in)    :: hi
         class(interpolable_type), intent(inout) :: lo
+        integer, intent(in) :: interpolation_method
         type(fourpos) :: xy
         type(position) :: curpos, lastpos
         integer :: nx, ny, i, j, k, lo_nx, lo_ny
@@ -844,19 +845,26 @@ contains
                     lo%geolut%y(:,i,j) = curpos%y
                     lo%geolut%w(:,i,j) = 0.25
                 else
-                    ! Found a good point, now find the other 3 of the surrounding 4 points
-                    xy = find_surrounding(lo, hi%lat(i,j), hi%lon(i,j), curpos, lo_nx, lo_ny)
-                    lo%geolut%x(:,i,j) = xy%x
-                    lo%geolut%y(:,i,j) = xy%y
-                    ! load those latitutes and longitudes into 1D arrays to calculate weights
-                    do k=1,4
-                        lat(k) = lo%lat(xy%x(k), xy%y(k))
-                        lon(k) = lo%lon(xy%x(k), xy%y(k))
-                    enddo
-                    ! and calculate the weights to apply to each gridcell
-                    lo%geolut%w(:,i,j) = tri_weights(hi%lat(i,j), lat, hi%lon(i,j), lon)
-                    ! lo%geolut%w(:,i,j) = idw_weights(hi%lat(i,j), lat, hi%lon(i,j), lon)
-                    ! lo%geolut%w(:,i,j) = bilin_weights(hi%lat(i,j), lat, hi%lon(i,j), lon)
+
+                    select case (interpolation_method)
+                    case (kBILINEAR)
+                        ! Found a good point, now find the other 3 of the surrounding 4 points
+                        xy = find_surrounding(lo, hi%lat(i,j), hi%lon(i,j), curpos, lo_nx, lo_ny)
+                        lo%geolut%x(:,i,j) = xy%x
+                        lo%geolut%y(:,i,j) = xy%y
+                        ! load those latitutes and longitudes into 1D arrays to calculate weights
+                        do k=1,4
+                            lat(k) = lo%lat(xy%x(k), xy%y(k))
+                            lon(k) = lo%lon(xy%x(k), xy%y(k))
+                        enddo
+                        ! and calculate the weights to apply to each gridcell
+                        lo%geolut%w(:,i,j) = tri_weights(hi%lat(i,j), lat, hi%lon(i,j), lon)
+                        ! lo%geolut%w(:,i,j) = idw_weights(hi%lat(i,j), lat, hi%lon(i,j), lon)
+                        ! lo%geolut%w(:,i,j) = bilin_weights(hi%lat(i,j), lat, hi%lon(i,j), lon)
+                    case (kNEAREST)
+                        lo%geolut%x(:,i,j) = curpos%x
+                        lo%geolut%y(:,i,j) = curpos%y
+                    end select
                 endif
 
             enddo
@@ -945,6 +953,8 @@ contains
                 enddo
                 localw = geolut%w(3,i,k)
                 fieldout(i,k) = fieldout(i,k) + local_center/4 * localw
+
+
                 ! do l=1,4
                 !     localx=geolut%x(l,i,k)
                 !     localy=geolut%y(l,i,k)
