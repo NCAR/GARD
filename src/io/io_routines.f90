@@ -593,7 +593,7 @@ contains
             call check( nf90_open(filename, NF90_WRITE, ncid) )
             call check( nf90_redef(ncid) )
         else
-            call check( nf90_create(filename, NF90_CLOBBER, ncid), filename )
+            call check( nf90_create(filename, IOR(NF90_CLOBBER, NF90_HDF5), ncid), filename )
 
         endif
 
@@ -662,7 +662,7 @@ contains
             call check( nf90_open(filename, NF90_WRITE, ncid) )
             call check( nf90_redef(ncid) )
         else
-            call check( nf90_create(filename, NF90_CLOBBER, ncid), filename)
+            call check( nf90_create(filename, IOR(NF90_CLOBBER, NF90_HDF5), ncid), filename)
 
         endif
 
@@ -726,7 +726,7 @@ contains
             call check( nf90_open(filename, NF90_WRITE, ncid) )
             call check( nf90_redef(ncid) )
         else
-            call check( nf90_create(filename, NF90_CLOBBER, ncid), filename)
+            call check( nf90_create(filename, IOR(NF90_CLOBBER, NF90_HDF5), ncid), filename)
 
         endif
 
@@ -796,7 +796,7 @@ contains
             call check( nf90_open(filename, NF90_WRITE, ncid) )
             call check( nf90_redef(ncid) )
         else
-            call check( nf90_create(filename, NF90_CLOBBER, ncid), filename )
+            call check( nf90_create(filename, IOR(NF90_CLOBBER, NF90_HDF5), ncid), filename )
 
         endif
 
@@ -860,7 +860,7 @@ contains
             call check( nf90_open(filename, NF90_WRITE, ncid) )
             call check( nf90_redef(ncid) )
         else
-            call check( nf90_create(filename, NF90_CLOBBER, ncid), filename )
+            call check( nf90_create(filename, IOR(NF90_CLOBBER, NF90_HDF5), ncid), filename )
 
         endif
 
@@ -928,7 +928,7 @@ contains
             call check( nf90_redef(ncid) )
 
         else
-            call check( nf90_create(filename, NF90_CLOBBER, ncid), filename )
+            call check( nf90_create(filename, IOR(NF90_CLOBBER, NF90_HDF5), ncid), filename )
 
         endif
         ! define the dimensions
@@ -977,7 +977,7 @@ contains
             call check( nf90_open(filename, NF90_WRITE, ncid) )
             call check( nf90_redef(ncid) )
         else
-            call check( nf90_create(filename, NF90_CLOBBER, ncid), filename )
+            call check( nf90_create(filename, IOR(NF90_CLOBBER, NF90_HDF5), ncid), filename )
 
         endif
         ! define the dimensions
@@ -1020,7 +1020,7 @@ contains
             call check( nf90_open(filename, NF90_WRITE, ncid) )
             call check( nf90_redef(ncid) )
         else
-            call check( nf90_create(filename, NF90_CLOBBER, ncid), filename )
+            call check( nf90_create(filename, IOR(NF90_CLOBBER, NF90_HDF5), ncid), filename )
         endif
 
         ! define the dimensions
