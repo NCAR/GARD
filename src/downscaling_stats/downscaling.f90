@@ -779,18 +779,25 @@ contains
         real,    dimension(:,:),allocatable :: threshold_atm
         real,    dimension(:),  allocatable :: threshold_obs, threshold_obs_unsmoothed
         logical, dimension(:),  allocatable :: threshold_packing
-        real,    dimension(:),  allocatable :: weights, packed_weights
+        real,    dimension(:),  allocatable :: weights, packed_weights, threshold_weights
         integer :: n_packed
+        integer :: date_to_skip
 
         n_analogs           = options%n_analogs
         analog_threshold    = options%analog_threshold
         nvars               = size(x)
 
+        if (present(cur_time)) then
+            date_to_skip = cur_time
+        else
+            date_to_skip = -1
+        endif
+
         call System_Clock(timeone)
         if (options%analog_weights) then
-            call find_analogs(analogs, x, atm, n_analogs, analog_threshold, weights, skip_analog=cur_time)
+            call find_analogs(analogs, x, atm, n_analogs, analog_threshold, weights, skip_analog=date_to_skip)
         else
-            call find_analogs(analogs, x, atm, n_analogs, analog_threshold, skip_analog=cur_time)
+            call find_analogs(analogs, x, atm, n_analogs, analog_threshold, skip_analog=date_to_skip)
         endif
 
         real_analogs = size(analogs)
@@ -844,11 +851,7 @@ contains
                     timers(2) = timers(2) + (timetwo-timeone)
                     ! revert to a pure analog approach.  By passing analogs and weights, it will not recompute which analogs to use
                     ! it will just compute the analog mean, pop, and error statistics
-                    if (present(cur_time)) then
-                        call downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, obs_in, options, logistic_threshold, timers, analogs, weights, cur_time)
-                    else
-                        call downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, obs_in, options, logistic_threshold, timers, analogs, weights)
-                    endif
+                    call downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, obs_in, options, logistic_threshold, timers, analogs, weights, date_to_skip)
                     coefficients(1:nvars) = output_coeff(1:nvars)
                     coefficients(1) = 1e20
                     call System_Clock(timeone)
@@ -858,11 +861,7 @@ contains
             elseif (n_packed > 0) then
                 call System_Clock(timetwo)
                 timers(2) = timers(2) + (timetwo-timeone)
-                if (present(cur_time)) then
-                    call downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, obs_in, options, logistic_threshold, timers, analogs, weights, cur_time)
-                else
-                    call downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, obs_in, options, logistic_threshold, timers, analogs, weights)
-                endif
+                call downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, obs_in, options, logistic_threshold, timers, analogs, weights, date_to_skip)
                 call System_Clock(timeone)
             else
                 ! note, for precip (and a "0" threshold), this could just be setting output, error, logistic, and coefficients to "0"
@@ -888,14 +887,18 @@ contains
                 if ((options%n_log_analogs /= real_analogs).and.(options%n_log_analogs > 0)) then
 
                     ! find the logistic analogs
-                    call find_analogs(analogs, x, atm, options%n_log_analogs, -1.0)
+                    if (options%analog_weights) then
+                        call find_analogs(analogs, x, atm, options%n_log_analogs, -1.0, threshold_weights, skip_analog=date_to_skip)
+                    else
+                        call find_analogs(analogs, x, atm, options%n_log_analogs, -1.0, skip_analog=date_to_skip)
+                    endif
                     call System_Clock(timetwo)
                     timers(9) = timers(9) + (timetwo-timeone)
 
                     call System_Clock(timeone)
                     if (options%analog_weights) then
                         ! compute the logistic as the weighted probability of threshold exceedance in the analog population
-                        logistic = compute_analog_exceedance(obs, analogs(1:options%n_log_analogs), logistic_threshold, weights)
+                        logistic = compute_analog_exceedance(obs, analogs(1:options%n_log_analogs), logistic_threshold, threshold_weights(1:options%n_log_analogs))
                     else
                         ! compute the logistic as the probability of threshold exceedance in the analog population
                         logistic = compute_analog_exceedance(obs, analogs(1:options%n_log_analogs), logistic_threshold)
@@ -957,6 +960,15 @@ contains
         real,    dimension(:), allocatable :: weights
         real        :: rand
         integer     :: j
+        integer     :: date_to_skip
+
+
+        if (present(cur_time)) then
+            date_to_skip = cur_time
+        else
+            date_to_skip = -1
+        endif
+
 
         n_analogs           = options%n_analogs
         analog_threshold    = options%analog_threshold
@@ -969,9 +981,9 @@ contains
                 allocate(analogs(n_analogs))
             endif
             if (options%analog_weights) then
-                call find_analogs(analogs, x, atm, n_analogs, analog_threshold, weights, skip_analog=cur_time)
+                call find_analogs(analogs, x, atm, n_analogs, analog_threshold, weights, skip_analog=date_to_skip)
             else
-                call find_analogs(analogs, x, atm, n_analogs, analog_threshold, skip_analog=cur_time)
+                call find_analogs(analogs, x, atm, n_analogs, analog_threshold, skip_analog=date_to_skip)
             endif
         else
             allocate(analogs(size(input_analogs)))
