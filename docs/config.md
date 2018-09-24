@@ -8,7 +8,7 @@ After building GARD, it is run on the command line following this syntax:
 
 where `downscale_options.txt` is a Fortran style namelist (see example in GARD/run).
 
-The namelist options are described in the tables below:
+The namelist options are described in the tables below and a [sample file](downscale_options.txt) is available online. :
 
 ## Parameters
 
