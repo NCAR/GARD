@@ -1172,6 +1172,7 @@ contains
         n_atm_train = training_atm%training_stop - training_atm%training_start
 
         if (n_obs_train /= n_atm_train) then
+            write(*,'(A,i6,A,i6)') "N_obs:",n_obs_train, "       N_atm:",n_atm_train
             stop "ERROR Inconsistent time periods in training atm and obs data"
         endif
 
