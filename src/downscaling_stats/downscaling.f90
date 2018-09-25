@@ -37,7 +37,7 @@ contains
             real, dimension(:),   allocatable :: observed_data
             integer :: nx, ny, ntimes, ntrain, nobs, noutput
             integer :: n_obs_variables, n_atm_variables
-            integer :: i, j, l, x, y, v
+            integer :: n, i, j, l, x, y, v
             integer :: Mem_Error
             integer :: Interp_Error
             ! real :: w
@@ -104,7 +104,6 @@ contains
             print*, nx, "   by",ny, " Grid Cells"
 
             total_number_of_gridcells = nx * ny
-            ! total_number_of_gridcells = nx * (ny-100)
 
             call System_Clock(timeone)
             call allocate_data(output, n_obs_variables, noutput, nx, ny, n_atm_variables, tr_size, options)
@@ -213,11 +212,13 @@ contains
             write(*,*) "Downscaling..."
             call System_Clock(master_time_post_init)
             !$omp end single
-            ! parallelization could be over x and y, (do n=1,ny*nx; j=n/nx; i=mod(n,nx)) and use schedule(dynamic)
-            !$omp do schedule(static, 1)
-            do j = 1, ny
-                do i = 1, nx
-
+            ! parallelization over x and y, (do n=1,ny*nx; j=n/nx; i=mod(n,nx))
+            !$omp do schedule(dynamic)
+            do n = 1,total_number_of_gridcells
+                ! do j = 1, ny
+                ! do i = 1, nx
+                i = mod((n-1), nx) + 1
+                j = (n-i) / nx + 1
                     if (training_obs%mask(i,j)) then
 
                         ! index 1 is the constant for the regression code... should be moved into regression code...?
@@ -355,7 +356,7 @@ contains
                         write(*,"(A,f5.1,A$)") char(13), current_completed_gridcells/real(total_number_of_gridcells)*100.0, " %"
                         !$omp end critical (print_lock)
                     endif
-                enddo
+                ! enddo
             enddo
             !$omp end do
             !$omp critical
@@ -365,12 +366,13 @@ contains
             call System_Clock(master_timetwo)
 
             master_timers(8) = master_timers(8) + (master_time_post_init - master_timeone) * num_threads
-            master_timers(5) = master_timers(5) + (master_timetwo-master_timeone) * num_threads + master_timers(7)
+            master_timers(5) = master_timers(5) + (master_timetwo - master_timeone) * num_threads + master_timers(7)
             print*, ""
             print*, "---------------------------------------------------"
             print*, "           Time profiling information "
             print*, "---------------------------------------------------"
-            print*, "Total Time : ",  nint(master_timers(5) / real(COUNT_RATE)),                     " s  (CPU time) "
+            print*, "Total Time : ",  nint(master_timers(5) / real(COUNT_RATE)),           " s  (CPU time) "
+            print*, "Total Time : ",  nint((master_timetwo - master_timeone) / real(COUNT_RATE)), " s (wall clock)"
             print*, "---------------------------------------------------"
             print*, "Allocation : ",  nint((100.d0 * master_timers(7) / num_threads)/master_timers(5)),  "%    "
             print*, "Data Init  : ",  nint((100.d0 * master_timers(8))/master_timers(5)),  "%    "
