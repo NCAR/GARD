@@ -39,6 +39,7 @@ contains
             integer :: n_obs_variables, n_atm_variables
             integer :: i, j, l, x, y, v
             integer :: Mem_Error
+            integer :: Interp_Error
             ! real :: w
             real :: current_threshold
             ! prediction period index variables
@@ -54,6 +55,15 @@ contains
             type(qm_correction_type) :: qq_normal
 
             integer :: total_number_of_gridcells, current_completed_gridcells
+
+            integer :: omp_get_max_threads, num_threads
+#if defined(_OPENMP)
+            num_threads = omp_get_max_threads()
+            write(*,*) "Using ", trim(str(num_threads)), " threads."
+#else
+            num_threads = 1
+#endif
+
 
             timers = 0
             master_timers = 0
@@ -205,8 +215,8 @@ contains
             !$omp end single
             ! parallelization could be over x and y, (do n=1,ny*nx; j=n/nx; i=mod(n,nx)) and use schedule(dynamic)
             !$omp do schedule(static, 1)
-            do j=1,ny!ny/2,ny/2+50
-                do i=1,nx!nx/2,nx/2+50
+            do j = 1, ny
+                do i = 1, nx
 
                     if (training_obs%mask(i,j)) then
 
@@ -219,10 +229,11 @@ contains
                         !!  Set up the data structures to downscale the current point
                         !!
                         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                        do v=1,n_atm_variables
+                        do v = 1, n_atm_variables
                             call System_Clock(timeone)
-                            call read_point( predictors%variables(v)%data,   pred_data(:,v+1),  i,j, predictors%geoLUT,   options%prediction%interpolation_method)
-                            call read_point( training_atm%variables(v)%data, train_data(:,v+1), i,j, training_atm%geoLUT, options%training%interpolation_method)
+
+                            call read_point( predictors%variables(v)%data,   pred_data(:,v+1),  i,j, predictors%geoLUT,   options%prediction%interpolation_method, Interp_Error)
+                            call read_point( training_atm%variables(v)%data, train_data(:,v+1), i,j, training_atm%geoLUT, options%training%interpolation_method, Interp_Error)
                             call System_Clock(timetwo)
                             timers(4) = timers(4) + (timetwo-timeone)
 
@@ -245,6 +256,8 @@ contains
                             call System_Clock(timetwo)
                             timers(6) = timers(6) + (timetwo-timeone)
                         enddo
+
+                        if (Interp_Error /= 0) cycle
 
                         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                         !!
@@ -350,16 +363,16 @@ contains
             !$omp end critical
             !$omp end parallel
             call System_Clock(master_timetwo)
-            ! should be * omp_num_threads(), but if no OPENMP, it won't work...
-            master_timers(8) = master_timers(8) + (master_time_post_init - master_timeone) * 16
-            master_timers(5) = master_timers(5) + (master_timetwo-master_timeone) * 16 + master_timers(7)
+
+            master_timers(8) = master_timers(8) + (master_time_post_init - master_timeone) * num_threads
+            master_timers(5) = master_timers(5) + (master_timetwo-master_timeone) * num_threads + master_timers(7)
             print*, ""
             print*, "---------------------------------------------------"
             print*, "           Time profiling information "
             print*, "---------------------------------------------------"
             print*, "Total Time : ",  nint(master_timers(5) / real(COUNT_RATE)),                     " s  (CPU time) "
             print*, "---------------------------------------------------"
-            print*, "Allocation : ",  nint((100.d0 * master_timers(7)/16.0)/master_timers(5)),  "%    "
+            print*, "Allocation : ",  nint((100.d0 * master_timers(7) / num_threads)/master_timers(5)),  "%    "
             print*, "Data Init  : ",  nint((100.d0 * master_timers(8))/master_timers(5)),  "%    "
             print*, "GeoInterp  : ",  nint((100.d0 * master_timers(4))/master_timers(5)),  "%    "
             print*, "Transform  : ",  nint((100.d0 * master_timers(6))/master_timers(5)),  "%    "
@@ -368,7 +381,7 @@ contains
             print*, "Log.Regres : ",  nint((100.d0 * master_timers(3))/master_timers(5)),  "%    "
             print*, "Log.Analog : ",  nint((100.d0 * master_timers(9))/master_timers(5)),  "%    "
             print*, "---------------------------------------------------"
-            print*, "Parallelization overhead (assumes the use of 16 processors)"
+            print*, "Parallelization overhead"
             print*, "Residual   : ",  100-nint((100.0 * &
                     (sum(master_timers(1:4))+master_timers(6)+sum(master_timers(8:9)))) &
                     / master_timers(5)),"%    "
@@ -377,12 +390,13 @@ contains
 
     end subroutine downscale
 
-    subroutine read_point(input_data, output, i, j, geolut, method)
+    subroutine read_point(input_data, output, i, j, geolut, method, err)
         implicit none
         real, dimension(:,:,:), intent(in) :: input_data
         integer,                intent(in) :: i, j
         type(geo_look_up_table),intent(in) :: geolut
         integer,                intent(in) :: method
+        integer, optional,      intent(out):: err
 
         real, dimension(:),     intent(inout) :: output
         integer :: k,x,y
@@ -390,12 +404,30 @@ contains
         real, allocatable :: center(:)
 
         allocate(center(size(output)))
+        if (present(err)) err = 0
 
         ! interpolation is performed using the bilinear weights computing in the geolut
         select case (method)
         case (kBILINEAR)
             output = 0
             center = 0
+
+            if (minval(geolut%w(:3,i,j)) < -1e-4) then
+                write(*,*) "ERROR: Point not located in bounding triangle"
+                write(*,*) i, j
+                write(*,*) "Triangle vertices"
+                write(*,*) geolut%x(1,i,j), geolut%y(1,i,j)
+                write(*,*) geolut%x(2,i,j), geolut%y(2,i,j)
+                write(*,*) geolut%x(3,i,j), geolut%y(3,i,j)
+                write(*,*) geolut%w(:3,i,j)
+                if (present(err)) then
+                    err = 1
+                else
+                    stop "Triangulation is broken"
+                endif
+            endif
+
+
             do k = 1,4
                 ! %x contains the x coordinate each elements
                 x = geolut%x(k,i,j)
