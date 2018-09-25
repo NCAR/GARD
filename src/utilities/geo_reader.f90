@@ -140,28 +140,39 @@ contains
 
         w3 = 1 - w1 - w2
 
-        if (minval([w1,w2,w3]) < -1e-4) then
-            write(*,*) "ERROR: Point not located in bounding triangle"
+        if (minval([w1, w2, w3]) < -1e-4) then
+            write(*,*) "WARNING: Point not located in bounding triangle."
+            write(*,*) "This may be acceptable if this point is masked or if the negative weights are near 0"
             write(*,*) xi, yi
             write(*,*) "Triangle vertices"
             write(*,*) x1, y1
             write(*,*) x2, y2
             write(*,*) x3, y3
+            write(*,*) "Broken weights:"
             write(*,*) w1, w2, w3
             ! stop "Triangulation is broken"
+
+            w1 = min(1.,max(0.,w1))
+            w2 = min(1.,max(0.,w2))
+            w3 = 1 - w1 - w2
+            w3 = min(1.,max(0.,w3))
+            write(*,*) "Updated weights:"
+            write(*,*) w1, w2, w3
         endif
-        w1=max(0.,w1); w2=max(0.,w2); w3=max(0.,w3);
 
         if (abs((w1+w2+w3)-1)>1e-4) then
             write(*,*) "Error, w1+w2+w3 != 1"
-            write(*,*) w1,w2,w3
+            write(*,*) w1+w2+w3
+            write(*,*) w1, w2, w3
             write(*,*) "Point"
             write(*,*) xi, yi
             write(*,*) "Triangle vertices"
             write(*,*) x1, y1
             write(*,*) x2, y2
             write(*,*) x3, y3
+            write(*,*) "Fixing"
         endif
+
         denom = 1.0 / (w1+w2+w3)
         w1 = w1 * denom
         w2 = w2 * denom
@@ -938,23 +949,37 @@ contains
         ny=size(fieldout,2)
         ! use the geographic lookup table generated earlier to
         ! compute a bilinear interpolation from lo to hi
-        do k=1,ny
-            do i=1,nx
-                fieldout(i,k)=0
+        do k = 1, ny
+            do i = 1, nx
+                fieldout(i,k) = 0
                 local_center = 0
-                do l=1,4
-                    localx=geolut%x(l,i,k)
-                    localy=geolut%y(l,i,k)
+
+                if (minval(geolut%w(:3,i,k)) < -1e-4) then
+                    write(*,*) "ERROR: Point not located in bounding triangle"
+                    write(*,*) i, k
+                    write(*,*) "Triangle vertices"
+                    write(*,*) geolut%x(1,i,k), geolut%y(1,i,k)
+                    write(*,*) geolut%x(2,i,k), geolut%y(2,i,k)
+                    write(*,*) geolut%x(3,i,k), geolut%y(3,i,k)
+                    write(*,*) geolut%w(:3,i,k)
+                    stop "Triangulation is broken"
+                endif
+
+
+                do l = 1, 4
+                    localx = geolut%x(l,i,k)
+                    localy = geolut%y(l,i,k)
                     local_center = local_center + fieldin(localx,localy)
                     if (l < 3) then
-                        localw=geolut%w(l,i,k)
+                        localw = geolut%w(l,i,k)
                         fieldout(i,k) = fieldout(i,k) + fieldin(localx,localy) * localw
                     endif
                 enddo
+
                 localw = geolut%w(3,i,k)
                 fieldout(i,k) = fieldout(i,k) + local_center/4 * localw
 
-
+                ! Traditional Bi-linear interpolation
                 ! do l=1,4
                 !     localx=geolut%x(l,i,k)
                 !     localy=geolut%y(l,i,k)
