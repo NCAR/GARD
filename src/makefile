@@ -200,7 +200,7 @@ ifeq ($(MODE), debug)
 endif
 ifeq ($(MODE), debugompslow)
 	ifeq ($(COMPILER), intel)
-		COMP= -qopenmp -debug -u	-fpe0 -traceback -check all -check noarg_temp_created -fp-stack-check
+		COMP= -qopenmp -debug -u -fpe0 -traceback -check all -check noarg_temp_created -fp-stack-check
 		LINK= -liomp5
 	endif
 	ifeq ($(COMPILER), gnu)
