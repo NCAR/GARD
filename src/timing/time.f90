@@ -112,7 +112,7 @@ contains
     !!  Set the calendar from a given name
     !!
     !!  Looks at a calendar_name string to identify matches to known calendars
-    !!  Known calendars are : 'gregorian', 'standard', '365-day', 'noleap', '360-day'
+    !!  Known calendars are : 'proleptic_gregorian', 'gregorian', 'standard', '365-day', 'noleap', '360-day'
     !!  But only the first 5 characters are required.
     !!
     !!  Sets the object calendar attribute.
@@ -126,6 +126,8 @@ contains
         this%calendar = NOCALENDAR
 
         select case (trim(calendar_name))
+            case("proleptic_gregorian")
+                this%calendar = GREGORIAN
             case("gregorian")
                 this%calendar = GREGORIAN
             case("standard")
@@ -143,6 +145,8 @@ contains
         if (this%calendar==NOCALENDAR) then
             ! in case there are odd characters tacked on the end (as seems to happen with some netcdf files?)
             select case (trim(calendar_name(1:5)))
+                case("prole")
+                    this%calendar = GREGORIAN
                 case("grego")
                     this%calendar = GREGORIAN
                 case("stand")
