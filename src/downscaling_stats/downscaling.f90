@@ -131,7 +131,7 @@ contains
             !$omp      private(timeone, timetwo, Mem_Error, qq_normal)                                  &
             !$omp firstprivate(nx,ny,n_atm_variables, n_obs_variables, noutput, ntrain, nobs, ntimes)   &
             !$omp firstprivate(p_start, p_end, t_tr_start, t_tr_stop, o_tr_start, o_tr_stop)            &
-            !$omp firstprivate(post_start, post_end, timers)
+            !$omp firstprivate(post_start, post_end, timers, tInterp_Error, pInterp_Error)
 
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             !!
@@ -213,7 +213,7 @@ contains
             call System_Clock(master_time_post_init)
             !$omp end single
             ! parallelization over x and y, (do n=1,ny*nx; j=n/nx; i=mod(n,nx))
-            !$omp do schedule(dynamic)
+            !$omp do schedule(guided)
             do n = 1,total_number_of_gridcells
                 i = mod((n-1), nx) + 1
                 j = (n-i) / nx + 1
@@ -260,6 +260,12 @@ contains
                     ! If there was an error interpolating either the predictors or the training data,
                     ! fill the output with FILL_VALUEs and skip this grid point ("cycle" the for loop)
                     if ((tInterp_Error + pInterp_Error) /= 0) then
+                        if (options%debug) then
+                            !$omp critical (print_lock)
+                            write(*,*) "ERROR: non-masked point not located in domain:", i,j, " masking output."
+                            !$omp end critical (print_lock)
+                        endif
+
                         do v=1,n_obs_variables
                             output%variables(v)%data(:,i,j) = kFILL_VALUE
                         enddo
@@ -422,9 +428,6 @@ contains
             center = 0
 
             if (minval(geolut%w(:3,i,j)) < -1e-4) then
-                !$omp critical (print_lock)
-                write(*,*) "ERROR: non-masked point not located in domain:", i,j
-                !$omp end critical (print_lock)
                 ! write(*,*) i, j
                 ! write(*,*) "Triangle vertices"
                 ! write(*,*) geolut%x(1,i,j), geolut%y(1,i,j)
