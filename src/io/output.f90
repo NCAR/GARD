@@ -76,12 +76,14 @@ contains
             call io_write(filename, trim(output%variables(i)%name), output_data, dimnames)
             call io_add_attribute(filename, "description", "predicted mean value", trim(output%variables(i)%name))
             call io_add_attribute(filename, "coordinates", "lon lat time", trim(output%variables(i)%name))
+            call io_add_attribute(filename, "missing_value", real(kFILL_VALUE), trim(output%variables(i)%name))
             call add_coordinates(filename, dimnames, output%lat, output%lon, times, output%times(1)%year_zero)
 
             filename = trim(options%output_file)//trim(output%variables(i)%name)//"_errors.nc"
             call shift_z_dim(output%variables(i)%errors, output_data)
             call io_write(filename, trim(output%variables(i)%name)//"_error", output_data, dimnames)
             call io_add_attribute(filename, "description", "predicted error term", trim(output%variables(i)%name)//"_error")
+            call io_add_attribute(filename, "missing_value", real(kFILL_VALUE), trim(output%variables(i)%name)//"_error")
             call add_coordinates(filename, dimnames, output%lat, output%lon, times, output%times(1)%year_zero)
 
             if (options%logistic_threshold/=kFILL_VALUE) then
@@ -90,7 +92,7 @@ contains
                 call io_write(filename, trim(output%variables(i)%name)//"_exceedence_probability", output_data, dimnames)
                 call io_add_attribute(filename, "description", "probability of threshold exceedence", trim(output%variables(i)%name)//"_exceedence_probability")
                 call io_add_attribute(filename, "threshold", options%logistic_threshold, trim(output%variables(i)%name)//"_exceedence_probability")
-
+                call io_add_attribute(filename, "missing_value", real(kFILL_VALUE), trim(output%variables(i)%name)//"_exceedence_probability")
                 call add_coordinates(filename, dimnames, output%lat, output%lon, times, output%times(1)%year_zero)
             endif
 
