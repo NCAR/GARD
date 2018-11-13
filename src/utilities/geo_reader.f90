@@ -110,9 +110,12 @@ contains
         real,intent(in)::yi,y(4),xi,x(4)
         real::x0,y0
         real, dimension(4) ::tri_weights
+        logical, save :: errors_printed=.False.
+        logical :: point_has_error
 
         real :: w1,w2,w3,denom
 
+        point_has_error = .False.
         x0 = sum(x)/4
         y0 = sum(y)/4
 
@@ -121,13 +124,22 @@ contains
 
         denom = ((y2-y3) * (x1-x3) + (x3-x2) * (y1-y3))
         if (denom==0) then
-            write(*,*) "ERROR: Triangular interpolation broken"
-            write(*,*) xi, yi
-            write(*,*) "Triangle vertices"
-            write(*,*) x1, y1
-            write(*,*) x2, y2
-            write(*,*) x3, y3
-            ! stop "Denominator in triangulation is broken"
+            point_has_error = .True.
+            if (.not.errors_printed) then
+                write(*,*) ""
+                write(*,*) "WARNING: Triangular interpolation broken"
+                write(*,*) "Probably attempting to interpolate obs point outside of valid model bounds."
+                write(*,*) "This may be acceptable if this point is masked or if the negative weights are near 0"
+                write(*,*) xi, yi
+                write(*,*) "Triangle vertices"
+                write(*,*) x1, y1
+                write(*,*) x2, y2
+                write(*,*) x3, y3
+                write(*,*) ""
+                ! stop "Denominator in triangulation is broken"
+                errors_printed=.True.
+            endif
+            denom = 1e-10
         endif
 
         ! This is the core of the algorithm.
@@ -141,36 +153,46 @@ contains
         w3 = 1 - w1 - w2
 
         if (minval([w1, w2, w3]) < -1e-4) then
-            write(*,*) "WARNING: Point not located in bounding triangle."
-            write(*,*) "This may be acceptable if this point is masked or if the negative weights are near 0"
-            write(*,*) xi, yi
-            write(*,*) "Triangle vertices"
-            write(*,*) x1, y1
-            write(*,*) x2, y2
-            write(*,*) x3, y3
-            write(*,*) "Broken weights:"
-            write(*,*) w1, w2, w3
+            point_has_error = .True.
+            if (.not.errors_printed) then
+                write(*,*) ""
+                write(*,*) "WARNING: Point not located in bounding triangle."
+                write(*,*) "Probably attempting to interpolate obs point outside of valid model bounds."
+                write(*,*) "This may be acceptable if this point is masked or if the negative weights are near 0"
+                write(*,*) xi, yi
+                write(*,*) "Triangle vertices"
+                write(*,*) x1, y1
+                write(*,*) x2, y2
+                write(*,*) x3, y3
+                write(*,*) "Broken weights:"
+                write(*,*) w1, w2, w3
+                write(*,*) ""
+                errors_printed=.True.
+            endif
             ! stop "Triangulation is broken"
 
             w1 = min(1.,max(0.,w1))
             w2 = min(1.,max(0.,w2))
             w3 = 1 - w1 - w2
             w3 = min(1.,max(0.,w3))
-            write(*,*) "Updated weights:"
-            write(*,*) w1, w2, w3
+            ! write(*,*) "Updated weights:"
+            ! write(*,*) w1, w2, w3
         endif
 
         if (abs((w1+w2+w3)-1)>1e-4) then
-            write(*,*) "Error, w1+w2+w3 != 1"
-            write(*,*) w1+w2+w3
-            write(*,*) w1, w2, w3
-            write(*,*) "Point"
-            write(*,*) xi, yi
-            write(*,*) "Triangle vertices"
-            write(*,*) x1, y1
-            write(*,*) x2, y2
-            write(*,*) x3, y3
-            write(*,*) "Fixing"
+            point_has_error = .True.
+            if (.not.errors_printed) then
+                write(*,*) "Error, w1+w2+w3 != 1"
+                write(*,*) w1+w2+w3
+                write(*,*) w1, w2, w3
+                write(*,*) "Point"
+                write(*,*) xi, yi
+                write(*,*) "Triangle vertices"
+                write(*,*) x1, y1
+                write(*,*) x2, y2
+                write(*,*) x3, y3
+                errors_printed = .True.
+            endif
         endif
 
         denom = 1.0 / (w1+w2+w3)
@@ -180,7 +202,11 @@ contains
 
         end associate
 
-        tri_weights = [w1, w2, w3, 0.0]
+        if (point_has_error) then
+            tri_weights = -1.0
+        else
+            tri_weights = [w1, w2, w3, 0.0]
+        endif
 
     end function tri_weights
 
@@ -755,6 +781,7 @@ contains
         integer,intent(in) :: nx,ny
         integer :: i, j
         integer :: xdeltas(4), ydeltas(4), dx, dy
+        logical, SAVE :: errors_printed = .False.
 
         xdeltas=[-1,-1,1,1]
         ydeltas=[-1,1,-1,1]
@@ -780,14 +807,17 @@ contains
 
                             if (.not.test_triangle(lat, lon, lo, find_surrounding, nx, ny)) then
 
-                                write(*,*) "ERROR finding triangle"
-                                write(*,*) find_surrounding%x
-                                write(*,*) find_surrounding%y
-                                write(*,*) lat, lon
-                                do j=1,4
-                                    write(*,*) lo%lat(find_surrounding%x(j), find_surrounding%y(j)), &
-                                               lo%lon(find_surrounding%x(j), find_surrounding%y(j))
-                                enddo
+                                if (.not.errors_printed) then
+                                    write(*,*) "WARNING finding triangle"
+                                    write(*,*) find_surrounding%x
+                                    write(*,*) find_surrounding%y
+                                    write(*,*) lat, lon
+                                    do j=1,4
+                                        write(*,*) lo%lat(find_surrounding%x(j), find_surrounding%y(j)), &
+                                                   lo%lon(find_surrounding%x(j), find_surrounding%y(j))
+                                    enddo
+                                    errors_printed = .True.
+                                endif
                             endif
                         endif
                     endif
@@ -796,10 +826,13 @@ contains
             endif
         enddo
 
-        write(*,*) "ERROR: Failed to find point", lon, lat, " in a quadrant near:"
-        write(*,*) lo%lon(pos%x, pos%y), lo%lat(pos%x, pos%y)
-        write(*,*) pos
-        write(*,*) nx, ny
+        if (.not.errors_printed) then
+            write(*,*) "WARNING: Failed to find point", lon, lat, " in a quadrant near:"
+            write(*,*) lo%lon(pos%x, pos%y), lo%lat(pos%x, pos%y)
+            write(*,*) pos
+            write(*,*) nx, ny
+            errors_printed = .True.
+        endif
         ! stop "Failed to find point"
         ! enforce that surround points fall within the bounds of the full domain
 

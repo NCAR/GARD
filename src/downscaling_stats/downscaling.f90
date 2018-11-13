@@ -39,7 +39,7 @@ contains
             integer :: n_obs_variables, n_atm_variables
             integer :: n, i, j, l, x, y, v
             integer :: Mem_Error
-            integer :: Interp_Error
+            integer :: tInterp_Error, pInterp_Error
             ! real :: w
             real :: current_threshold
             ! prediction period index variables
@@ -232,8 +232,8 @@ contains
                     do v = 1, n_atm_variables
                         call System_Clock(timeone)
 
-                        call read_point( predictors%variables(v)%data,   pred_data(:,v+1),  i,j, predictors%geoLUT,   options%prediction%interpolation_method, Interp_Error)
-                        call read_point( training_atm%variables(v)%data, train_data(:,v+1), i,j, training_atm%geoLUT, options%training%interpolation_method, Interp_Error)
+                        call read_point( predictors%variables(v)%data,   pred_data(:,v+1),  i,j, predictors%geoLUT,   options%prediction%interpolation_method, pInterp_Error)
+                        call read_point( training_atm%variables(v)%data, train_data(:,v+1), i,j, training_atm%geoLUT, options%training%interpolation_method, tInterp_Error)
                         call System_Clock(timetwo)
                         timers(4) = timers(4) + (timetwo-timeone)
 
@@ -257,7 +257,10 @@ contains
                         timers(6) = timers(6) + (timetwo-timeone)
                     enddo
 
-                    if (Interp_Error /= 0) cycle
+                    if ((tInterp_Error + pInterp_Error) /= 0) then
+                        output%variables(v)%data(:,i,j) = kFILL_VALUE
+                        cycle
+                    endif
 
                     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                     !!
@@ -414,13 +417,13 @@ contains
             center = 0
 
             if (minval(geolut%w(:3,i,j)) < -1e-4) then
-                write(*,*) "ERROR: Point not located in bounding triangle"
-                write(*,*) i, j
-                write(*,*) "Triangle vertices"
-                write(*,*) geolut%x(1,i,j), geolut%y(1,i,j)
-                write(*,*) geolut%x(2,i,j), geolut%y(2,i,j)
-                write(*,*) geolut%x(3,i,j), geolut%y(3,i,j)
-                write(*,*) geolut%w(:3,i,j)
+                write(*,*) "ERROR: non-masked point not located in domain:", i,j
+                ! write(*,*) i, j
+                ! write(*,*) "Triangle vertices"
+                ! write(*,*) geolut%x(1,i,j), geolut%y(1,i,j)
+                ! write(*,*) geolut%x(2,i,j), geolut%y(2,i,j)
+                ! write(*,*) geolut%x(3,i,j), geolut%y(3,i,j)
+                ! write(*,*) geolut%w(:3,i,j)
                 if (present(err)) then
                     err = 1
                 else
