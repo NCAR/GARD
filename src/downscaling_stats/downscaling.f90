@@ -257,8 +257,13 @@ contains
                         timers(6) = timers(6) + (timetwo-timeone)
                     enddo
 
+                    ! If there was an error interpolating either the predictors or the training data,
+                    ! fill the output with FILL_VALUEs and skip this grid point ("cycle" the for loop)
                     if ((tInterp_Error + pInterp_Error) /= 0) then
-                        output%variables(v)%data(:,i,j) = kFILL_VALUE
+                        do v=1,n_obs_variables
+                            output%variables(v)%data(:,i,j) = kFILL_VALUE
+                        enddo
+
                         cycle
                     endif
 
@@ -417,7 +422,9 @@ contains
             center = 0
 
             if (minval(geolut%w(:3,i,j)) < -1e-4) then
+                !$omp critical (print_lock)
                 write(*,*) "ERROR: non-masked point not located in domain:", i,j
+                !$omp end critical (print_lock)
                 ! write(*,*) i, j
                 ! write(*,*) "Triangle vertices"
                 ! write(*,*) geolut%x(1,i,j), geolut%y(1,i,j)
