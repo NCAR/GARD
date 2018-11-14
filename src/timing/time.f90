@@ -31,6 +31,7 @@ module time
         integer :: calendar
         integer, dimension(13) :: month_start
         integer :: year, month, day, hour, minute, second
+        character(len=MAXSTRINGLENGTH) :: calendar_name
 
         double precision :: current_date_time = 0
 
@@ -124,6 +125,7 @@ contains
         character(len=*), intent(in) :: calendar_name
 
         this%calendar = NOCALENDAR
+        this%calendar_name = calendar_name
 
         select case (trim(calendar_name))
             case("proleptic_gregorian")
