@@ -262,12 +262,13 @@ interface
     !! @param   data_out    6-dimensional array to write to the file
     !!
     !!------------------------------------------------------------
-    module subroutine io_write6d(filename,varname,data_out, dimnames)
+    module subroutine io_write6d(filename, varname, data_out, dimnames, fillvalue)
         implicit none
         ! This is the name of the file and variable we will write.
         character(len=*), intent(in) :: filename, varname
-        real,intent(in) :: data_out(:,:,:,:,:,:)
-        character(len=*), optional, dimension(6), intent(in) :: dimnames
+        real,             intent(in) :: data_out(:,:,:,:,:,:)
+        character(len=*), intent(in), optional, dimension(6) :: dimnames
+        real,             intent(in), optional :: fillvalue
 
     end subroutine io_write6d
 
@@ -283,12 +284,13 @@ interface
     !! @param   data_out    4-dimensional array to write to the file
     !!
     !!------------------------------------------------------------
-    module subroutine io_write4d(filename,varname,data_out, dimnames)
+    module subroutine io_write4d(filename, varname, data_out, dimnames, fillvalue)
         implicit none
         ! This is the name of the file and variable we will write.
         character(len=*), intent(in) :: filename, varname
-        real,intent(in) :: data_out(:,:,:,:)
-        character(len=*), optional, dimension(4), intent(in) :: dimnames
+        real,             intent(in) :: data_out(:,:,:,:)
+        character(len=*), intent(in), optional, dimension(4) :: dimnames
+        real,             intent(in), optional :: fillvalue
 
     end subroutine io_write4d
 
@@ -304,11 +306,12 @@ interface
     !! @param   data_out    4-dimensional array to write to the file
     !!
     !!------------------------------------------------------------
-    module subroutine io_write4di(filename,varname,data_out)
+    module subroutine io_write4di(filename, varname, data_out, fillvalue)
         implicit none
         ! This is the name of the file and variable we will write.
         character(len=*), intent(in) :: filename, varname
-        integer,intent(in) :: data_out(:,:,:,:)
+        integer,          intent(in) :: data_out(:,:,:,:)
+        integer,          intent(in), optional :: fillvalue
 
     end subroutine io_write4di
 
@@ -325,12 +328,13 @@ interface
     !! @param   data_out    3-dimensional array to write to the file
     !!
     !!------------------------------------------------------------
-    module subroutine io_write3d(filename,varname,data_out, dimnames)
+    module subroutine io_write3d(filename, varname, data_out, dimnames, fillvalue)
         implicit none
         ! This is the name of the file and variable we will write.
         character(len=*), intent(in) :: filename, varname
-        real,intent(in) :: data_out(:,:,:)
-        character(len=*), optional, dimension(3), intent(in) :: dimnames
+        real,             intent(in) :: data_out(:,:,:)
+        character(len=*), intent(in), optional, dimension(3) :: dimnames
+        real,             intent(in), optional :: fillvalue
 
     end subroutine io_write3d
 
@@ -346,11 +350,12 @@ interface
     !! @param   data_out    3-dimensional array to write to the file
     !!
     !!------------------------------------------------------------
-    module subroutine io_write3di(filename,varname,data_out)
+    module subroutine io_write3di(filename, varname, data_out, fillvalue)
         implicit none
         ! This is the name of the data file and variable we will read.
         character(len=*), intent(in) :: filename, varname
-        integer,intent(in) :: data_out(:,:,:)
+        integer,          intent(in) :: data_out(:,:,:)
+        integer,          intent(in), optional :: fillvalue
 
     end subroutine io_write3di
 
@@ -366,29 +371,32 @@ interface
     !! @param   data_out    2-dimensional array to write to the file
     !!
     !!------------------------------------------------------------
-    module subroutine io_write2d(filename,varname,data_out, dimnames)
+    module subroutine io_write2d(filename, varname, data_out, dimnames, fillvalue)
         implicit none
         ! This is the name of the data file and variable we will read.
         character(len=*), intent(in) :: filename, varname
-        real,intent(in) :: data_out(:,:)
-        character(len=*), optional, dimension(2), intent(in) :: dimnames
-        
+        real,             intent(in) :: data_out(:,:)
+        character(len=*), intent(in), optional, dimension(2) :: dimnames
+        real,             intent(in), optional :: fillvalue
+
     end subroutine io_write2d
 
-    module subroutine io_write1dd(filename,varname,data_out,dimname)
+    module subroutine io_write1dd(filename, varname, data_out,dimname, fillvalue)
         implicit none
         ! This is the name of the data file and variable we will read.
         character(len=*), intent(in) :: filename, varname
-        double precision,intent(in) :: data_out(:)
+        double precision, intent(in) :: data_out(:)
         character(len=*), intent(in), optional :: dimname
+        double precision, intent(in), optional :: fillvalue
 
     end subroutine io_write1dd
 
-    module subroutine io_write1d(filename,varname,data_out)
+    module subroutine io_write1d(filename, varname, data_out, fillvalue)
         implicit none
         ! This is the name of the data file and variable we will read.
         character(len=*), intent(in) :: filename, varname
-        real,intent(in) :: data_out(:)
+        real,             intent(in) :: data_out(:)
+        real,             intent(in), optional :: fillvalue
 
     end subroutine io_write1d
 

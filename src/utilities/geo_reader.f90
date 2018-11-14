@@ -110,9 +110,12 @@ contains
         real,intent(in)::yi,y(4),xi,x(4)
         real::x0,y0
         real, dimension(4) ::tri_weights
+        logical, save :: errors_printed=.False.
+        logical :: point_has_error
 
         real :: w1,w2,w3,denom
 
+        point_has_error = .False.
         x0 = sum(x)/4
         y0 = sum(y)/4
 
@@ -121,13 +124,22 @@ contains
 
         denom = ((y2-y3) * (x1-x3) + (x3-x2) * (y1-y3))
         if (denom==0) then
-            write(*,*) "ERROR: Triangular interpolation broken"
-            write(*,*) xi, yi
-            write(*,*) "Triangle vertices"
-            write(*,*) x1, y1
-            write(*,*) x2, y2
-            write(*,*) x3, y3
-            stop "Denominator in triangulation is broken"
+            point_has_error = .True.
+            if (.not.errors_printed) then
+                write(*,*) ""
+                write(*,*) "WARNING: Triangular interpolation broken"
+                write(*,*) "Probably attempting to interpolate obs point outside of valid model bounds."
+                write(*,*) "This may be acceptable if this point is masked or if the negative weights are near 0"
+                write(*,*) xi, yi
+                write(*,*) "Triangle vertices"
+                write(*,*) x1, y1
+                write(*,*) x2, y2
+                write(*,*) x3, y3
+                write(*,*) ""
+                ! stop "Denominator in triangulation is broken"
+                errors_printed=.True.
+            endif
+            denom = 1e-10
         endif
 
         ! This is the core of the algorithm.
@@ -140,28 +152,49 @@ contains
 
         w3 = 1 - w1 - w2
 
-        if (minval([w1,w2,w3]) < -1e-4) then
-            write(*,*) "ERROR: Point not located in bounding triangle"
-            write(*,*) xi, yi
-            write(*,*) "Triangle vertices"
-            write(*,*) x1, y1
-            write(*,*) x2, y2
-            write(*,*) x3, y3
-            write(*,*) w1, w2, w3
-            stop "Triangulation is broken"
+        if (minval([w1, w2, w3]) < -1e-4) then
+            point_has_error = .True.
+            if (.not.errors_printed) then
+                write(*,*) ""
+                write(*,*) "WARNING: Point not located in bounding triangle."
+                write(*,*) "Probably attempting to interpolate obs point outside of valid model bounds."
+                write(*,*) "This may be acceptable if this point is masked or if the negative weights are near 0"
+                write(*,*) xi, yi
+                write(*,*) "Triangle vertices"
+                write(*,*) x1, y1
+                write(*,*) x2, y2
+                write(*,*) x3, y3
+                write(*,*) "Broken weights:"
+                write(*,*) w1, w2, w3
+                write(*,*) ""
+                errors_printed=.True.
+            endif
+            ! stop "Triangulation is broken"
+
+            w1 = min(1.,max(0.,w1))
+            w2 = min(1.,max(0.,w2))
+            w3 = 1 - w1 - w2
+            w3 = min(1.,max(0.,w3))
+            ! write(*,*) "Updated weights:"
+            ! write(*,*) w1, w2, w3
         endif
-        w1=max(0.,w1); w2=max(0.,w2); w3=max(0.,w3);
 
         if (abs((w1+w2+w3)-1)>1e-4) then
-            write(*,*) "Error, w1+w2+w3 != 1"
-            write(*,*) w1,w2,w3
-            write(*,*) "Point"
-            write(*,*) xi, yi
-            write(*,*) "Triangle vertices"
-            write(*,*) x1, y1
-            write(*,*) x2, y2
-            write(*,*) x3, y3
+            point_has_error = .True.
+            if (.not.errors_printed) then
+                write(*,*) "Error, w1+w2+w3 != 1"
+                write(*,*) w1+w2+w3
+                write(*,*) w1, w2, w3
+                write(*,*) "Point"
+                write(*,*) xi, yi
+                write(*,*) "Triangle vertices"
+                write(*,*) x1, y1
+                write(*,*) x2, y2
+                write(*,*) x3, y3
+                errors_printed = .True.
+            endif
         endif
+
         denom = 1.0 / (w1+w2+w3)
         w1 = w1 * denom
         w2 = w2 * denom
@@ -169,7 +202,11 @@ contains
 
         end associate
 
-        tri_weights = [w1, w2, w3, 0.0]
+        if (point_has_error) then
+            tri_weights = -1.0
+        else
+            tri_weights = [w1, w2, w3, 0.0]
+        endif
 
     end function tri_weights
 
@@ -744,6 +781,7 @@ contains
         integer,intent(in) :: nx,ny
         integer :: i, j
         integer :: xdeltas(4), ydeltas(4), dx, dy
+        logical, SAVE :: errors_printed = .False.
 
         xdeltas=[-1,-1,1,1]
         ydeltas=[-1,1,-1,1]
@@ -769,14 +807,17 @@ contains
 
                             if (.not.test_triangle(lat, lon, lo, find_surrounding, nx, ny)) then
 
-                                write(*,*) "ERROR finding triangle"
-                                write(*,*) find_surrounding%x
-                                write(*,*) find_surrounding%y
-                                write(*,*) lat, lon
-                                do j=1,4
-                                    write(*,*) lo%lat(find_surrounding%x(j), find_surrounding%y(j)), &
-                                               lo%lon(find_surrounding%x(j), find_surrounding%y(j))
-                                enddo
+                                if (.not.errors_printed) then
+                                    write(*,*) "WARNING finding triangle"
+                                    write(*,*) find_surrounding%x
+                                    write(*,*) find_surrounding%y
+                                    write(*,*) lat, lon
+                                    do j=1,4
+                                        write(*,*) lo%lat(find_surrounding%x(j), find_surrounding%y(j)), &
+                                                   lo%lon(find_surrounding%x(j), find_surrounding%y(j))
+                                    enddo
+                                    errors_printed = .True.
+                                endif
                             endif
                         endif
                     endif
@@ -785,11 +826,14 @@ contains
             endif
         enddo
 
-        write(*,*) "ERROR: Failed to find point", lon, lat, " in a quadrant near:"
-        write(*,*) lo%lon(pos%x, pos%y), lo%lat(pos%x, pos%y)
-        write(*,*) pos
-        write(*,*) nx, ny
-        stop "Failed to find point"
+        if (.not.errors_printed) then
+            write(*,*) "WARNING: Failed to find point", lon, lat, " in a quadrant near:"
+            write(*,*) lo%lon(pos%x, pos%y), lo%lat(pos%x, pos%y)
+            write(*,*) pos
+            write(*,*) nx, ny
+            errors_printed = .True.
+        endif
+        ! stop "Failed to find point"
         ! enforce that surround points fall within the bounds of the full domain
 
     end function find_surrounding
@@ -798,10 +842,11 @@ contains
     !!  Compute the geographic look up table from LOw resolution grid to HIgh resolution grid
     !!
     !!------------------------------------------------------------
-    subroutine geo_LUT(hi, lo)
+    subroutine geo_LUT(hi, lo, interpolation_method)
         implicit none
         class(interpolable_type), intent(in)    :: hi
         class(interpolable_type), intent(inout) :: lo
+        integer, intent(in) :: interpolation_method
         type(fourpos) :: xy
         type(position) :: curpos, lastpos
         integer :: nx, ny, i, j, k, lo_nx, lo_ny
@@ -844,19 +889,26 @@ contains
                     lo%geolut%y(:,i,j) = curpos%y
                     lo%geolut%w(:,i,j) = 0.25
                 else
-                    ! Found a good point, now find the other 3 of the surrounding 4 points
-                    xy = find_surrounding(lo, hi%lat(i,j), hi%lon(i,j), curpos, lo_nx, lo_ny)
-                    lo%geolut%x(:,i,j) = xy%x
-                    lo%geolut%y(:,i,j) = xy%y
-                    ! load those latitutes and longitudes into 1D arrays to calculate weights
-                    do k=1,4
-                        lat(k) = lo%lat(xy%x(k), xy%y(k))
-                        lon(k) = lo%lon(xy%x(k), xy%y(k))
-                    enddo
-                    ! and calculate the weights to apply to each gridcell
-                    lo%geolut%w(:,i,j) = tri_weights(hi%lat(i,j), lat, hi%lon(i,j), lon)
-                    ! lo%geolut%w(:,i,j) = idw_weights(hi%lat(i,j), lat, hi%lon(i,j), lon)
-                    ! lo%geolut%w(:,i,j) = bilin_weights(hi%lat(i,j), lat, hi%lon(i,j), lon)
+
+                    select case (interpolation_method)
+                    case (kBILINEAR)
+                        ! Found a good point, now find the other 3 of the surrounding 4 points
+                        xy = find_surrounding(lo, hi%lat(i,j), hi%lon(i,j), curpos, lo_nx, lo_ny)
+                        lo%geolut%x(:,i,j) = xy%x
+                        lo%geolut%y(:,i,j) = xy%y
+                        ! load those latitutes and longitudes into 1D arrays to calculate weights
+                        do k=1,4
+                            lat(k) = lo%lat(xy%x(k), xy%y(k))
+                            lon(k) = lo%lon(xy%x(k), xy%y(k))
+                        enddo
+                        ! and calculate the weights to apply to each gridcell
+                        lo%geolut%w(:,i,j) = tri_weights(hi%lat(i,j), lat, hi%lon(i,j), lon)
+                        ! lo%geolut%w(:,i,j) = idw_weights(hi%lat(i,j), lat, hi%lon(i,j), lon)
+                        ! lo%geolut%w(:,i,j) = bilin_weights(hi%lat(i,j), lat, hi%lon(i,j), lon)
+                    case (kNEAREST)
+                        lo%geolut%x(:,i,j) = curpos%x
+                        lo%geolut%y(:,i,j) = curpos%y
+                    end select
                 endif
 
             enddo
@@ -930,21 +982,37 @@ contains
         ny=size(fieldout,2)
         ! use the geographic lookup table generated earlier to
         ! compute a bilinear interpolation from lo to hi
-        do k=1,ny
-            do i=1,nx
-                fieldout(i,k)=0
+        do k = 1, ny
+            do i = 1, nx
+                fieldout(i,k) = 0
                 local_center = 0
-                do l=1,4
-                    localx=geolut%x(l,i,k)
-                    localy=geolut%y(l,i,k)
+
+                if (minval(geolut%w(:3,i,k)) < -1e-4) then
+                    write(*,*) "ERROR: Point not located in bounding triangle"
+                    write(*,*) i, k
+                    write(*,*) "Triangle vertices"
+                    write(*,*) geolut%x(1,i,k), geolut%y(1,i,k)
+                    write(*,*) geolut%x(2,i,k), geolut%y(2,i,k)
+                    write(*,*) geolut%x(3,i,k), geolut%y(3,i,k)
+                    write(*,*) geolut%w(:3,i,k)
+                    stop "Triangulation is broken"
+                endif
+
+
+                do l = 1, 4
+                    localx = geolut%x(l,i,k)
+                    localy = geolut%y(l,i,k)
                     local_center = local_center + fieldin(localx,localy)
                     if (l < 3) then
-                        localw=geolut%w(l,i,k)
+                        localw = geolut%w(l,i,k)
                         fieldout(i,k) = fieldout(i,k) + fieldin(localx,localy) * localw
                     endif
                 enddo
+
                 localw = geolut%w(3,i,k)
                 fieldout(i,k) = fieldout(i,k) + local_center/4 * localw
+
+                ! Traditional Bi-linear interpolation
                 ! do l=1,4
                 !     localx=geolut%x(l,i,k)
                 !     localy=geolut%y(l,i,k)

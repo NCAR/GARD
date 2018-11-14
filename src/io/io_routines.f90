@@ -560,12 +560,13 @@ contains
     !! @param   data_out    6-dimensional array to write to the file
     !!
     !!------------------------------------------------------------
-    module subroutine io_write6d(filename,varname,data_out, dimnames)
+    module subroutine io_write6d(filename, varname, data_out, dimnames, fillvalue)
         implicit none
         ! This is the name of the file and variable we will write.
         character(len=*), intent(in) :: filename, varname
-        real,intent(in) :: data_out(:,:,:,:,:,:)
-        character(len=*), optional, dimension(6), intent(in) :: dimnames
+        real,             intent(in) :: data_out(:,:,:,:,:,:)
+        character(len=*), intent(in), optional, dimension(6) :: dimnames
+        real,             intent(in), optional :: fillvalue
 
         ! We are writing 6D data, a nx, nz, ny, na, nb, nc grid.
         integer :: nx,ny,nz, na,nb,nc
@@ -593,7 +594,7 @@ contains
             call check( nf90_open(filename, NF90_WRITE, ncid) )
             call check( nf90_redef(ncid) )
         else
-            call check( nf90_create(filename, NF90_CLOBBER, ncid), filename )
+            call check( nf90_create(filename, IOR(NF90_CLOBBER, NF90_HDF5), ncid), filename )
 
         endif
 
@@ -608,6 +609,10 @@ contains
 
         ! Create the variable returns varid of the data variable
         call check( nf90_def_var(ncid, varname, NF90_REAL, dimids, varid), trim(filename)//":"//trim(varname))
+        if (present(fillvalue)) then
+            call check(nf90_def_var_fill(ncid, varid, 0, fillvalue), "set_fill:"//trim(filename)//":"//trim(varname))
+        endif
+
         ! End define mode. This tells netCDF we are done defining metadata.
         call check( nf90_enddef(ncid) )
 
@@ -630,12 +635,13 @@ contains
     !! @param   data_out    4-dimensional array to write to the file
     !!
     !!------------------------------------------------------------
-    module subroutine io_write4d(filename,varname,data_out, dimnames)
+    module subroutine io_write4d(filename, varname, data_out, dimnames, fillvalue)
         implicit none
         ! This is the name of the file and variable we will write.
         character(len=*), intent(in) :: filename, varname
-        real,intent(in) :: data_out(:,:,:,:)
-        character(len=*), optional, dimension(4), intent(in) :: dimnames
+        real,             intent(in) :: data_out(:,:,:,:)
+        character(len=*), intent(in), optional, dimension(4) :: dimnames
+        real,             intent(in), optional :: fillvalue
 
         ! We are writing 4D data, assume a nx x nz x ny x nr grid.
         integer :: nx,ny,nz,nr
@@ -662,7 +668,7 @@ contains
             call check( nf90_open(filename, NF90_WRITE, ncid) )
             call check( nf90_redef(ncid) )
         else
-            call check( nf90_create(filename, NF90_CLOBBER, ncid), filename)
+            call check( nf90_create(filename, IOR(NF90_CLOBBER, NF90_HDF5), ncid), filename)
 
         endif
 
@@ -677,6 +683,10 @@ contains
 
         ! Create the variable returns varid of the data variable
         call check( nf90_def_var(ncid, varname, NF90_REAL, dimids, varid), trim(filename)//":"//trim(varname))
+        if (present(fillvalue)) then
+            call check(nf90_def_var_fill(ncid, varid, 0, fillvalue), "set_fill:"//trim(filename)//":"//trim(varname))
+        endif
+
         ! End define mode. This tells netCDF we are done defining metadata.
         call check( nf90_enddef(ncid) )
 
@@ -699,11 +709,12 @@ contains
     !! @param   data_out    4-dimensional array to write to the file
     !!
     !!------------------------------------------------------------
-    module subroutine io_write4di(filename,varname,data_out)
+    module subroutine io_write4di(filename, varname, data_out, fillvalue)
         implicit none
         ! This is the name of the file and variable we will write.
         character(len=*), intent(in) :: filename, varname
-        integer,intent(in) :: data_out(:,:,:,:)
+        integer,          intent(in) :: data_out(:,:,:,:)
+        integer,          intent(in), optional :: fillvalue
 
         ! We are writing 4D data, assume a nx x nz x ny x nr grid.
         integer :: nx,ny,nz,nr
@@ -726,7 +737,7 @@ contains
             call check( nf90_open(filename, NF90_WRITE, ncid) )
             call check( nf90_redef(ncid) )
         else
-            call check( nf90_create(filename, NF90_CLOBBER, ncid), filename)
+            call check( nf90_create(filename, IOR(NF90_CLOBBER, NF90_HDF5), ncid), filename)
 
         endif
 
@@ -742,6 +753,10 @@ contains
 
         ! Create the variable returns varid of the data variable
         call check( nf90_def_var(ncid, varname, NF90_INT, dimids, varid), trim(filename)//":"//trim(varname))
+        if (present(fillvalue)) then
+            call check(nf90_def_var_fill(ncid, varid, 0, fillvalue), "set_fill:"//trim(filename)//":"//trim(varname))
+        endif
+
         ! End define mode. This tells netCDF we are done defining metadata.
         call check( nf90_enddef(ncid) )
 
@@ -765,12 +780,13 @@ contains
     !! @param   data_out    3-dimensional array to write to the file
     !!
     !!------------------------------------------------------------
-    module subroutine io_write3d(filename,varname,data_out, dimnames)
+    module subroutine io_write3d(filename, varname, data_out, dimnames, fillvalue)
         implicit none
         ! This is the name of the file and variable we will write.
         character(len=*), intent(in) :: filename, varname
-        real,intent(in) :: data_out(:,:,:)
-        character(len=*), optional, dimension(3), intent(in) :: dimnames
+        real,             intent(in) :: data_out(:,:,:)
+        character(len=*), intent(in), optional, dimension(3) :: dimnames
+        real,             intent(in), optional :: fillvalue
 
         character(len=MAXDIMLENGTH), dimension(3) :: dims
         ! We are reading 2D data, a nx x ny grid.
@@ -796,7 +812,7 @@ contains
             call check( nf90_open(filename, NF90_WRITE, ncid) )
             call check( nf90_redef(ncid) )
         else
-            call check( nf90_create(filename, NF90_CLOBBER, ncid), filename )
+            call check( nf90_create(filename, IOR(NF90_CLOBBER, NF90_HDF5), ncid), filename )
 
         endif
 
@@ -812,6 +828,10 @@ contains
 
         ! Create the variable returns varid of the data variable
         call check( nf90_def_var(ncid, varname, NF90_REAL, dimids, varid), trim(filename)//":"//trim(varname))
+        if (present(fillvalue)) then
+            call check(nf90_def_var_fill(ncid, varid, 0, fillvalue), "set_fill:"//trim(filename)//":"//trim(varname))
+        endif
+
         ! End define mode. This tells netCDF we are done defining metadata.
         call check( nf90_enddef(ncid) )
 
@@ -834,11 +854,12 @@ contains
     !! @param   data_out    3-dimensional array to write to the file
     !!
     !!------------------------------------------------------------
-    module subroutine io_write3di(filename,varname,data_out)
+    module subroutine io_write3di(filename, varname, data_out, fillvalue)
         implicit none
         ! This is the name of the data file and variable we will read.
         character(len=*), intent(in) :: filename, varname
-        integer,intent(in) :: data_out(:,:,:)
+        integer,          intent(in) :: data_out(:,:,:)
+        integer,          intent(in), optional :: fillvalue
 
         ! We are reading 2D data, a nx x ny grid.
         integer :: nx,ny,nz
@@ -860,7 +881,7 @@ contains
             call check( nf90_open(filename, NF90_WRITE, ncid) )
             call check( nf90_redef(ncid) )
         else
-            call check( nf90_create(filename, NF90_CLOBBER, ncid), filename )
+            call check( nf90_create(filename, IOR(NF90_CLOBBER, NF90_HDF5), ncid), filename )
 
         endif
 
@@ -876,6 +897,10 @@ contains
 
         ! Create the variable returns varid of the data variable
         call check( nf90_def_var(ncid, varname, NF90_INT, dimids, varid), trim(filename)//":"//trim(varname) )
+        if (present(fillvalue)) then
+            call check(nf90_def_var_fill(ncid, varid, 0, fillvalue), "set_fill:"//trim(filename)//":"//trim(varname))
+        endif
+
         ! End define mode. This tells netCDF we are done defining metadata.
         call check( nf90_enddef(ncid) )
 
@@ -897,12 +922,13 @@ contains
     !! @param   data_out    2-dimensional array to write to the file
     !!
     !!------------------------------------------------------------
-    module subroutine io_write2d(filename,varname,data_out, dimnames)
+    module subroutine io_write2d(filename, varname, data_out, dimnames, fillvalue)
         implicit none
         ! This is the name of the data file and variable we will read.
         character(len=*), intent(in) :: filename, varname
-        real,intent(in) :: data_out(:,:)
-        character(len=*), optional, dimension(2), intent(in) :: dimnames
+        real,             intent(in) :: data_out(:,:)
+        character(len=*), intent(in), optional, dimension(2) :: dimnames
+        real,             intent(in), optional :: fillvalue
 
         ! We are reading 2D data, a nx x ny grid.
         integer :: nx,ny
@@ -928,7 +954,7 @@ contains
             call check( nf90_redef(ncid) )
 
         else
-            call check( nf90_create(filename, NF90_CLOBBER, ncid), filename )
+            call check( nf90_create(filename, IOR(NF90_CLOBBER, NF90_HDF5), ncid), filename )
 
         endif
         ! define the dimensions
@@ -942,6 +968,10 @@ contains
 
         ! Create the variable returns varid of the data variable
         call check( nf90_def_var(ncid, varname, NF90_REAL, dimids, varid), trim(filename)//":"//trim(varname))
+        if (present(fillvalue)) then
+            call check(nf90_def_var_fill(ncid, varid, 0, fillvalue), "set_fill:"//trim(filename)//":"//trim(varname))
+        endif
+
         ! End define mode. This tells netCDF we are done defining metadata.
         call check( nf90_enddef(ncid) )
 
@@ -951,14 +981,15 @@ contains
         call check( nf90_close(ncid) )
     end subroutine io_write2d
 
-    module subroutine io_write1dd(filename,varname,data_out, dimname)
+    module subroutine io_write1dd(filename, varname, data_out, dimname, fillvalue)
         implicit none
         ! This is the name of the data file and variable we will read.
         character(len=*), intent(in) :: filename, varname
-        double precision,intent(in) :: data_out(:)
+        double precision, intent(in) :: data_out(:)
         character(len=*), intent(in), optional :: dimname
-        character(len=MAXDIMLENGTH) :: dim
+        double precision, intent(in), optional :: fillvalue
 
+        character(len=MAXDIMLENGTH) :: dim
         ! We are reading 2D data, a nx x ny grid.
         integer :: nx
         integer, parameter :: ndims = 1
@@ -977,7 +1008,7 @@ contains
             call check( nf90_open(filename, NF90_WRITE, ncid) )
             call check( nf90_redef(ncid) )
         else
-            call check( nf90_create(filename, NF90_CLOBBER, ncid), filename )
+            call check( nf90_create(filename, IOR(NF90_CLOBBER, NF90_HDF5), ncid), filename )
 
         endif
         ! define the dimensions
@@ -989,6 +1020,10 @@ contains
 
         ! Create the variable returns varid of the data variable
         call check( nf90_def_var(ncid, varname, NF90_REAL, dimids, varid), trim(filename)//":"//trim(varname))
+        if (present(fillvalue)) then
+            call check(nf90_def_var_fill(ncid, varid, 0, fillvalue), "set_fill:"//trim(filename)//":"//trim(varname))
+        endif
+
         ! End define mode. This tells netCDF we are done defining metadata.
         call check( nf90_enddef(ncid) )
 
@@ -999,11 +1034,12 @@ contains
     end subroutine io_write1dd
 
 
-    module subroutine io_write1d(filename,varname,data_out)
+    module subroutine io_write1d(filename, varname, data_out, fillvalue)
         implicit none
         ! This is the name of the data file and variable we will read.
         character(len=*), intent(in) :: filename, varname
-        real,intent(in) :: data_out(:)
+        real,             intent(in) :: data_out(:)
+        real,             intent(in), optional :: fillvalue
 
         ! We are reading 2D data, a nx x ny grid.
         integer :: nx
@@ -1020,7 +1056,7 @@ contains
             call check( nf90_open(filename, NF90_WRITE, ncid) )
             call check( nf90_redef(ncid) )
         else
-            call check( nf90_create(filename, NF90_CLOBBER, ncid), filename )
+            call check( nf90_create(filename, IOR(NF90_CLOBBER, NF90_HDF5), ncid), filename )
         endif
 
         ! define the dimensions
@@ -1032,6 +1068,10 @@ contains
 
         ! Create the variable returns varid of the data variable
         call check( nf90_def_var(ncid, varname, NF90_REAL, dimids, varid), trim(filename)//":"//trim(varname))
+        if (present(fillvalue)) then
+            call check(nf90_def_var_fill(ncid, varid, 0, fillvalue), "set_fill:"//trim(filename)//":"//trim(varname))
+        endif
+
         ! End define mode. This tells netCDF we are done defining metadata.
         call check( nf90_enddef(ncid) )
 

@@ -9,17 +9,19 @@ submodule(output_mod) output_implementation
     end interface shift_z_dim
 contains
 
-    subroutine add_coordinates(filename, dimnames, lat, lon, times, year_zero)
+    subroutine add_coordinates(filename, dimnames, lat, lon, times, year_zero, calendar)
         implicit none
         character(len=MAXFILELENGTH),       intent(in) :: filename
         character(len=MAXFILELENGTH),       intent(in) :: dimnames(3)
         real,             dimension(:,:),   intent(in) :: lat, lon
         double precision, dimension(:),     intent(in) :: times
         integer,                            intent(in) :: year_zero
+        character(len=*),                   intent(in) :: calendar
 
         call io_write(filename, "time", times, dimnames(3))
         call io_add_attribute(filename, "standard_name", "time", "time")
-        call io_add_attribute(filename, "units", "days since Jan. 1, "//trim(str(year_zero)), "time")
+        call io_add_attribute(filename, "units", "days since "//trim(str(year_zero))//"-01-01", "time")
+        call io_add_attribute(filename, "calendar", trim(calendar), "time")
         call io_add_attribute(filename, "axis", "T", "time")
 
         call io_write(filename, "lat", lat, dimnames(1:2))
@@ -73,25 +75,24 @@ contains
 
             filename = trim(options%output_file)//trim(output%variables(i)%name)//".nc"
             call shift_z_dim(output%variables(i)%data, output_data)
-            call io_write(filename, trim(output%variables(i)%name), output_data, dimnames)
+            call io_write(filename, trim(output%variables(i)%name), output_data, dimnames, fillvalue=real(kFILL_VALUE))
             call io_add_attribute(filename, "description", "predicted mean value", trim(output%variables(i)%name))
             call io_add_attribute(filename, "coordinates", "lon lat time", trim(output%variables(i)%name))
-            call add_coordinates(filename, dimnames, output%lat, output%lon, times, output%times(1)%year_zero)
+            call add_coordinates(filename, dimnames, output%lat, output%lon, times, output%times(1)%year_zero, output%times(1)%calendar_name)
 
             filename = trim(options%output_file)//trim(output%variables(i)%name)//"_errors.nc"
             call shift_z_dim(output%variables(i)%errors, output_data)
-            call io_write(filename, trim(output%variables(i)%name)//"_error", output_data, dimnames)
+            call io_write(filename, trim(output%variables(i)%name)//"_error", output_data, dimnames, fillvalue=real(kFILL_VALUE))
             call io_add_attribute(filename, "description", "predicted error term", trim(output%variables(i)%name)//"_error")
-            call add_coordinates(filename, dimnames, output%lat, output%lon, times, output%times(1)%year_zero)
+            call add_coordinates(filename, dimnames, output%lat, output%lon, times, output%times(1)%year_zero, output%times(1)%calendar_name)
 
             if (options%logistic_threshold/=kFILL_VALUE) then
                 filename = trim(options%output_file)//trim(output%variables(i)%name)//"_logistic.nc"
                 call shift_z_dim(output%variables(i)%logistic, output_data)
-                call io_write(filename, trim(output%variables(i)%name)//"_exceedence_probability", output_data, dimnames)
+                call io_write(filename, trim(output%variables(i)%name)//"_exceedence_probability", output_data, dimnames, fillvalue=real(kFILL_VALUE))
                 call io_add_attribute(filename, "description", "probability of threshold exceedence", trim(output%variables(i)%name)//"_exceedence_probability")
                 call io_add_attribute(filename, "threshold", options%logistic_threshold, trim(output%variables(i)%name)//"_exceedence_probability")
-
-                call add_coordinates(filename, dimnames, output%lat, output%lon, times, output%times(1)%year_zero)
+                call add_coordinates(filename, dimnames, output%lat, output%lon, times, output%times(1)%year_zero, output%times(1)%calendar_name)
             endif
 
             if (options%debug) then

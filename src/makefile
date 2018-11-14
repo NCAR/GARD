@@ -200,7 +200,7 @@ ifeq ($(MODE), debug)
 endif
 ifeq ($(MODE), debugompslow)
 	ifeq ($(COMPILER), intel)
-		COMP= -qopenmp -debug -u	-fpe0 -traceback -check all -check noarg_temp_created -fp-stack-check
+		COMP= -qopenmp -debug -u -fpe0 -traceback -check all -check noarg_temp_created -fp-stack-check
 		LINK= -liomp5
 	endif
 	ifeq ($(COMPILER), gnu)
@@ -283,7 +283,7 @@ $(info $$MODE        = ${MODE})
 # export LD_RUN_PATH=$LD_RUN_PATH:/path/to/netcdf/libraries/lib:/path/to/fftw/libraries/lib
 
 # flags forall
-FCFLAGS = $(COMP) $(PROF) -I$(NCDF_PATH)/include -I$(BUILD) $(INC_NCAR)
+FCFLAGS = $(PREPROC) $(COMP) $(PROF) -I$(NCDF_PATH)/include -I$(BUILD) $(INC_NCAR)
 
 # libraries needed for linking
 LDFLAGS = $(LINK) $(PROF) -L$(NCDF_PATH)/lib -lnetcdf -lnetcdff $(LIB_NCAR) -L$(LAPACK_PATH)/lib -llapack #-lblas

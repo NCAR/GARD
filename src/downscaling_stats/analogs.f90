@@ -48,7 +48,7 @@ contains
             endif
             call top_n_analogs(distances, n, analogs)
         elseif (threshold>0) then
-            distances = distances / nvars ! normalize by the number of variables so the supplied threshold doesn't have to changes
+            distances = distances / nvars ! normalize by the number of variables so the supplied threshold doesn't have to change
             call analogs_from_threshold(distances, threshold, analogs)
         else
             !$omp critical (print_lock)
@@ -73,15 +73,17 @@ contains
         endif
 
         if (present(weights)) then
+            ! Set up the weights array as the inverse distance, allocating if necessary
             if (allocated(weights)) then
-                if (size(weights)/=size(analogs)) then
+                if (size(weights) /= size(analogs)) then
                     deallocate(weights)
                     allocate( weights(size(analogs)) )
                 endif
             else
                 allocate( weights(size(analogs)) )
             endif
-            do i=1,size(analogs)
+
+            do i = 1, size(analogs)
                 if (distances(analogs(i)) > (1e-2)) then
                     weights(i) = 1 / distances(analogs(i))
                 else
@@ -107,12 +109,12 @@ contains
         internal_mean = 0
 
         if (present(weights)) then
-            do i=1, n
+            do i = 1, n
                 internal_mean = internal_mean + input( analogs(i) ) * weights(i)
             enddo
             mean = internal_mean
         else
-            do i=1, n
+            do i = 1, n
                 internal_mean = internal_mean + input( analogs(i) )
             enddo
             mean = internal_mean / n
@@ -163,7 +165,13 @@ contains
 
         n = size(analogs)
         probability = 0
+
         if (present(weights)) then
+            if (n /= size(weights)) then
+                write(*,*) "N analogs = ",str(n), "   Number of weights = ", str(size(weights))
+                stop "Number of analogs does not equal the number of weights"
+            endif
+
             do i = 1, n
                 if (input(analogs(i)) > threshold) then
                     probability = probability + weights(i)
