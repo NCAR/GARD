@@ -75,7 +75,7 @@ contains
         if (present(weights)) then
             ! Set up the weights array as the inverse distance, allocating if necessary
             if (allocated(weights)) then
-                if ( size(weights) /= size(analogs)) then
+                if (size(weights) /= size(analogs)) then
                     deallocate(weights)
                     allocate( weights(size(analogs)) )
                 endif
