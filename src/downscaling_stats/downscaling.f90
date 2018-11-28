@@ -306,7 +306,7 @@ contains
                         endif
 
                         call transform_data(options%obs%input_Xforms(v), observed_data, 1, nobs, &
-                                            qm_io=qq_normal, current_threshold)
+                                            qm_io=qq_normal, threshold=current_threshold)
 
                         ! As tempting as it may be, associate statements are not threadsafe!!!
                         output%variables(v)%data(:,i,j) = downscale_point(                                         &
@@ -1070,22 +1070,22 @@ contains
             endif
         else
             if (options%analog_weights) then
-                output = compute_analog_mean(obs, analogs, weights)
+                output = compute_analog_mean(obs, analogs, mask=threshold_mask, weights=weights)
             else
-                output = compute_analog_mean(obs, analogs)
+                output = compute_analog_mean(obs, analogs, mask=threshold_mask)
             endif
 
             if (options%debug) then
                 do j=1,nvars
-                    output_coeff(j) = compute_analog_mean(atm(:, j), analogs)
+                    output_coeff(j) = compute_analog_mean(atm(:, j), analogs, mask=threshold_mask)
                 enddo
             endif
         endif
 
         if (options%analog_weights) then
-            error = compute_analog_error(obs_in, analogs, output, weights)
+            error = compute_analog_error(obs_in, analogs, output, mask=threshold_mask, weights=weights)
         else
-            error = compute_analog_error(obs_in, analogs, output)
+            error = compute_analog_error(obs_in, analogs, output, mask=threshold_mask)
         endif
 
         call System_Clock(timetwo)
