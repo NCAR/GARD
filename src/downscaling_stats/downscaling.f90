@@ -976,7 +976,7 @@ contains
                 endif
 
             else
-                logistic = compute_logistic_regression(x, regression_data, threshold_mask, coefficients)
+                logistic = compute_logistic_regression(x, regression_data, threshold_mask(analogs), coefficients)
 
                 ! Check for severe errors in the logistic regression.  This can happen with some input data.
                 ! If it fails, fall back to the analog exceedence calculation
