@@ -154,11 +154,10 @@ contains
     end function compute_analog_error
 
 
-    module function compute_analog_exceedance(input, analogs, threshold, weights) result(probability)
+    module function compute_analog_exceedance(input, analogs, weights) result(probability)
         implicit none
-        real,    intent(in), dimension(:) :: input
+        real,    intent(in), dimension(:) :: input ! mask 1 = exceeded, 0 = not exceeded
         integer, intent(in), dimension(:) :: analogs
-        real,    intent(in)               :: threshold
         real,    intent(in), dimension(:), optional :: weights
         real                              :: probability
         integer :: i, n
@@ -173,15 +172,13 @@ contains
             endif
 
             do i = 1, n
-                if (input(analogs(i)) > threshold) then
+                if (input(analogs(i)) > 0) then
                     probability = probability + weights(i)
                 endif
             end do
         else
             do i = 1, n
-                if (input(analogs(i)) > threshold) then
-                    probability = probability + 1
-                endif
+                probability = probability + input(analogs(i))
             end do
 
             probability = probability / n
