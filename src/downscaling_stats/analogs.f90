@@ -1,14 +1,13 @@
-module analog_mod
+submodule(analog_mod) analog_implementation
 
     use string, only: str
     implicit none
 
-    integer, parameter :: MIN_NUMBER_ANALOGS = 20
-
+    ! integer, parameter :: MIN_NUMBER_ANALOGS = 20
 
 contains
 
-    subroutine find_analogs(analogs, match, input, n, threshold, weights, skip_analog)
+    module subroutine find_analogs(analogs, match, input, n, threshold, weights, skip_analog)
         implicit none
         integer, intent(inout), dimension(:), allocatable  :: analogs
         real,    intent(in),    dimension(:)   :: match
@@ -49,7 +48,7 @@ contains
             endif
             call top_n_analogs(distances, n, analogs)
         elseif (threshold>0) then
-            distances = distances / nvars ! normalize by the number of variables so the supplied threshold doesn't have to changes
+            distances = distances / nvars ! normalize by the number of variables so the supplied threshold doesn't have to change
             call analogs_from_threshold(distances, threshold, analogs)
         else
             !$omp critical (print_lock)
@@ -74,15 +73,17 @@ contains
         endif
 
         if (present(weights)) then
+            ! Set up the weights array as the inverse distance, allocating if necessary
             if (allocated(weights)) then
-                if (size(weights)/=size(analogs)) then
+                if (size(weights) /= size(analogs)) then
                     deallocate(weights)
                     allocate( weights(size(analogs)) )
                 endif
             else
                 allocate( weights(size(analogs)) )
             endif
-            do i=1,size(analogs)
+
+            do i = 1, size(analogs)
                 if (distances(analogs(i)) > (1e-2)) then
                     weights(i) = 1 / distances(analogs(i))
                 else
@@ -94,87 +95,143 @@ contains
     end subroutine find_analogs
 
     ! compute the mean of input[analogs]
-    function compute_analog_mean(input, analogs, weights) result(mean)
+    module function compute_analog_mean(input, analogs, mask, weights) result(mean)
         implicit none
         real,    intent(in), dimension(:) :: input
         integer, intent(in), dimension(:) :: analogs
+        real,    intent(in), dimension(:), optional :: mask
         real,    intent(in), dimension(:), optional :: weights
         real                              :: mean
 
-        double precision :: internal_mean ! use double precision internally to avoid errors when summing many numbers
+        double precision :: internal_mean, denom ! use double precision internally to avoid errors when summing many numbers
         integer :: i, n
 
         n = size(analogs)
         internal_mean = 0
 
-        if (present(weights)) then
-            do i=1, n
-                internal_mean = internal_mean + input( analogs(i) ) * weights(i)
-            enddo
-            mean = internal_mean
-        else
-            do i=1, n
-                internal_mean = internal_mean + input( analogs(i) )
-            enddo
-            mean = internal_mean / n
-        endif
+        if (present(mask)) then
+            if (present(weights)) then
+                denom = sum(mask(analogs) * weights)
+                if (denom == 0) then
+                    mean = 0
+                    return
+                endif
 
+                do i = 1, n
+                    internal_mean = internal_mean + input( analogs(i) ) * weights(i) * mask(analogs(i))
+                enddo
+                mean = internal_mean / denom
+            else
+                denom = sum(mask(analogs))
+                if (denom == 0) then
+                    mean = 0
+                    return
+                endif
+
+                do i = 1, n
+                    internal_mean = internal_mean + (input(analogs(i)) * mask(analogs(i)))
+                enddo
+                mean = internal_mean / denom
+            endif
+        else
+            if (present(weights)) then
+                do i = 1, n
+                    internal_mean = internal_mean + input( analogs(i) ) * weights(i)
+                enddo
+                mean = internal_mean
+            else
+                do i = 1, n
+                    internal_mean = internal_mean + input( analogs(i) )
+                enddo
+                mean = internal_mean / n
+            endif
+        endif
 
     end function compute_analog_mean
 
     ! compute the root mean square error between input[analogs] and y_hat
-    function compute_analog_error(input, analogs, y_hat, weights) result(error)
+    module function compute_analog_error(input, analogs, y_hat, mask, weights) result(error)
         implicit none
         real,    intent(in), dimension(:) :: input
         integer, intent(in), dimension(:) :: analogs
         real,    intent(in)               :: y_hat
+        real,    intent(in), dimension(:), optional :: mask
         real,    intent(in), dimension(:), optional :: weights
         real                              :: error
 
-        double precision :: mean
+        double precision :: mean, denom
         integer :: i, n
 
         n = size(analogs)
         mean = 0
+        if (present(mask)) then
+            if (present(weights)) then
+                denom = sum(mask(analogs)*weights)
+                if (denom == 0) then
+                    error = 0
+                    return
+                endif
 
-        if (present(weights)) then
-            do i=1, n
-                mean = mean + (input( analogs(i) ) - y_hat)**2 * weights(i)
-            enddo
-            error = sqrt(mean)
+                do i=1, n
+                    mean = mean + ((input( analogs(i) ) - y_hat)**2) * weights(i) * mask(analogs(i))
+                enddo
+                error = sqrt(mean / denom)
+            else
+                denom = sum(mask(analogs))
+                if (denom == 0) then
+                    error = 0
+                    return
+                endif
+
+                do i=1,n
+                    mean = mean + ((input( analogs(i) ) - y_hat)**2) * mask(analogs(i))
+                enddo
+
+                error = sqrt(mean / denom)
+            endif
         else
-            do i=1,n
-                mean = mean + (input( analogs(i) ) - y_hat)**2
-            enddo
+            if (present(weights)) then
+                do i=1, n
+                    mean = mean + ((input( analogs(i) ) - y_hat)**2) * weights(i)
+                enddo
+                error = sqrt(mean)
+            else
+                do i=1,n
+                    mean = mean + (input( analogs(i) ) - y_hat)**2
+                enddo
 
-            error = sqrt(mean / n)
+                error = sqrt(mean / n)
+            endif
         endif
 
     end function compute_analog_error
 
 
-    function compute_analog_exceedance(input, analogs, threshold, weights) result(probability)
+    module function compute_analog_exceedance(input, analogs, weights) result(probability)
         implicit none
-        real,    intent(in), dimension(:) :: input
+        real,    intent(in), dimension(:) :: input ! this is a mask 1 = exceeded, 0 = not exceeded
         integer, intent(in), dimension(:) :: analogs
-        real,    intent(in)               :: threshold
         real,    intent(in), dimension(:), optional :: weights
         real                              :: probability
         integer :: i, n
 
         n = size(analogs)
         probability = 0
+
         if (present(weights)) then
+            if (n /= size(weights)) then
+                write(*,*) "N analogs = ",str(n), "   Number of weights = ", str(size(weights))
+                stop "Number of analogs does not equal the number of weights"
+            endif
+
             do i = 1, n
-                if (input(analogs(i)) > threshold) then
+                if (input(analogs(i)) > 0) then
                     probability = probability + weights(i)
                 endif
             end do
         else
             do i = 1, n
-                if (input(analogs(i)) > threshold) then
-                    probability = probability + 1
-                endif
+                probability = probability + input(analogs(i))
             end do
 
             probability = probability / n
@@ -317,4 +374,4 @@ contains
         end do
     end subroutine heapify
 
-end module analog_mod
+end submodule analog_implementation

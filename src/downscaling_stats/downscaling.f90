@@ -1,7 +1,6 @@
-module downscaling_mod
+submodule(downscaling_mod) downscaling_interface
 
     USE ieee_arithmetic
-    use data_structures
     use string,             only : str
     use regression_mod,     only : compute_regression, compute_logistic_regression
     use analog_mod,         only : find_analogs, compute_analog_mean, compute_analog_error, compute_analog_exceedance
@@ -12,6 +11,7 @@ module downscaling_mod
     use io_routines,        only : file_exists, io_read
     use random_mod,         only : box_muller_random
     use sampling_mod,       only : sample_distribution
+
     implicit none
 
     real,    parameter :: LOG_FILL_VALUE = 1e-30
@@ -25,7 +25,7 @@ module downscaling_mod
     logical :: post_process_errors = .False.
 
 contains
-    subroutine downscale(training_atm, training_obs, predictors, output, options)
+    module subroutine downscale(training_atm, training_obs, predictors, output, options)
             implicit none
             type(atm),    intent(inout) :: training_atm, predictors
             type(obs),    intent(inout) :: training_obs
@@ -35,10 +35,12 @@ contains
             type(qm_correction_type) :: qm
             real, dimension(:,:), allocatable :: train_data, pred_data
             real, dimension(:),   allocatable :: observed_data
+            real, dimension(:),   allocatable :: threshold_mask
             integer :: nx, ny, ntimes, ntrain, nobs, noutput
             integer :: n_obs_variables, n_atm_variables
-            integer :: i, j, l, x, y, v
+            integer :: n, i, j, l, x, y, v
             integer :: Mem_Error
+            integer :: tInterp_Error, pInterp_Error
             ! real :: w
             real :: current_threshold
             ! prediction period index variables
@@ -55,10 +57,20 @@ contains
 
             integer :: total_number_of_gridcells, current_completed_gridcells
 
+            integer :: omp_get_max_threads, num_threads
+#if defined(_OPENMP)
+            num_threads = omp_get_max_threads()
+            write(*,*) "Using ", trim(str(num_threads)), " threads."
+#else
+            num_threads = 1
+#endif
+
+
             timers = 0
             master_timers = 0
             current_completed_gridcells = 0
 
+            ! setup a large collection of normally distributed random numbers for use in e.g. normal quantile mapping
             call box_muller_random(random_sample)
 
             call System_Clock(timeone, COUNT_RATE)
@@ -94,7 +106,6 @@ contains
             print*, nx, "   by",ny, " Grid Cells"
 
             total_number_of_gridcells = nx * ny
-            ! total_number_of_gridcells = nx * (ny-100)
 
             call System_Clock(timeone)
             call allocate_data(output, n_obs_variables, noutput, nx, ny, n_atm_variables, tr_size, options)
@@ -108,6 +119,9 @@ contains
             do v=1,n_obs_variables
                 output%variables(v)%name = training_obs%variables(v)%name
             enddo
+            output%lat  = training_obs%lat
+            output%lon  = training_obs%lon
+            output%times= predictors%times(p_start:p_end)
 
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             !!                                       !!
@@ -115,11 +129,11 @@ contains
             !!                                       !!
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             !$omp parallel default(shared)                                                              &
-            !$omp      private(train_data, pred_data, observed_data, i, j, v)                           &
+            !$omp      private(train_data, pred_data, observed_data, threshold_mask, i, j, v)           &
             !$omp      private(timeone, timetwo, Mem_Error, qq_normal)                                  &
             !$omp firstprivate(nx,ny,n_atm_variables, n_obs_variables, noutput, ntrain, nobs, ntimes)   &
             !$omp firstprivate(p_start, p_end, t_tr_start, t_tr_stop, o_tr_start, o_tr_stop)            &
-            !$omp firstprivate(post_start, post_end, timers)
+            !$omp firstprivate(post_start, post_end, timers, tInterp_Error, pInterp_Error)
 
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             !!
@@ -135,6 +149,9 @@ contains
             allocate( observed_data (nobs), STAT = Mem_Error)
             if (Mem_Error /= 0) call memory_error(Mem_Error, "observed_data", [nobs])
 
+            allocate( threshold_mask (nobs), STAT = Mem_Error)
+            if (Mem_Error /= 0) call memory_error(Mem_Error, "threshold_mask", [nobs])
+
             train_data=0
             pred_data=0
             ! constant coefficient for regressions... might be better to keep this in the point downscaling section?
@@ -142,6 +159,7 @@ contains
             train_data(:,1) = 1
 
             observed_data = 0
+            threshold_mask = 0
 
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
             !!
@@ -200,163 +218,190 @@ contains
             write(*,*) "Downscaling..."
             call System_Clock(master_time_post_init)
             !$omp end single
-            ! parallelization could be over x and y, (do n=1,ny*nx; j=n/nx; i=mod(n,nx)) and use schedule(dynamic)
-            !$omp do schedule(static, 1)
-            do j=1,ny!ny/2,ny/2+50
-                do i=1,nx!nx/2,nx/2+50
+            ! parallelization over x and y, (do n=1,ny*nx; j=n/nx; i=mod(n,nx))
+            !$omp do schedule(guided)
+            do n = 1,total_number_of_gridcells
+                i = mod((n-1), nx) + 1
+                j = (n-i) / nx + 1
 
-                    if (training_obs%mask(i,j)) then
+                if (training_obs%mask(i,j)) then
 
-                        ! index 1 is the constant for the regression code... should be moved into regression code...?
+                    ! index 1 is the constant for the regression code... should be moved into regression code...?
+                    if (options%debug) then
+                        output%variables(1)%predictors(:,i,j,1) = pred_data( p_start   : p_end,    1)
+                    endif
+                    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                    !!
+                    !!  Set up the data structures to downscale the current point
+                    !!
+                    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                    do v = 1, n_atm_variables
+                        call System_Clock(timeone)
+
+                        call read_point( predictors%variables(v)%data,   pred_data(:,v+1),  i,j, predictors%geoLUT,   options%prediction%interpolation_method, pInterp_Error)
+                        call read_point( training_atm%variables(v)%data, train_data(:,v+1), i,j, training_atm%geoLUT, options%training%interpolation_method, tInterp_Error)
+                        call System_Clock(timetwo)
+                        timers(4) = timers(4) + (timetwo-timeone)
+
+                        ! perform (e.g.) quantile mapping
+                        call System_Clock(timeone)
+                        call transform_data(options%prediction%transformations(v),                                         &
+                                            pred_data(:,v+1),  predictors%transform_start,   predictors%transform_stop,    &
+                                            train_data(:,v+1), training_atm%transform_start, training_atm%transform_stop)
+
                         if (options%debug) then
-                            output%variables(1)%predictors(:,i,j,1) = pred_data( p_start   : p_end,    1)
+                            ! save these data for output debugging / algorithm development while we are at it.
+                            output%variables(1)%predictors(:,i,j,v+1) = pred_data( p_start   : p_end,    v+1)
+                            output%variables(1)%training  (:,i,j,v+1) = train_data(t_tr_start: t_tr_stop,v+1)
                         endif
-                        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                        !!
-                        !!  Set up the data structures to downscale the current point
-                        !!
-                        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                        do v=1,n_atm_variables
-                            call System_Clock(timeone)
-                            call read_point( predictors%variables(v)%data,   pred_data(:,v+1),  i,j, predictors%geoLUT,   options%prediction%interpolation_method)
-                            call read_point( training_atm%variables(v)%data, train_data(:,v+1), i,j, training_atm%geoLUT, options%training%interpolation_method)
-                            call System_Clock(timetwo)
-                            timers(4) = timers(4) + (timetwo-timeone)
+                        if ((options%pass_through .eqv. .False.).and.(options%prediction%transformations(v) == kQUANTILE_MAPPING)) then
+                            ! we should have normalized data, so nothing should be greater than ~MAX_SIGMA (or less than 0?)
+                            where(pred_data(:,v+1) >  MAX_ALLOWED_SIGMA)   pred_data(:,v+1) =  MAX_ALLOWED_SIGMA
+                            where(pred_data(:,v+1) < -MAX_ALLOWED_SIGMA)   pred_data(:,v+1) = -MAX_ALLOWED_SIGMA
+                        endif
+                        call System_Clock(timetwo)
+                        timers(6) = timers(6) + (timetwo-timeone)
+                    enddo
 
-                            ! perform (e.g.) quantile mapping
-                            call System_Clock(timeone)
-                            call transform_data(options%prediction%transformations(v),                                         &
-                                                pred_data(:,v+1),  predictors%transform_start,   predictors%transform_stop,    &
-                                                train_data(:,v+1), training_atm%transform_start, training_atm%transform_stop)
-
-                            if (options%debug) then
-                                ! save these data for output debugging / algorithm development while we are at it.
-                                output%variables(1)%predictors(:,i,j,v+1) = pred_data( p_start   : p_end,    v+1)
-                                output%variables(1)%training  (:,i,j,v+1) = train_data(t_tr_start: t_tr_stop,v+1)
-                            endif
-                            if ((options%pass_through .eqv. .False.).and.(options%prediction%transformations(v) == kQUANTILE_MAPPING)) then
-                                ! we should have normalized data, so nothing should be greater than ~MAX_SIGMA (or less than 0?)
-                                where(pred_data(:,v+1) >  MAX_ALLOWED_SIGMA)   pred_data(:,v+1) =  MAX_ALLOWED_SIGMA
-                                where(pred_data(:,v+1) < -MAX_ALLOWED_SIGMA)   pred_data(:,v+1) = -MAX_ALLOWED_SIGMA
-                            endif
-                            call System_Clock(timetwo)
-                            timers(6) = timers(6) + (timetwo-timeone)
-                        enddo
-
-                        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                        !!
-                        !!  Downscale all variables for this point
-                        !!
-                        !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                        do v=1,n_obs_variables
-
-                            if (options%debug) then
-                                !$omp critical (print_lock)
-                                write(*,*) ""
-                                write(*,*) "-----------------------------"
-                                write(*,*) "   Downscaling point: ",i,j
-                                write(*,*) "   For variable     : ", trim(training_obs%variables(v)%name)
-                                !$omp end critical (print_lock)
-                                output%variables(v)%obs(:,i,j) = training_obs%variables(v)%data(o_tr_start:o_tr_stop, i, j)
-                            endif
-                            current_threshold = output%variables(v)%logistic_threshold
-                            observed_data     = training_obs%variables(v)%data(:,i,j)
-
-                            call transform_data(options%obs%input_Xforms(v), observed_data, 1, nobs, &
-                                                qm_io=qq_normal, threshold=current_threshold)
-
-                            ! As tempting as it may be, associate statements are not threadsafe!!!
-                            output%variables(v)%data(:,i,j) = downscale_point(                                         &
-                                                    pred_data                       (   p_start : p_end,     :),       &
-                                                    train_data                      (t_tr_start : t_tr_stop, :),       &
-                                                    observed_data                   (o_tr_start : o_tr_stop),          &
-                                                    output%variables(v)%errors      (           :,           i, j),    &
-                                                    output%variables(v)%coefficients(           :,  :,       i, j),    &
-                                                    output%variables(v)%logistic    (           :,           i, j),    &
-                                                    current_threshold, options, timers, i,j)
-
-
-                            if (post_process_errors) then
-                                if (current_threshold /= kFILL_VALUE) then
-                                    call sample_distribution(output%variables(v)%data(:,i,j),                            &
-                                                             output%variables(v)%data(:,i,j),                            &
-                                                             output%variables(v)%errors(:,i, j),                         &
-                                                             exceedence_probability=output%variables(v)%logistic(:,i,j), &
-                                                             threshold = current_threshold)
-                                else
-                                    call sample_distribution(output%variables(v)%data(:,i,j),                            &
-                                                             output%variables(v)%data(:,i,j),                            &
-                                                             output%variables(v)%errors(:,i, j))
-                                endif
-                            endif
-
-                            ! if the input data were transformed with e.g. a cube root or log transform, then reverse that transformation for the output
-                            call System_Clock(timeone)
-                            call transform_data(options%obs%input_Xforms(v), output%variables(v)%data(:,i,j), 1, noutput, &
-                                                reverse=.True., qm_io=qq_normal,                                          &
-                                                threshold = current_threshold,                                            &
-                                                threshold_delta = output%variables(v)%logistic_threshold - current_threshold)
-                            call System_Clock(timetwo)
-                            timers(6) = timers(6) + (timetwo-timeone)
-
-                            call transform_data(options%post_correction_Xform(v), &
-                                                output      %variables(v)%data(:,i,j), post_start, post_end, &
-                                                training_obs%variables(v)%data(:,i,j),      1    , nobs,     &
-                                                threshold=output%variables(v)%logistic_threshold)
-
-                        enddo
-
-                    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                    !!
-                    !!  Else This is a masked point in the observations
-                    !!
-                    !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                    else
+                    ! If there was an error interpolating either the predictors or the training data,
+                    ! fill the output with FILL_VALUEs and skip this grid point ("cycle" the for loop)
+                    if ((tInterp_Error + pInterp_Error) /= 0) then
                         if (options%debug) then
                             !$omp critical (print_lock)
-                            write(*,*) ""
-                            write(*,*) "-----------------------------"
-                            write(*,*) "   Masked point: ",i,j
-                            write(*,*) "-----------------------------"
+                            write(*,*) "ERROR: non-masked point not located in domain:", i,j, " masking output."
                             !$omp end critical (print_lock)
                         endif
 
-                        ! store a fill value in the output
                         do v=1,n_obs_variables
                             output%variables(v)%data(:,i,j) = kFILL_VALUE
                         enddo
 
+                        cycle
                     endif
 
                     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
                     !!
-                    !!  Print a status updates
+                    !!  Downscale all variables for this point
                     !!
                     !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-                    if (options%interactive) then
+                    do v=1,n_obs_variables
+
+                        if (options%debug) then
+                            !$omp critical (print_lock)
+                            write(*,*) ""
+                            write(*,*) "-----------------------------"
+                            write(*,*) "   Downscaling point: ",i,j
+                            write(*,*) "   For variable     : ", trim(training_obs%variables(v)%name)
+                            !$omp end critical (print_lock)
+                            output%variables(v)%obs(:,i,j) = training_obs%variables(v)%data(o_tr_start:o_tr_stop, i, j)
+                        endif
+                        current_threshold = output%variables(v)%logistic_threshold
+                        observed_data     = training_obs%variables(v)%data(:,i,j)
+
+                        if (current_threshold == kFILL_VALUE) then
+                            threshold_mask = 1
+                        else
+                            threshold_mask = 0
+                            where(observed_data > current_threshold) threshold_mask = 1
+                        endif
+
+                        call transform_data(options%obs%input_Xforms(v), observed_data, 1, nobs, &
+                                            qm_io=qq_normal, threshold=current_threshold)
+
+                        ! As tempting as it may be, associate statements are not threadsafe!!!
+                        output%variables(v)%data(:,i,j) = downscale_point(                                         &
+                                                pred_data                       (   p_start : p_end,     :),       &
+                                                train_data                      (t_tr_start : t_tr_stop, :),       &
+                                                observed_data                   (o_tr_start : o_tr_stop),          &
+                                                output%variables(v)%errors      (           :,           i, j),    &
+                                                output%variables(v)%coefficients(           :,  :,       i, j),    &
+                                                output%variables(v)%logistic    (           :,           i, j),    &
+                                                threshold_mask                  (o_tr_start : o_tr_stop),          &
+                                                options, timers, i,j)
+
+
+                        if (post_process_errors) then
+                            if (current_threshold /= kFILL_VALUE) then
+                                call sample_distribution(output%variables(v)%data(:,i,j),                            &
+                                                         output%variables(v)%data(:,i,j),                            &
+                                                         output%variables(v)%errors(:,i, j),                         &
+                                                         exceedence_probability=output%variables(v)%logistic(:,i,j), &
+                                                         threshold = current_threshold)
+                            else
+                                call sample_distribution(output%variables(v)%data(:,i,j),                            &
+                                                         output%variables(v)%data(:,i,j),                            &
+                                                         output%variables(v)%errors(:,i, j))
+                            endif
+                        endif
+
+                        ! if the input data were transformed with e.g. a cube root or log transform, then reverse that transformation for the output
+                        call System_Clock(timeone)
+                        call transform_data(options%obs%input_Xforms(v), output%variables(v)%data(:,i,j), 1, noutput, &
+                                            reverse=.True., qm_io=qq_normal,                                          &
+                                            threshold = current_threshold,                                            &
+                                            threshold_delta = output%variables(v)%logistic_threshold - current_threshold)
+                        call System_Clock(timetwo)
+                        timers(6) = timers(6) + (timetwo-timeone)
+
+                        call transform_data(options%post_correction_Xform(v), &
+                                            output      %variables(v)%data(:,i,j), post_start, post_end, &
+                                            training_obs%variables(v)%data(:,i,j),      1    , nobs,     &
+                                            threshold=output%variables(v)%logistic_threshold)
+
+                    enddo
+
+                !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                !!
+                !!  Else This is a masked point in the observations
+                !!
+                !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                else
+                    if (options%debug) then
                         !$omp critical (print_lock)
-                        current_completed_gridcells = current_completed_gridcells + 1
-                        write(*,"(A,f5.1,A$)") char(13), current_completed_gridcells/real(total_number_of_gridcells)*100.0, " %"
+                        write(*,*) ""
+                        write(*,*) "-----------------------------"
+                        write(*,*) "   Masked point: ",i,j
+                        write(*,*) "-----------------------------"
                         !$omp end critical (print_lock)
                     endif
-                enddo
-            enddo
+
+                    ! store a fill value in the output
+                    do v=1,n_obs_variables
+                        output%variables(v)%data(:,i,j) = kFILL_VALUE
+                    enddo
+
+                endif
+
+                !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                !!
+                !!  Print a status updates
+                !!
+                !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+                if (options%interactive) then
+                    !$omp critical (print_lock)
+                    current_completed_gridcells = current_completed_gridcells + 1
+                    write(*,"(A,f5.1,A$)") char(13), current_completed_gridcells/real(total_number_of_gridcells)*100.0, " %"
+                    !$omp end critical (print_lock)
+                endif
+            enddo ! end spatial loop
             !$omp end do
+
             !$omp critical
             master_timers = timers + master_timers
             !$omp end critical
             !$omp end parallel
             call System_Clock(master_timetwo)
-            ! should be * omp_num_threads(), but if no OPENMP, it won't work...
-            master_timers(8) = master_timers(8) + (master_time_post_init - master_timeone) * 16
-            master_timers(5) = master_timers(5) + (master_timetwo-master_timeone) * 16 + master_timers(7)
+
+            master_timers(8) = master_timers(8) + (master_time_post_init - master_timeone) * num_threads
+            master_timers(5) = master_timers(5) + (master_timetwo - master_timeone) * num_threads + master_timers(7)
             print*, ""
             print*, "---------------------------------------------------"
             print*, "           Time profiling information "
             print*, "---------------------------------------------------"
-            print*, "Total Time : ",  nint(master_timers(5) / real(COUNT_RATE)),                     " s  (CPU time) "
+            print*, "Total Time : ",  nint(master_timers(5) / real(COUNT_RATE)),           " s  (CPU time) "
+            print*, "Total Time : ",  nint((master_timetwo - master_timeone) / real(COUNT_RATE)), " s (wall clock)"
             print*, "---------------------------------------------------"
-            print*, "Allocation : ",  nint((100.d0 * master_timers(7)/16.0)/master_timers(5)),  "%    "
+            print*, "Allocation : ",  nint((100.d0 * master_timers(7) / num_threads)/master_timers(5)),  "%    "
             print*, "Data Init  : ",  nint((100.d0 * master_timers(8))/master_timers(5)),  "%    "
             print*, "GeoInterp  : ",  nint((100.d0 * master_timers(4))/master_timers(5)),  "%    "
             print*, "Transform  : ",  nint((100.d0 * master_timers(6))/master_timers(5)),  "%    "
@@ -365,7 +410,7 @@ contains
             print*, "Log.Regres : ",  nint((100.d0 * master_timers(3))/master_timers(5)),  "%    "
             print*, "Log.Analog : ",  nint((100.d0 * master_timers(9))/master_timers(5)),  "%    "
             print*, "---------------------------------------------------"
-            print*, "Parallelization overhead (assumes the use of 16 processors)"
+            print*, "Parallelization overhead"
             print*, "Residual   : ",  100-nint((100.0 * &
                     (sum(master_timers(1:4))+master_timers(6)+sum(master_timers(8:9)))) &
                     / master_timers(5)),"%    "
@@ -374,21 +419,43 @@ contains
 
     end subroutine downscale
 
-    subroutine read_point(input_data, output, i, j, geolut, method)
+    subroutine read_point(input_data, output, i, j, geolut, method, err)
         implicit none
         real, dimension(:,:,:), intent(in) :: input_data
         integer,                intent(in) :: i, j
         type(geo_look_up_table),intent(in) :: geolut
         integer,                intent(in) :: method
+        integer, optional,      intent(out):: err
 
         real, dimension(:),     intent(inout) :: output
         integer :: k,x,y
         real    :: w
+        real, allocatable :: center(:)
+
+        allocate(center(size(output)))
+        if (present(err)) err = 0
 
         ! interpolation is performed using the bilinear weights computing in the geolut
         select case (method)
         case (kBILINEAR)
             output = 0
+            center = 0
+
+            if (minval(geolut%w(:3,i,j)) < -1e-4) then
+                ! write(*,*) i, j
+                ! write(*,*) "Triangle vertices"
+                ! write(*,*) geolut%x(1,i,j), geolut%y(1,i,j)
+                ! write(*,*) geolut%x(2,i,j), geolut%y(2,i,j)
+                ! write(*,*) geolut%x(3,i,j), geolut%y(3,i,j)
+                ! write(*,*) geolut%w(:3,i,j)
+                if (present(err)) then
+                    err = 1
+                else
+                    stop "Triangulation is broken"
+                endif
+            endif
+
+
             do k = 1,4
                 ! %x contains the x coordinate each elements
                 x = geolut%x(k,i,j)
@@ -396,8 +463,16 @@ contains
                 y = geolut%y(k,i,j)
                 ! %w contains the weight each elements
                 w = geolut%w(k,i,j)
-                output = output + input_data(:, x, y) * w
+
+                ! for triangulation we need to compute the center point
+                center = center + input_data(:, x, y)
+                ! and only use the edge points for the first two vertices
+                if (k < 3) then
+                    output = output + input_data(:, x, y) * w
+                endif
             end do
+            output = output + center/4 * geolut%w(3,i,j)
+
         case (kNEAREST)
             ! %x contains the nearest x coordinate
             x = geolut%x(1,i,j)
@@ -582,19 +657,20 @@ contains
         end select
     end subroutine transform_data
 
-    function downscale_point(predictor, atm, obs_in, errors, output_coeff, logistic, logistic_threshold, options, timers, xpnt, ypnt) result(output)
+    function downscale_point(predictor, atm_in, obs_in, errors, output_coeff, logistic, threshold_mask, options, timers, xpnt, ypnt) result(output)
         implicit none
-        real,    dimension(:,:), intent(inout):: predictor, atm ! (ntimes, nvars)
+        real,    dimension(:,:), intent(inout):: predictor, atm_in ! (ntimes, nvars)
         real,    dimension(:),   intent(in)   :: obs_in
         real,    dimension(:),   intent(inout):: errors
         real,    dimension(:,:), intent(inout):: output_coeff
         real,    dimension(:),   intent(inout):: logistic
-        real,                    intent(in)   :: logistic_threshold
+        real,    dimension(:),   intent(in)   :: threshold_mask
         type(config),            intent(in)   :: options
         integer(8),dimension(:), intent(inout):: timers
         integer, intent(in) :: xpnt, ypnt
 
         integer, dimension(:),   allocatable :: used_vars
+        real,    dimension(:,:), allocatable :: atm
         real,    dimension(:),   allocatable :: obs
         real,    dimension(:),   allocatable :: output
         real(8), dimension(:),   allocatable :: coefficients
@@ -608,7 +684,7 @@ contains
         !!  Generic Initialization code
         !!
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-        nvars = size(atm,2)
+        nvars = size(atm_in,2)
         n = size(predictor,1)
 
         allocate(used_vars(nvars))
@@ -629,6 +705,8 @@ contains
 
         allocate(obs(size(obs_in)))
         obs = obs_in
+        allocate(atm(size(atm_in,1), nvars))
+        atm = atm_in
 
         if (options%time_smooth > 0) then
             do i=1, n
@@ -636,7 +714,7 @@ contains
                 endpt = min(n, i + options%time_smooth)
                 obs(i) = sum(obs_in(start:endpt)) / (endpt-start+1)
                 do v=1, nvars
-                    atm(i,v) = sum(atm(start:endpt, v)) / (endpt-start+1)
+                    atm(i,v) = sum(atm_in(start:endpt, v)) / (endpt-start+1)
                 enddo
             enddo
         endif
@@ -648,36 +726,14 @@ contains
         !!
         !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
         if (options%pure_regression .and. (.not.options%read_coefficients)) then
-            call System_Clock(timeone)
-            output(1)  = compute_regression(predictor(1,:), atm, obs, coefficients, obs_in, errors(1), used_vars=used_vars)
-
-            errors(2:) = errors(1)
-            where( coefficients >  1e20 ) coefficients =  1e20
-            where( coefficients < -1e20 ) coefficients = -1e20
-            coefficients_r4(1:nvars) = coefficients
-            do v=1,nvars
-                output_coeff(v,:) = coefficients(v)
+            coefficients_r4 = compute_pure_regression(atm, obs, threshold_mask, errors, timers, used_vars, options)
+            do v = 1, size(output_coeff,1)
+                output_coeff(v,:) = coefficients_r4(v)
             enddo
-
-            call System_Clock(timetwo)
-            timers(2) = timers(2) + (timetwo-timeone)
-
-            call System_Clock(timeone)
-            if (logistic_threshold/=kFILL_VALUE) then
-                logistic(1) = compute_logistic_regression(predictor(1,:), atm, obs, coefficients, logistic_threshold)
-                where( coefficients >  1e20 ) coefficients =  1e20
-                where( coefficients < -1e20 ) coefficients = -1e20
-                coefficients_r4(nvars+1:nvars*2) = coefficients
-                do v = 1,nvars
-                    output_coeff(v+nvars,:) = coefficients(v)
-                enddo
-            endif
-            call System_Clock(timetwo)
-            timers(3) = timers(3) + (timetwo-timeone)
 
         elseif (options%pure_regression .and. options%read_coefficients) then
             coefficients_r4(1:nvars) = output_coeff(1:nvars,1)
-            if (logistic_threshold/=kFILL_VALUE) then
+            if (options%logistic_threshold /= kFILL_VALUE) then
                 coefficients_r4(nvars+1:nvars*2) = output_coeff(nvars+1:nvars*2,1)
             endif
         endif
@@ -696,7 +752,7 @@ contains
             if (options%pure_analog) then
                 call downscale_pure_analog(predictor(i,:), atm, obs, coefficients_r4,     &
                                            output(i), errors(i), logistic(i), obs_in,     &
-                                           options, logistic_threshold, timers, cur_time=i)
+                                           options, threshold_mask, timers, cur_time=i)
 
                 if (options%debug) then
                     do v=1,nvars
@@ -712,7 +768,7 @@ contains
             elseif (options%analog_regression) then
                 call downscale_analog_regression(predictor(i,:), atm, obs, coefficients_r4,     &
                                                  output(i), errors(i), logistic(i), obs_in,     &
-                                                 options, logistic_threshold, timers, [xpnt,ypnt,i], cur_time=i)
+                                                 options, threshold_mask, timers, [xpnt,ypnt,i], cur_time=i)
 
                 if (options%debug) then
                     do v=1,nvars
@@ -730,21 +786,21 @@ contains
                 ! to test should provide all time values efficiently? i.e. no time loop
                 ! output   = matmul(predictor, coefficients_r4(:nvars))
                 ! logistic = 1.0 / (1.0 + exp(-matmul(predictor, coefficients_r4(nvars+1:nvars*2))))
-                call apply_pure_regression(output(i), predictor(i,:), coefficients_r4, logistic(i),  logistic_threshold, timers, used_vars)
+                call apply_pure_regression(output(i), predictor(i,:), coefficients_r4, logistic(i),  options%logistic_threshold, timers, used_vars)
 
             endif
         end do
 
     end function downscale_point
 
-    subroutine downscale_analog_regression(x, atm, obs, output_coeff, output, error, logistic, obs_in, options, logistic_threshold, timers, cur_point, cur_time)
+    subroutine downscale_analog_regression(x, atm, obs, output_coeff, output, error, logistic, obs_in, options, threshold_mask, timers, cur_point, cur_time)
         implicit none
         real,           intent(in),     dimension(:,:)  :: atm
         real,           intent(in),     dimension(:)    :: x, obs, obs_in
         real,           intent(inout),  dimension(:)    :: output_coeff
         real,           intent(inout)                   :: output, logistic, error
         type(config),   intent(in)                      :: options
-        real,           intent(in)                      :: logistic_threshold
+        real,           intent(in),     dimension(:)    :: threshold_mask
         integer*8,      intent(inout),  dimension(:)    :: timers
 
         integer,        intent(in),     dimension(3)    :: cur_point
@@ -757,6 +813,7 @@ contains
         real(8), dimension(:),   allocatable :: coefficients
         integer*8   :: timeone, timetwo
         real        :: analog_threshold
+        real        :: logistic_threshold
         integer     :: real_analogs, selected_analog, nvars, n_analogs
         integer     :: j, a
 
@@ -764,18 +821,26 @@ contains
         real,    dimension(:,:),allocatable :: threshold_atm
         real,    dimension(:),  allocatable :: threshold_obs, threshold_obs_unsmoothed
         logical, dimension(:),  allocatable :: threshold_packing
-        real,    dimension(:),  allocatable :: weights, packed_weights
+        real,    dimension(:),  allocatable :: weights, packed_weights, threshold_weights
         integer :: n_packed
+        integer :: date_to_skip
 
         n_analogs           = options%n_analogs
         analog_threshold    = options%analog_threshold
+        logistic_threshold  = options%logistic_threshold
         nvars               = size(x)
+
+        if (present(cur_time)) then
+            date_to_skip = cur_time
+        else
+            date_to_skip = -1
+        endif
 
         call System_Clock(timeone)
         if (options%analog_weights) then
-            call find_analogs(analogs, x, atm, n_analogs, analog_threshold, weights, skip_analog=cur_time)
+            call find_analogs(analogs, x, atm, n_analogs, analog_threshold, weights, skip_analog=date_to_skip)
         else
-            call find_analogs(analogs, x, atm, n_analogs, analog_threshold, skip_analog=cur_time)
+            call find_analogs(analogs, x, atm, n_analogs, analog_threshold, skip_analog=date_to_skip)
         endif
 
         real_analogs = size(analogs)
@@ -784,25 +849,23 @@ contains
         allocate(regression_data(real_analogs, nvars))
         allocate(obs_analogs(real_analogs))
         allocate(obs_in_analogs(real_analogs))
-        if (logistic_threshold/=kFILL_VALUE) then
-            allocate(threshold_packing(real_analogs))
-        endif
+        allocate(threshold_packing(real_analogs))
 
         do a=1,real_analogs
             obs_analogs(a) = obs(analogs(a))
             obs_in_analogs(a) = obs_in(analogs(a))
             regression_data(a,:) = atm(analogs(a),:)
+            threshold_packing(a) = (threshold_mask(analogs(a)) == 1)
         enddo
 
         call System_Clock(timetwo)
         timers(1) = timers(1) + (timetwo-timeone)
 
         call System_Clock(timeone)
-        if (logistic_threshold==kFILL_VALUE) then
-            output = compute_regression(x, regression_data, obs_analogs, coefficients, obs_in_analogs, error, weights)
+        if (logistic_threshold == kFILL_VALUE) then
+            output = compute_regression(x, regression_data, obs_analogs, coefficients, y_test=obs_in_analogs, error=error, weights=weights)
         else
 
-            threshold_packing = obs_in_analogs > logistic_threshold
             n_packed = count(threshold_packing)
 
             if (n_packed > (nvars*5)) then
@@ -819,21 +882,16 @@ contains
                     packed_weights = pack(weights, threshold_packing)
                 endif
 
-                output = compute_regression(x, threshold_atm, threshold_obs, coefficients, threshold_obs_unsmoothed, error, packed_weights)
+                output = compute_regression(x, threshold_atm, threshold_obs, coefficients, y_test=threshold_obs_unsmoothed, error=error, weights=packed_weights)
 
                 if ((output>maxval(threshold_obs_unsmoothed)*1.2)                      &
-                    .or.(output<(logistic_threshold-2))                                &
                     .or.(abs(coefficients(1))>(maxval(threshold_obs_unsmoothed) * 1.5))) then
 
                     call System_Clock(timetwo)
                     timers(2) = timers(2) + (timetwo-timeone)
                     ! revert to a pure analog approach.  By passing analogs and weights, it will not recompute which analogs to use
                     ! it will just compute the analog mean, pop, and error statistics
-                    if (present(cur_time)) then
-                        call downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, obs_in, options, logistic_threshold, timers, analogs, weights, cur_time)
-                    else
-                        call downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, obs_in, options, logistic_threshold, timers, analogs, weights)
-                    endif
+                    call downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, obs_in, options, threshold_mask, timers, analogs, weights, date_to_skip)
                     coefficients(1:nvars) = output_coeff(1:nvars)
                     coefficients(1) = 1e20
                     call System_Clock(timeone)
@@ -843,15 +901,11 @@ contains
             elseif (n_packed > 0) then
                 call System_Clock(timetwo)
                 timers(2) = timers(2) + (timetwo-timeone)
-                if (present(cur_time)) then
-                    call downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, obs_in, options, logistic_threshold, timers, analogs, weights, cur_time)
-                else
-                    call downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, obs_in, options, logistic_threshold, timers, analogs, weights)
-                endif
+                call downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, obs_in, options, threshold_mask, timers, analogs, weights, date_to_skip)
                 call System_Clock(timeone)
             else
                 ! note, for precip (and a "0" threshold), this could just be setting output, error, logistic, and coefficients to "0"
-                output = compute_regression(x, regression_data, obs_analogs, coefficients, obs_in, error, weights)
+                output = compute_regression(x, regression_data, obs_analogs, coefficients, y_test=obs_in, error=error, weights=weights)
 
             endif
 
@@ -866,47 +920,51 @@ contains
         timers(2) = timers(2) + (timetwo-timeone)
 
         call System_Clock(timeone)
-        if (logistic_threshold/=kFILL_VALUE) then
+        if (logistic_threshold /= kFILL_VALUE) then
             if (options%logistic_from_analog_exceedance) then
 
                 ! if the user specified using fewer analogs specifically for the logistic component, find them here
                 if ((options%n_log_analogs /= real_analogs).and.(options%n_log_analogs > 0)) then
 
                     ! find the logistic analogs
-                    call find_analogs(analogs, x, atm, options%n_log_analogs, -1.0)
+                    if (options%analog_weights) then
+                        call find_analogs(analogs, x, atm, options%n_log_analogs, -1.0, threshold_weights, skip_analog=date_to_skip)
+                    else
+                        call find_analogs(analogs, x, atm, options%n_log_analogs, -1.0, skip_analog=date_to_skip)
+                    endif
                     call System_Clock(timetwo)
                     timers(9) = timers(9) + (timetwo-timeone)
 
                     call System_Clock(timeone)
                     if (options%analog_weights) then
                         ! compute the logistic as the weighted probability of threshold exceedance in the analog population
-                        logistic = compute_analog_exceedance(obs, analogs(1:options%n_log_analogs), logistic_threshold, weights)
+                        logistic = compute_analog_exceedance(threshold_mask, analogs(1:options%n_log_analogs), threshold_weights(1:options%n_log_analogs))
                     else
                         ! compute the logistic as the probability of threshold exceedance in the analog population
-                        logistic = compute_analog_exceedance(obs, analogs(1:options%n_log_analogs), logistic_threshold)
+                        logistic = compute_analog_exceedance(threshold_mask, analogs(1:options%n_log_analogs))
                     endif
                 else
 
                     if (options%analog_weights) then
                         ! compute the logistic as the weighted probability of threshold exceedance in the analog population
-                        logistic = compute_analog_exceedance(obs, analogs, logistic_threshold, weights)
+                        logistic = compute_analog_exceedance(threshold_mask, analogs, weights)
                     else
                         ! compute the logistic as the probability of threshold exceedance in the analog population
-                        logistic = compute_analog_exceedance(obs, analogs, logistic_threshold)
+                        logistic = compute_analog_exceedance(threshold_mask, analogs)
                     endif
                 endif
 
             else
-                logistic = compute_logistic_regression(x, regression_data, obs_analogs, coefficients, logistic_threshold)
+                logistic = compute_logistic_regression(x, regression_data, threshold_mask(analogs), coefficients)
 
                 ! Check for severe errors in the logistic regression.  This can happen with some input data.
-                ! If it fails, fall back to the analog exceedence calculation
+                ! If it fails, fall back to the analog exceedance calculation
                 if (ieee_is_nan(logistic)) then
                     if (options%analog_weights) then
-                        logistic = compute_analog_exceedance(obs, analogs, logistic_threshold, weights)
+                        logistic = compute_analog_exceedance(threshold_mask, analogs, weights)
                     else
                         ! compute the logistic as the probability of threshold exceedance in the analog population
-                        logistic = compute_analog_exceedance(obs, analogs, logistic_threshold)
+                        logistic = compute_analog_exceedance(threshold_mask, analogs)
                     endif
 
                 endif
@@ -922,14 +980,14 @@ contains
         timers(3) = timers(3) + (timetwo-timeone)
     end subroutine downscale_analog_regression
 
-    subroutine downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, obs_in, options, logistic_threshold, timers, input_analogs, input_weights, cur_time)
+    subroutine downscale_pure_analog(x, atm, obs, output_coeff, output, error, logistic, obs_in, options, threshold_mask, timers, input_analogs, input_weights, cur_time)
         implicit none
         real,           intent(in),     dimension(:,:)  :: atm
         real,           intent(in),     dimension(:)    :: x, obs, obs_in
         real,           intent(inout),  dimension(:)    :: output_coeff
         real,           intent(inout)                   :: output, logistic, error
         type(config),   intent(in)                      :: options
-        real,           intent(in)                      :: logistic_threshold
+        real,           intent(in),     dimension(:)    :: threshold_mask
         integer*8,      intent(inout),  dimension(:)    :: timers
         integer,        intent(in),     dimension(:),   optional    :: input_analogs
         real,           intent(in),     dimension(:),   optional    :: input_weights
@@ -942,6 +1000,15 @@ contains
         real,    dimension(:), allocatable :: weights
         real        :: rand
         integer     :: j
+        integer     :: date_to_skip
+
+
+        if (present(cur_time)) then
+            date_to_skip = cur_time
+        else
+            date_to_skip = -1
+        endif
+
 
         n_analogs           = options%n_analogs
         analog_threshold    = options%analog_threshold
@@ -954,9 +1021,9 @@ contains
                 allocate(analogs(n_analogs))
             endif
             if (options%analog_weights) then
-                call find_analogs(analogs, x, atm, n_analogs, analog_threshold, weights, skip_analog=cur_time)
+                call find_analogs(analogs, x, atm, n_analogs, analog_threshold, weights, skip_analog=date_to_skip)
             else
-                call find_analogs(analogs, x, atm, n_analogs, analog_threshold, skip_analog=cur_time)
+                call find_analogs(analogs, x, atm, n_analogs, analog_threshold, skip_analog=date_to_skip)
             endif
         else
             allocate(analogs(size(input_analogs)))
@@ -982,39 +1049,126 @@ contains
             endif
         else
             if (options%analog_weights) then
-                output = compute_analog_mean(obs, analogs, weights)
+                output = compute_analog_mean(obs, analogs, mask=threshold_mask, weights=weights)
             else
-                output = compute_analog_mean(obs, analogs)
+                output = compute_analog_mean(obs, analogs, mask=threshold_mask)
             endif
 
             if (options%debug) then
                 do j=1,nvars
-                    output_coeff(j) = compute_analog_mean(atm(:, j), analogs)
+                    output_coeff(j) = compute_analog_mean(atm(:, j), analogs, mask=threshold_mask)
                 enddo
             endif
         endif
 
         if (options%analog_weights) then
-            error = compute_analog_error(obs_in, analogs, output, weights)
+            error = compute_analog_error(obs_in, analogs, output, mask=threshold_mask, weights=weights)
         else
-            error = compute_analog_error(obs_in, analogs, output)
+            error = compute_analog_error(obs_in, analogs, output, mask=threshold_mask)
         endif
 
         call System_Clock(timetwo)
         timers(2) = timers(2) + (timetwo-timeone)
 
         call System_Clock(timeone)
-        if (logistic_threshold/=kFILL_VALUE) then
+        if (options%logistic_threshold /= kFILL_VALUE) then
             if (options%analog_weights) then
-                logistic = compute_analog_exceedance(obs_in, analogs, logistic_threshold, weights)
+                logistic = compute_analog_exceedance(threshold_mask, analogs, weights)
             else
-                logistic = compute_analog_exceedance(obs_in, analogs, logistic_threshold)
+                logistic = compute_analog_exceedance(threshold_mask, analogs)
             endif
         endif
         call System_Clock(timetwo)
         timers(3) = timers(3) + (timetwo-timeone)
 
     end subroutine downscale_pure_analog
+
+    function compute_pure_regression(x, y, threshold, errors, timers, used_vars, options) result(coefficients)
+        implicit none
+        real,           intent(in),     dimension(:,:)  :: x            ! predictors in the regression (ntime x nvar)
+        real,           intent(in),     dimension(:)    :: y            ! values to predict (ntime)
+        real,           intent(in),     dimension(:)    :: threshold    ! mask for which obs to use if a threshold was set (ntime)
+        real,           intent(inout),  dimension(:)    :: errors       ! returns the mean regression residual
+        integer(8),     intent(inout),  dimension(:)    :: timers       ! tracks computational time (ntimers)
+        integer,        intent(inout),  dimension(:)    :: used_vars    ! tracks which variables were actually used in the regression (nvars)
+        type(config),   intent(in)                      :: options      ! provides options
+        ! output
+        real,           allocatable,    dimension(:)    :: coefficients ! this is the primary output, regression coeficients for both amount and probability (nvars*2)
+
+        ! internal variables
+        real(8),        allocatable,    dimension(:)    :: coefficients_r8  ! compute_regression needs doubles
+        integer(8)  :: timeone, timetwo                                     ! used to track computational time required
+        integer     :: i, ntimes, nvars, npacked                            ! loop and array size temporaries
+        real,       allocatable, dimension(:) :: test_input                 ! provides the input value that compute_regression will operate on
+        real        :: test_output                                          ! stores the output of compute_regression
+        real,    allocatable :: amount_x(:,:), amount_y(:)                  ! stores only values for which the threshold is exceeded so that a regression on amount is separate
+        logical, allocatable :: threshold_mask(:)                           ! stores the mask for the points that exceeded the observational threshold
+
+        ntimes = size(x,1)
+        nvars = size(x,2)
+
+        allocate(coefficients(nvars*2))
+        coefficients = 0
+        allocate(coefficients_r8(nvars))
+        coefficients_r8 = 0
+        allocate(test_input(nvars))
+        test_input = x(1,:)
+        test_output = 0
+
+        ! if a threshold was specified, then we need to collect only the input data that exceeded that threshold for the amount regression
+        if (options%logistic_threshold /= kFILL_VALUE) then
+            npacked = count(threshold==1)
+            allocate(amount_x(npacked, nvars))
+            allocate(amount_y(npacked))
+
+            allocate(threshold_mask(ntimes))
+            threshold_mask = (threshold==1)
+
+            amount_y = pack(y, mask=threshold_mask)
+            do i = 1, nvars
+                amount_x(:,i) = pack(x(:,i), mask=threshold_mask)
+            enddo
+        else
+            ! if no threshold was specified, then the amount regression should apply to the entire time series.
+            amount_x = x
+            amount_y = y
+        endif
+
+
+        ! compute the regression coeefficients (and as a side effect, the first output value)
+        call System_Clock(timeone)
+        test_output  = compute_regression(test_input, amount_x, amount_y, coefficients_r8, error=errors(1), used_vars=used_vars)
+
+        ! the error model is constant in time for the pure regression case... maybe this should be a regression to predict the error?
+        errors(2:) = errors(1)
+        ! deal with any crazy values, this will rarely (if ever?) happen in the pure regression case as there will always be enough
+        ! data to constrain the regression, but in case, e.g. in hyper-arid regions? this is more likely to be a problem in the logistic regression
+        where( coefficients_r8 >  1e20 ) coefficients_r8 =  1e20
+        where( coefficients_r8 < -1e20 ) coefficients_r8 = -1e20
+
+        ! save the regression coefficients back into a single precision real because that is what needs to be output.
+        coefficients(1:nvars) = coefficients_r8
+
+        call System_Clock(timetwo)
+        timers(2) = timers(2) + (timetwo-timeone)
+
+        ! if the user requested a separate regression for amount and threshold exceedance, compute a logistic regression for exceedance
+        call System_Clock(timeone)
+        if (options%logistic_threshold /= kFILL_VALUE) then
+            test_output = compute_logistic_regression(test_input, x, threshold, coefficients_r8)
+
+            ! deal with possible errors in the logistic function algorithm due to poorly conditioned matrixes(?)
+            where( coefficients_r8 >  1e20 ) coefficients_r8 =  1e20
+            where( coefficients_r8 < -1e20 ) coefficients_r8 = -1e20
+            coefficients(nvars+1:nvars*2) = coefficients_r8
+        endif
+
+        call System_Clock(timetwo)
+        timers(3) = timers(3) + (timetwo-timeone)
+
+        ! Primary output is the coefficients
+        ! errors, variables used in the regression and the timer increments are important side effects
+    end function compute_pure_regression
 
     subroutine apply_pure_regression(output, x, B, logistic, threshold, timers, used_vars)
         implicit none
@@ -1103,8 +1257,8 @@ contains
                 endif
             endif
             ! limit to +/- ~20 sigma
-            where(abs(var%data(:,i,j)) >  MAX_ALLOWED_SIGMA) var%data(:,i,j) =  MAX_ALLOWED_SIGMA
-            where(abs(var%data(:,i,j)) < -MAX_ALLOWED_SIGMA) var%data(:,i,j) = -MAX_ALLOWED_SIGMA
+            where(var%data(:,i,j) >  MAX_ALLOWED_SIGMA) var%data(:,i,j) =  MAX_ALLOWED_SIGMA
+            where(var%data(:,i,j) < -MAX_ALLOWED_SIGMA) var%data(:,i,j) = -MAX_ALLOWED_SIGMA
 
             ! shift to a 0-based range so that variables such as precip have a testable non-value
             var%min_val(i,j) = minval(var%data(:,i,j))
@@ -1157,6 +1311,7 @@ contains
         n_atm_train = training_atm%training_stop - training_atm%training_start
 
         if (n_obs_train /= n_atm_train) then
+            write(*,'(A,i6,A,i6)') "N_obs:",n_obs_train, "       N_atm:",n_atm_train
             stop "ERROR Inconsistent time periods in training atm and obs data"
         endif
 
@@ -1179,13 +1334,23 @@ contains
         allocate(output%variables(n_obs_variables), stat=Mem_Error)
         if (Mem_Error /= 0) call memory_error(Mem_Error, "out%variables", [n_obs_variables])
 
+        allocate(output%times(noutput), stat=Mem_Error)
+        if (Mem_Error /= 0) call memory_error(Mem_Error, "output%times(noutput)", [noutput])
+
+        allocate(output%lat(ny, nx), stat=Mem_Error)
+        if (Mem_Error /= 0) call memory_error(Mem_Error, "output%lon(ny, nx)", [ny, nx])
+
+        allocate(output%lon(ny, nx), stat=Mem_Error)
+        if (Mem_Error /= 0) call memory_error(Mem_Error, "output%lon(ny, nx)", [ny, nx])
+
+
         do v = 1,n_obs_variables
             allocate(output%variables(v)%data        (noutput, nx, ny), stat=Mem_Error)
             if (Mem_Error /= 0) call memory_error(Mem_Error, "out%variables(v)%data v="//trim(str(v)), [noutput,nx,ny])
             allocate(output%variables(v)%errors      (noutput, nx, ny), stat=Mem_Error)
             if (Mem_Error /= 0) call memory_error(Mem_Error, "out%variables(v)%errors v="//trim(str(v)), [noutput,nx,ny])
 
-            if (options%logistic_threshold/=kFILL_VALUE) then
+            if (options%logistic_threshold /= kFILL_VALUE) then
                 allocate(output%variables(v)%logistic    (noutput, nx, ny), stat=Mem_Error)
                 if (Mem_Error /= 0) call memory_error(Mem_Error, "out%variables(v)%logistic v="//trim(str(v)), [noutput,nx,ny])
             else
@@ -1308,4 +1473,4 @@ contains
         enddo
     end subroutine read_coefficients
 
-end module downscaling_mod
+end submodule downscaling_interface

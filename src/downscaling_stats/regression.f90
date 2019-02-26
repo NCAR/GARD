@@ -1,7 +1,16 @@
-module  regression_mod
+!> -------------------------------------------
+!! Supply regression utilities to GARD
+!!
+!! Provides least squares regression and logistic regression
+!! includes output of both the coefficients and the residual error, optionally computed with supplied weights
+!!
+!! See regression_h header file for interface
+!!
+!! --------------------------------------------
+submodule(regression_mod) regression_implementation
 contains
 
-    function compute_regression(x, training_x, training_y, coefficients, y_test, error, weights, used_vars) result(y)
+    module function compute_regression(x, training_x, training_y, coefficients, y_test, error, weights, used_vars) result(y)
         implicit none
         real,    intent(in),    dimension(:)   :: x
         real,    intent(in),    dimension(:,:) :: training_x
@@ -242,23 +251,13 @@ contains
     end subroutine weighted_least_squares
 
 
-
-    function compute_logistic_regression(x, training_x, training_y, coefficients, threshold) result(output)
+    module function compute_logistic_regression(x, training_x, binary_values, coefficients) result(output)
         implicit none
         real,    intent(in) :: x(:)
         real,    intent(in) :: training_x(:,:)
-        real,    intent(in) :: training_y(:)
+        real,    intent(in) :: binary_values(:)
         real(8), intent(out):: coefficients(:)
-        real,    intent(in) :: threshold
         real :: output
-
-        real, dimension(:), allocatable :: binary_values
-        integer :: n
-
-        n = size(training_y)
-        allocate(binary_values(n))
-        binary_values = 0
-        where(training_y > threshold) binary_values = 1
 
         call logistic_regression(training_x, binary_values, coefficients)
 
@@ -269,6 +268,7 @@ contains
         output = 1.0 / (1.0 + exp(-output))
 
     end function compute_logistic_regression
+
 
     subroutine logistic_regression(X, Y, B)
         implicit none
@@ -334,7 +334,18 @@ contains
                     V(t,t) = P(t)*(1.0-P(t))
                 enddo
                 XV = matmul(V,X)
-                call lapack_least_squares(XV, YN, BN, info=info)
+
+                ! This only seems to be a problem for Intel's MKL library which can crash with a float overflow otherwise
+                if ((maxval(XV) < 1e-30) .and. (minval(XV) > -1e-30) .and. (maxval(YN) > 0.999999)) then
+                    info = -1
+                    ! !$omp critical (print_lock)
+                    ! print*, "WARNING: logistic regression failed to converge"
+                    ! print*, it, maxval(XV), minval(XV), maxval(YN), minval(YN)
+                    ! !$omp end critical (print_lock)
+                else
+                    call lapack_least_squares(XV, YN, BN, info=info)
+                endif
+
                 if (info /= 0) then
                     B(1) = -1 * log( (1.0 / (sum(Y)/size(Y))) - 1.0)
                     B(2:)= 0
@@ -364,4 +375,4 @@ contains
     end subroutine logistic_regression
 
 
-end module regression_mod
+end submodule regression_implementation

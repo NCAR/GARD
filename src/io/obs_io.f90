@@ -8,9 +8,8 @@
 !!  Ethan Gutmann (gutmann@ucar.edu)
 !!
 !!------------------------------------------------
-module obs_mod
+submodule(obs_mod) obs_io_implementation
 
-    use data_structures
     use model_constants
     use basic_stats_mod,only: time_mean, time_stddev, time_minval
     use string,         only: str
@@ -27,7 +26,7 @@ contains
     !! Initialize the Obs module
     !!
     !!------------------------------------------------
-    subroutine init_obs_io(options)
+    module subroutine init_obs_io(options)
         implicit none
         type(config), intent(in) :: options
 
@@ -43,7 +42,7 @@ contains
     !! Loops through all input variables, then reads lat, lon, and time variables
     !!
     !!------------------------------------------------
-    function read_obs(options) result(obs_data)
+    module function read_obs(options) result(obs_data)
         implicit none
         class(obs_config), intent(in) :: options
         type(obs) :: obs_data
@@ -81,7 +80,8 @@ contains
                     call create_variable_mask(obs_data%mask, var%data, options%mask_value)
                 endif
 
-                where( var%data > 1e10 ) var%data = 1
+                where( var%data > 1e10 ) var%data = 1e10
+                where( var%data < -1e10 ) var%data = -1e10
                 call compute_grid_stats(var)
                 ! prevent possible divide by 0 in normalization?
                 where( var%stddev == 0 ) var%stddev = 1e-10
@@ -296,4 +296,4 @@ contains
 
     end subroutine load_data
 
-end module obs_mod
+end submodule obs_io_implementation

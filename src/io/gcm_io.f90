@@ -8,9 +8,8 @@
 !!  Ethan Gutmann (gutmann@ucar.edu)
 !!
 !!------------------------------------------------
-module gcm_mod
+submodule(gcm_mod) gcm_io_implementation
 
-    use data_structures
     use model_constants
     use basic_stats_mod,only: time_mean, time_stddev, time_minval
     use string,         only: str
@@ -27,7 +26,7 @@ contains
     !! Initialize the GCM module
     !!
     !!------------------------------------------------
-    subroutine init_gcm_io(options)
+    module subroutine init_gcm_io(options)
         implicit none
         type(config), intent(in) :: options
 
@@ -43,7 +42,7 @@ contains
     !! Loops through all input variables, then reads lat, lon, and time variables
     !!
     !!------------------------------------------------
-    function read_gcm(options) result(gcm_data)
+    module function read_gcm(options) result(gcm_data)
         implicit none
         class(atm_config), intent(in) :: options
         type(atm) :: gcm_data
@@ -261,4 +260,4 @@ contains
 
     end subroutine load_data
 
-end module gcm_mod
+end submodule gcm_io_implementation

@@ -58,8 +58,8 @@ program stat_down
     print*, ""
     print*, "Developing geographic interpolation..."
 
-    call geo_LUT(training_obs, training_atm)
-    call geo_LUT(training_obs, predictions)
+    call geo_LUT(training_obs, training_atm, options%prediction%interpolation_method)
+    call geo_LUT(training_obs, predictions, options%training%interpolation_method)
 
     if (options%debug) then
         print*, "=========================================="
