@@ -18,32 +18,33 @@ interface
     end subroutine find_analogs
 
     ! compute the mean of input[analogs]
-    module function compute_analog_mean(input, analogs, weights) result(mean)
+    module function compute_analog_mean(input, analogs, mask, weights) result(mean)
         implicit none
         real,    intent(in), dimension(:) :: input
         integer, intent(in), dimension(:) :: analogs
+        real,    intent(in), dimension(:), optional :: mask
         real,    intent(in), dimension(:), optional :: weights
         real                              :: mean
 
     end function compute_analog_mean
 
     ! compute the root mean square error between input[analogs] and y_hat
-    module function compute_analog_error(input, analogs, y_hat, weights) result(error)
+    module function compute_analog_error(input, analogs, y_hat, mask, weights) result(error)
         implicit none
         real,    intent(in), dimension(:) :: input
         integer, intent(in), dimension(:) :: analogs
         real,    intent(in)               :: y_hat
+        real,    intent(in), dimension(:), optional :: mask
         real,    intent(in), dimension(:), optional :: weights
         real                              :: error
 
     end function compute_analog_error
 
 
-    module function compute_analog_exceedance(input, analogs, threshold, weights) result(probability)
+    module function compute_analog_exceedance(input, analogs, weights) result(probability)
         implicit none
-        real,    intent(in), dimension(:) :: input
+        real,    intent(in), dimension(:) :: input ! this is a mask 1 = exceeded, 0 = not exceeded
         integer, intent(in), dimension(:) :: analogs
-        real,    intent(in)               :: threshold
         real,    intent(in), dimension(:), optional :: weights
         real                              :: probability
 

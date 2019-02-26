@@ -80,7 +80,8 @@ contains
                     call create_variable_mask(obs_data%mask, var%data, options%mask_value)
                 endif
 
-                where( var%data > 1e10 ) var%data = 1
+                where( var%data > 1e10 ) var%data = 1e10
+                where( var%data < -1e10 ) var%data = -1e10
                 call compute_grid_stats(var)
                 ! prevent possible divide by 0 in normalization?
                 where( var%stddev == 0 ) var%stddev = 1e-10

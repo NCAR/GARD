@@ -99,8 +99,11 @@ contains
         do y=1,ny
             do x=1,nx
                 difference = input(:,x,y) - mean(x,y)
+
                 ! in case there are bad input data, prevents a floating point overflow
                 where(difference > 1e10) difference = 1e10
+                where(difference < -1e10) difference = -1e10
+
                 stddev(x,y) = sqrt( sum( difference**2 ) / (nt-1) )
             end do
         end do
