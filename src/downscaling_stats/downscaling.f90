@@ -335,13 +335,15 @@ contains
                         endif
 
                         ! if the input data were transformed with e.g. a cube root or log transform, then reverse that transformation for the output
-                        call System_Clock(timeone)
-                        call transform_data(options%obs%input_Xforms(v), output%variables(v)%data(:,i,j), 1, noutput, &
-                                            reverse=.True., qm_io=qq_normal,                                          &
-                                            threshold = current_threshold,                                            &
-                                            threshold_delta = output%variables(v)%logistic_threshold - current_threshold)
-                        call System_Clock(timetwo)
-                        timers(6) = timers(6) + (timetwo-timeone)
+                        if (options%pass_through .eqv. .False.) then
+                            call System_Clock(timeone)
+                            call transform_data(options%obs%input_Xforms(v), output%variables(v)%data(:,i,j), 1, noutput, &
+                                                reverse=.True., qm_io=qq_normal,                                          &
+                                                threshold = current_threshold,                                            &
+                                                threshold_delta = output%variables(v)%logistic_threshold - current_threshold)
+                            call System_Clock(timetwo)
+                            timers(6) = timers(6) + (timetwo-timeone)
+                        endif
 
                         call transform_data(options%post_correction_Xform(v), &
                                             output      %variables(v)%data(:,i,j), post_start, post_end, &
