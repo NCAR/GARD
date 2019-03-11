@@ -349,7 +349,6 @@ contains
                                             output      %variables(v)%data(:,i,j), post_start, post_end, &
                                             training_obs%variables(v)%data(:,i,j),      1    , nobs,     &
                                             threshold=output%variables(v)%logistic_threshold)
-
                     enddo
 
                 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -534,6 +533,8 @@ contains
 
                 if (internal_threshold/=kFILL_VALUE) then
 
+                    ! if we are quantile mapping a dataset that has a threshold we need to only QM above
+                    ! first develop the QM for the data that exceeds that threshold
                     allocate(mask(p_xf_start:p_xf_stop))
                     mask = pred_data(p_xf_start:p_xf_stop) > internal_threshold
                     allocate( temporary( count(mask) ) )
@@ -545,11 +546,19 @@ contains
                     call develop_qm(temporary, thresholded_training,    &
                                     qm, n_segments = N_ATM_QM_SEGMENTS)
 
-                    deallocate(thresholded_training)
+                    deallocate(thresholded_training, mask, temporary)
+
+                    ! now reallocate temporary variables for the full time series of output data to apply the quantile mapping to.
+                    allocate(mask(size(pred_data)))
+                    mask = pred_data > internal_threshold
+
+                    allocate( temporary( count(mask) ) )
+                    temporary = pack(  pred_data, mask=mask )
+
                     allocate( thresholded_training( size(temporary)) )
                     call apply_qm(temporary, thresholded_training, qm)
 
-                    pred_data(p_xf_start:p_xf_stop) = unpack( thresholded_training, mask, pred_data(p_xf_start:p_xf_stop))
+                    pred_data = unpack( thresholded_training, mask, pred_data)
 
                     deallocate(thresholded_training, temporary, mask)
                 else
@@ -603,6 +612,8 @@ contains
                     stop
                 endif
 
+                ! this is pretty awkward logic to work around the combination of a previous quantile mapping and a threshold defined on the obs dataset.
+                ! Need to investigate wheather or not the newly implemented mask can be used to improve this.
                 if (present(threshold_delta)) then
                     allocate(mask(size(pred_data)))
                     mask = pred_data <= internal_threshold
@@ -617,30 +628,50 @@ contains
                 endif
             else
 
-
+                ! if we are predicting a threshold exceedence, then the QQ-normal step is a little more complicated
                 if (internal_threshold/=kFILL_VALUE) then
                     allocate(mask(p_xf_start:p_xf_stop))
                     mask = pred_data(p_xf_start:p_xf_stop) > internal_threshold
+
+                    ! we only want to develop the Quantile mapping for data that exceed the threshold, so first pack those into a single array
                     allocate( temporary( count(mask) ) )
                     temporary = pack(  pred_data(p_xf_start:p_xf_stop), mask=mask)
 
+                    ! develop and apply the Quantile Mapping function on this subset of data
                     call develop_qm(temporary, random_sample,    &
                                     qm, n_segments = N_ATM_QM_SEGMENTS)
 
+                    deallocate(temporary, mask)
+
+                    ! now repeat the process of subsetting the data for the QM application to the entire time series
+                    allocate(mask(size(pred_data)))
+                    mask = pred_data > internal_threshold
+
+                    ! we only want to develop the Quantile mapping for data that exceed the threshold, so first pack those into a single array
+                    allocate( temporary( count(mask) ) )
+                    temporary = pack(  pred_data, mask=mask)
                     allocate( thresholded_training( size(temporary)) )
+
                     call apply_qm(temporary, thresholded_training, qm)
 
+                    ! find the minimume of the QMed data and create a value that is 0.1% smaller
                     newmin = minval(thresholded_training)
                     newmin = newmin - 0.001 * abs(newmin)
 
                     if (newmin < internal_threshold) then
-                        where(.not.mask) pred_data(p_xf_start:p_xf_stop) = pred_data(p_xf_start:p_xf_stop) + (newmin - internal_threshold)
+                        ! set threshold non-exceedence data to a new minimum value below that threshold
+                        where(.not.mask) pred_data = pred_data + (newmin - internal_threshold)
+                        ! keep track of this new "threshold of sorts"
                         if (present(threshold)) threshold = (newmin - threshold)
                     endif
-                    pred_data(p_xf_start:p_xf_stop) = unpack( thresholded_training, mask, pred_data(p_xf_start:p_xf_stop))
+
+                    ! finally, put the QM subset of data back into the original data array
+                    pred_data = unpack( thresholded_training, mask, pred_data)
 
                     deallocate(thresholded_training, temporary, mask)
                 else
+                    ! this is the simple case, create a temporary variable, develop the quantile mapping, and apply it (copying into the temporary)
+                    ! then copy the QMed temp variable data back into the output array
                     allocate( temporary( size(pred_data)) )
 
                     call develop_qm(pred_data( p_xf_start:p_xf_stop), &
