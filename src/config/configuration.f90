@@ -67,7 +67,7 @@ contains
         logical :: sample_analog, logistic_from_analog_exceedance, weight_analogs
         logical :: read_coefficients, write_coefficients
         character(len=MAXFILELENGTH)    :: coefficients_files(MAX_NUMBER_VARS)
-        real    :: logistic_threshold, analog_threshold
+        real    :: logistic_threshold, analog_threshold, stochastic_analog_perturbation
         integer :: time_smooth
 
         ! setup the namelist
@@ -84,7 +84,7 @@ contains
                                 pass_through, pass_through_var,                     &
                                 read_coefficients, write_coefficients,              &
                                 coefficients_files, post_correction_transform,      &
-                                time_smooth
+                                time_smooth, stochastic_analog_perturbation
 
         options%version = kVERSION_STRING
         options%options_filename = get_options_file()
@@ -107,6 +107,7 @@ contains
         n_analogs        = -1
         n_log_analogs    = -1
         analog_threshold = -1
+        stochastic_analog_perturbation = 0
         pure_analog      = .False.
         analog_regression= .True.
         pure_regression  = .False.
@@ -185,6 +186,7 @@ contains
         options%n_analogs           = n_analogs
         options%n_log_analogs       = n_log_analogs
         options%analog_threshold    = analog_threshold
+        options%stochastic_analog_perturbation = stochastic_analog_perturbation
         options%pure_analog         = pure_analog
         options%analog_regression   = analog_regression
         options%pure_regression     = pure_regression

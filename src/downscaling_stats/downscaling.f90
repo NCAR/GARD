@@ -865,9 +865,13 @@ contains
 
         call System_Clock(timeone)
         if (options%analog_weights) then
-            call find_analogs(analogs, x, atm, n_analogs, analog_threshold, weights, skip_analog=date_to_skip)
+            call find_analogs(analogs, x, atm, n_analogs, analog_threshold, weights,                        &
+                                skip_analog=date_to_skip,                                                   &
+                                stochastic_analog_perturbation=options%stochastic_analog_perturbation)
         else
-            call find_analogs(analogs, x, atm, n_analogs, analog_threshold, skip_analog=date_to_skip)
+            call find_analogs(analogs, x, atm, n_analogs, analog_threshold,                                 &
+                                skip_analog=date_to_skip,                                                   &
+                                stochastic_analog_perturbation=options%stochastic_analog_perturbation)
         endif
 
         real_analogs = size(analogs)
@@ -955,9 +959,13 @@ contains
 
                     ! find the logistic analogs
                     if (options%analog_weights) then
-                        call find_analogs(analogs, x, atm, options%n_log_analogs, -1.0, threshold_weights, skip_analog=date_to_skip)
+                        call find_analogs(analogs, x, atm, options%n_log_analogs, -1.0, threshold_weights,              &
+                                            skip_analog=date_to_skip,                                                   &
+                                            stochastic_analog_perturbation=options%stochastic_analog_perturbation)
                     else
-                        call find_analogs(analogs, x, atm, options%n_log_analogs, -1.0, skip_analog=date_to_skip)
+                        call find_analogs(analogs, x, atm, options%n_log_analogs, -1.0,                                 &
+                                            skip_analog=date_to_skip,                                                   &
+                                            stochastic_analog_perturbation=options%stochastic_analog_perturbation)
                     endif
                     call System_Clock(timetwo)
                     timers(9) = timers(9) + (timetwo-timeone)
@@ -1048,9 +1056,13 @@ contains
                 allocate(analogs(n_analogs))
             endif
             if (options%analog_weights) then
-                call find_analogs(analogs, x, atm, n_analogs, analog_threshold, weights, skip_analog=date_to_skip)
+                call find_analogs(analogs, x, atm, n_analogs, analog_threshold, weights,                        &
+                                    skip_analog=date_to_skip,                                                   &
+                                    stochastic_analog_perturbation=options%stochastic_analog_perturbation)
             else
-                call find_analogs(analogs, x, atm, n_analogs, analog_threshold, skip_analog=date_to_skip)
+                call find_analogs(analogs, x, atm, n_analogs, analog_threshold,                                 &
+                                    skip_analog=date_to_skip,                                                   &
+                                    stochastic_analog_perturbation=options%stochastic_analog_perturbation)
             endif
         else
             allocate(analogs(size(input_analogs)))

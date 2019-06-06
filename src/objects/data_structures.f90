@@ -253,9 +253,10 @@ module data_structures
         type(Time_type) :: post_start, post_end             ! define the period for a post QM transformation
 
         integer :: first_point, last_point ! start and end positions to run the model for(?)
-        integer :: n_analogs
-        integer :: n_log_analogs
-        real    :: analog_threshold
+        integer :: n_analogs                      ! number of analogs to select
+        integer :: n_log_analogs                  ! number of analogs to select for the probability of occurence selection
+        real    :: analog_threshold               ! euclidean distance to use when selecting analog memebers
+        real    :: stochastic_analog_perturbation ! add a random component to the analog distances when selecting to minimize problems with identical analogs (e.g. 0 precip)
 
         integer :: time_smooth
 
