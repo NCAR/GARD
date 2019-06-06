@@ -101,16 +101,16 @@ contains
             ! nx = 128
             ! ny = 128
 
-            print*, "=========================================="
-            print*, "Running for "
-            print*, nx, "   by",ny, " Grid Cells"
+            write(*,*) "=========================================="
+            write(*,*) "Running for "
+            write(*,*) nx, "   by",ny, " Grid Cells"
 
             total_number_of_gridcells = nx * ny
 
             call System_Clock(timeone)
             call allocate_data(output, n_obs_variables, noutput, nx, ny, n_atm_variables, tr_size, options)
             if (options%read_coefficients) call read_coefficients(output, options)
-            print*, ""
+            write(*,*) ""
 
             call System_Clock(timetwo)
             timers(7) = timetwo - timeone
@@ -395,27 +395,27 @@ contains
 
             master_timers(8) = master_timers(8) + (master_time_post_init - master_timeone) * num_threads
             master_timers(5) = master_timers(5) + (master_timetwo - master_timeone) * num_threads + master_timers(7)
-            print*, ""
-            print*, "---------------------------------------------------"
-            print*, "           Time profiling information "
-            print*, "---------------------------------------------------"
-            print*, "Total Time : ",  nint(master_timers(5) / real(COUNT_RATE)),           " s  (CPU time) "
-            print*, "Total Time : ",  nint((master_timetwo - master_timeone) / real(COUNT_RATE)), " s (wall clock)"
-            print*, "---------------------------------------------------"
-            print*, "Allocation : ",  nint((100.d0 * master_timers(7) / num_threads)/master_timers(5)),  "%    "
-            print*, "Data Init  : ",  nint((100.d0 * master_timers(8))/master_timers(5)),  "%    "
-            print*, "GeoInterp  : ",  nint((100.d0 * master_timers(4))/master_timers(5)),  "%    "
-            print*, "Transform  : ",  nint((100.d0 * master_timers(6))/master_timers(5)),  "%    "
-            print*, "Analog     : ",  nint((100.d0 * master_timers(1))/master_timers(5)),  "%    "
-            print*, "Regression : ",  nint((100.d0 * master_timers(2))/master_timers(5)),  "%    "
-            print*, "Log.Regres : ",  nint((100.d0 * master_timers(3))/master_timers(5)),  "%    "
-            print*, "Log.Analog : ",  nint((100.d0 * master_timers(9))/master_timers(5)),  "%    "
-            print*, "---------------------------------------------------"
-            print*, "Parallelization overhead"
-            print*, "Residual   : ",  100-nint((100.0 * &
+            write(*,*) ""
+            write(*,*) "---------------------------------------------------"
+            write(*,*) "           Time profiling information "
+            write(*,*) "---------------------------------------------------"
+            write(*,*) "Total Time : ",  nint(master_timers(5) / real(COUNT_RATE)),           " s  (CPU time) "
+            write(*,*) "Total Time : ",  nint((master_timetwo - master_timeone) / real(COUNT_RATE)), " s (wall clock)"
+            write(*,*) "---------------------------------------------------"
+            write(*,*) "Allocation : ",  nint((100.d0 * master_timers(7) / num_threads)/master_timers(5)),  "%    "
+            write(*,*) "Data Init  : ",  nint((100.d0 * master_timers(8))/master_timers(5)),  "%    "
+            write(*,*) "GeoInterp  : ",  nint((100.d0 * master_timers(4))/master_timers(5)),  "%    "
+            write(*,*) "Transform  : ",  nint((100.d0 * master_timers(6))/master_timers(5)),  "%    "
+            write(*,*) "Analog     : ",  nint((100.d0 * master_timers(1))/master_timers(5)),  "%    "
+            write(*,*) "Regression : ",  nint((100.d0 * master_timers(2))/master_timers(5)),  "%    "
+            write(*,*) "Log.Regres : ",  nint((100.d0 * master_timers(3))/master_timers(5)),  "%    "
+            write(*,*) "Log.Analog : ",  nint((100.d0 * master_timers(9))/master_timers(5)),  "%    "
+            write(*,*) "---------------------------------------------------"
+            write(*,*) "Parallelization overhead"
+            write(*,*) "Residual   : ",  100-nint((100.0 * &
                     (sum(master_timers(1:4))+master_timers(6)+sum(master_timers(8:9)))) &
                     / master_timers(5)),"%    "
-            print*, "---------------------------------------------------"
+            write(*,*) "---------------------------------------------------"
 
 
     end subroutine downscale
@@ -443,12 +443,6 @@ contains
             center = 0
 
             if (minval(geolut%w(:3,i,j)) < -1e-4) then
-                ! write(*,*) i, j
-                ! write(*,*) "Triangle vertices"
-                ! write(*,*) geolut%x(1,i,j), geolut%y(1,i,j)
-                ! write(*,*) geolut%x(2,i,j), geolut%y(2,i,j)
-                ! write(*,*) geolut%x(3,i,j), geolut%y(3,i,j)
-                ! write(*,*) geolut%w(:3,i,j)
                 if (present(err)) then
                     err = 1
                 else

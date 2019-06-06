@@ -89,9 +89,6 @@ contains
         call lapack_least_squares(training_x_lp, training_y_lp, coefficients, info=info)
         if (info/=0) then
             y = 1e20 ! error value so it will recompute from analogs
-            ! !$omp critical (print_lock)
-            ! print*, "Regression error, using value:",y
-            ! !$omp end critical (print_lock)
             coefficients = 0
             if (present(error)) error=0
             return
@@ -242,7 +239,6 @@ contains
             W_full(i,i) = 1/W(i)
         enddo
 
-        ! print*, "entering sggglm"
         LWORK = 10000
         call sggglm(m, n, p, X, LDX, W_full, LDW, Y, Bs, output_y, WORK, LWORK, INFO)
 
@@ -322,9 +318,7 @@ contains
             P = max(-80.0, matmul(X, B))
             P = 1.0 / (1.0 + exp(-P))
             if (ANY(P > 0.9999999)) then
-                ! !$omp critical (print_lock)
-                !print*, "WARNING: logistic regression diverging"
-                ! !$omp end critical (print_lock)
+                ! WARNING: logistic regression diverging
                 f = 1
             else
 
@@ -338,10 +332,7 @@ contains
                 ! This only seems to be a problem for Intel's MKL library which can crash with a float overflow otherwise
                 if ((maxval(XV) < 1e-30) .and. (minval(XV) > -1e-30) .and. (maxval(YN) > 0.999999)) then
                     info = -1
-                    ! !$omp critical (print_lock)
-                    ! print*, "WARNING: logistic regression failed to converge"
-                    ! print*, it, maxval(XV), minval(XV), maxval(YN), minval(YN)
-                    ! !$omp end critical (print_lock)
+                    ! WARNING: logistic regression failed to converge
                 else
                     call lapack_least_squares(XV, YN, BN, info=info)
                 endif
@@ -360,9 +351,7 @@ contains
                     end if
                 end do
                 if(it > 8) then
-                    ! !$omp critical (print_lock)
-                    !print*, "WARNING: logistic regression failed to converge"
-                    ! !$omp end critical (print_lock)
+                    ! WARNING: logistic regression failed to converge
                     f = 1
                 endif
 

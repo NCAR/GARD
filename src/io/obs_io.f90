@@ -153,7 +153,7 @@ contains
 
         if (present(preload)) then
             if (trim(preload) /= "" ) then
-                print*, "Reading preloaded data: ", trim(preload)
+                write(*,*) "Reading preloaded data: ", trim(preload)
                 call io_read(preload, "data", output%data)
                 return
             endif

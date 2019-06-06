@@ -33,13 +33,13 @@ contains
         call read_base_options(options)
 
 
-        if (options%debug) print*, "Reading Prediction Namelist"
+        if (options%debug) write(*,*) "Reading Prediction Namelist"
         options%prediction  = read_prediction_options(  options%prediction_file,    options%debug)
 
-        if (options%debug) print*, "Reading Training Namelist"
+        if (options%debug) write(*,*) "Reading Training Namelist"
         options%training    = read_training_options(    options%training_file,      options%debug)
 
-        if (options%debug) print*, "Reading Observation Namelist"
+        if (options%debug) write(*,*) "Reading Observation Namelist"
         options%obs         = read_obs_options(         options%observation_file,   options%debug)
 
 
@@ -708,7 +708,7 @@ contains
         character(len=MAXFILELENGTH) :: temporary_file
         logical :: nfiles_warning_printed=.False. ! This variable will be saved between calls so that the warning is only printed once.
 
-        if (module_debug) print*, "Reading: ",trim(filename)
+        if (module_debug) write(*,*) "Reading: ",trim(filename)
         open(unit=io_newunit(file_unit), file=filename)
         i=0
         error=0
