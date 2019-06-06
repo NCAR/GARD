@@ -7,7 +7,7 @@ submodule(analog_mod) analog_implementation
 
 contains
 
-    module subroutine find_analogs(analogs, match, input, n, threshold, weights, skip_analog)
+    module subroutine find_analogs(analogs, match, input, n, threshold, weights, skip_analog, stochastic_analog_perturbation)
         implicit none
         integer, intent(inout), dimension(:), allocatable  :: analogs
         real,    intent(in),    dimension(:)   :: match
@@ -16,8 +16,9 @@ contains
         real,    intent(in)                    :: threshold
         real,    intent(inout), dimension(:), allocatable, optional :: weights
         integer, intent(in),    optional       :: skip_analog ! specify an element of the input data to skip
+        real,    intent(in),    optional       :: stochastic_analog_perturbation
 
-        real,    dimension(:), allocatable :: distances
+        real,    dimension(:), allocatable :: distances, stochastic_component
         ! logical, dimension(:), allocatable :: mask
         integer, dimension(1) :: min_location
         integer :: i, n_inputs, nvars
@@ -33,6 +34,18 @@ contains
         do i=1,nvars
             distances = distances + (input(:,i) - match(i))**2
         enddo
+
+        if (present(stochastic_analog_perturbation)) then
+            allocate(stochastic_component(n_inputs))
+            call random_number(stochastic_component)
+
+            ! this permits a stochstic component to the selection of analogs
+            ! particularly useful for precipitation when the match might be 0 and LOTS of analogs might match
+            distances = distances + stochastic_component * stochastic_analog_perturbation
+
+            deallocate(stochastic_component)
+        endif
+
         if (present(skip_analog)) then
             if ((skip_analog > 0).and.(skip_analog < size(distances))) then
                 distances(skip_analog) = distances(skip_analog) + 1000 ! 1 would be a large value

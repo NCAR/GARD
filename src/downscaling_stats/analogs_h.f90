@@ -5,7 +5,7 @@ module analog_mod
     integer, parameter :: MIN_NUMBER_ANALOGS = 20
 
 interface
-    module subroutine find_analogs(analogs, match, input, n, threshold, weights, skip_analog)
+    module subroutine find_analogs(analogs, match, input, n, threshold, weights, skip_analog, stochastic_analog_perturbation)
         implicit none
         integer, intent(inout), dimension(:), allocatable  :: analogs
         real,    intent(in),    dimension(:)   :: match
@@ -14,6 +14,7 @@ interface
         real,    intent(in)                    :: threshold
         real,    intent(inout), dimension(:), allocatable, optional :: weights
         integer, intent(in),    optional       :: skip_analog ! specify an element of the input data to skip
+        real,    intent(in),    optional       :: stochastic_analog_perturbation
 
     end subroutine find_analogs
 
