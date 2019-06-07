@@ -116,6 +116,7 @@ contains
         real    :: random_offset
         integer :: n_inputs, start_point
 
+        n_inputs = size(distances)
 
         ! if the requested perturbation is zero, then don't do anything
         if (stochastic_analog_perturbation > 0) then
@@ -133,7 +134,7 @@ contains
 
             ! this permits a stochastic component to the selection of analogs
             ! particularly useful for precipitation when the match might be 0 and LOTS of analogs might match
-            distances = distances + stochastic_analog_perturbation * prealloc_random_array(start_point:start_point+n_inputs)
+            distances = distances + stochastic_analog_perturbation * prealloc_random_array(start_point:start_point+n_inputs-1)
 
         endif
 
