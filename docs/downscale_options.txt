@@ -38,6 +38,7 @@
     logistic_from_analog_exceedance = False     ! when true the logistic probability is calculated from the number of analogs that exceed the threshold instead of from a logistic regression
     logistic_threshold = 0                      ! when set, the probability of exceeding this value will be calculated and the standard output will be trained only for the data that exceed this value
     weight_analogs = True                       ! when calculating analog_mean, analog_error, or logistic_from_analog, weight each analog by it's inverse square distance from the current input
+    ! stochastic_analog_perturbation = 0.0      ! add a random component to the analog distances when selecting to minimize problems with identical analogs (e.g. 0 precip)
 
     ! output post processing transformation
     post_correction_transform = 0               ! post processing to apply (e.g. quantile mapping to entire input obs period) (one entry for every output variable)

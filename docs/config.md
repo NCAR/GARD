@@ -36,6 +36,7 @@ The namelist options are described in the tables below and a [sample file](downs
 | logistic_from_analog_exceedance | logical | No        | FALSE                |                                                                                  |
 | logistic_threshold              | logical | No        | -9999                |                                                                                  |
 | weight_analogs                  | logical | No        | TRUE                 |                                                                                  |
+| stochastic_analog_perturbation  | real    | No        | 0.0                  | Adds a random component to the analog distances when selecting to minimize problems with identical analogs (e.g. 0 precip) |
 | debug                           | logical | No        | TRUE                 | prints more output at runtime and outputs files including the coefficients used in each analog regression (or analog values) as well as the predictor data |
 | interactive                     | logical | No        | TRUE                 | Print downscaling status as a percentage on the command line                     |
 
