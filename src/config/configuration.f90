@@ -813,7 +813,7 @@ contains
         ! TODO: Add compile time options
         write(*,*) ""
         write(*,*) "  The Generalized Analog Regression Downscaling (GARD)"
-        write(*,*) "  downscaling tool, version "//trim(kVERSION_STRING)//", Copyright (C) 2017 The"
+        write(*,*) "  downscaling tool, version "//trim(kVERSION_STRING)//", Copyright (C) 2019 The"
         write(*,*) "  National Center for Atmospheric Research. GARD comes with"
         write(*,*) "  ABSOLUTELY NO WARRANTY. This is free software, you may "
         write(*,*) "  redistribute it under certain conditions; see LICENSE.txt"
