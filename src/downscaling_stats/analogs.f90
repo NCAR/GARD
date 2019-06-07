@@ -36,14 +36,16 @@ contains
         enddo
 
         if (present(stochastic_analog_perturbation)) then
-            allocate(stochastic_component(n_inputs))
-            call random_number(stochastic_component)
+            if (stochastic_analog_perturbation > 0) then
+                allocate(stochastic_component(n_inputs))
+                call random_number(stochastic_component)
 
-            ! this permits a stochstic component to the selection of analogs
-            ! particularly useful for precipitation when the match might be 0 and LOTS of analogs might match
-            distances = distances + stochastic_component * stochastic_analog_perturbation
+                ! this permits a stochstic component to the selection of analogs
+                ! particularly useful for precipitation when the match might be 0 and LOTS of analogs might match
+                distances = distances + stochastic_component * stochastic_analog_perturbation
 
-            deallocate(stochastic_component)
+                deallocate(stochastic_component)
+            endif
         endif
 
         if (present(skip_analog)) then
