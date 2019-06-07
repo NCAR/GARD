@@ -5,6 +5,9 @@ submodule(analog_mod) analog_implementation
 
     ! integer, parameter :: MIN_NUMBER_ANALOGS = 20
 
+    !#omp threadprivate
+    real,    dimension(:), allocatable :: prealloc_random_array
+
 contains
 
     module subroutine find_analogs(analogs, match, input, n, threshold, weights, skip_analog, stochastic_analog_perturbation)
@@ -19,6 +22,7 @@ contains
         real,    intent(in),    optional       :: stochastic_analog_perturbation
 
         real,    dimension(:), allocatable :: distances, stochastic_component
+        real :: random_offset
         ! logical, dimension(:), allocatable :: mask
         integer, dimension(1) :: min_location
         integer :: i, n_inputs, nvars
@@ -37,10 +41,24 @@ contains
 
         if (present(stochastic_analog_perturbation)) then
             if (stochastic_analog_perturbation > 0) then
-                allocate(stochastic_component(n_inputs))
-                call random_number(stochastic_component)
 
-                ! this permits a stochstic component to the selection of analogs
+                allocate(stochastic_component(n_inputs))
+                if (allocated(prealloc_random_array)) then
+                    if (size(prealloc_random_array) < n_inputs) then
+                        deallocate(prealloc_random_array)
+                    endif
+                endif
+
+                if (.not. allocated(prealloc_random_array)) then
+                    allocate(prealloc_random_array(n_inputs*10))
+                    call random_number(prealloc_random_array)
+                endif
+
+                call random_number(random_offset)
+                random_offset = random_offset * (size(prealloc_random_array) - n_inputs - 1)
+                stochastic_component = prealloc_random_array(ceiling(random_offset):ceiling(random_offset)+n_inputs)
+
+                ! this permits a stochastic component to the selection of analogs
                 ! particularly useful for precipitation when the match might be 0 and LOTS of analogs might match
                 distances = distances + stochastic_component * stochastic_analog_perturbation
 
