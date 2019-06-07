@@ -5,8 +5,8 @@ submodule(analog_mod) analog_implementation
 
     ! integer, parameter :: MIN_NUMBER_ANALOGS = 20
 
-    !#omp threadprivate
     real,    dimension(:), allocatable :: prealloc_random_array
+    !$omp threadprivate(prealloc_random_array)
 
 contains
 
@@ -21,8 +21,8 @@ contains
         integer, intent(in),    optional       :: skip_analog ! specify an element of the input data to skip
         real,    intent(in),    optional       :: stochastic_analog_perturbation
 
-        real,    dimension(:), allocatable :: distances, stochastic_component
-        real :: random_offset
+        real,    dimension(:), allocatable :: distances
+
         ! logical, dimension(:), allocatable :: mask
         integer, dimension(1) :: min_location
         integer :: i, n_inputs, nvars
@@ -40,30 +40,7 @@ contains
         enddo
 
         if (present(stochastic_analog_perturbation)) then
-            if (stochastic_analog_perturbation > 0) then
-
-                allocate(stochastic_component(n_inputs))
-                if (allocated(prealloc_random_array)) then
-                    if (size(prealloc_random_array) < n_inputs) then
-                        deallocate(prealloc_random_array)
-                    endif
-                endif
-
-                if (.not. allocated(prealloc_random_array)) then
-                    allocate(prealloc_random_array(n_inputs*10))
-                    call random_number(prealloc_random_array)
-                endif
-
-                call random_number(random_offset)
-                random_offset = random_offset * (size(prealloc_random_array) - n_inputs - 1)
-                stochastic_component = prealloc_random_array(ceiling(random_offset):ceiling(random_offset)+n_inputs)
-
-                ! this permits a stochastic component to the selection of analogs
-                ! particularly useful for precipitation when the match might be 0 and LOTS of analogs might match
-                distances = distances + stochastic_component * stochastic_analog_perturbation
-
-                deallocate(stochastic_component)
-            endif
+            call add_stochastic_perturbation(stochastic_analog_perturbation, distances)
         endif
 
         if (present(skip_analog)) then
@@ -126,6 +103,60 @@ contains
             weights = weights / sum(weights)
         endif
     end subroutine find_analogs
+
+    ! private
+    ! add a random perturbation to all distances computed
+    ! this is particularly useful for precipitation which may have a lot of 0 values, and we'd like to
+    ! randomly sample from all zero values
+    subroutine add_stochastic_perturbation(stochastic_analog_perturbation, distances)
+        implicit none
+        real,    intent(in)                  :: stochastic_analog_perturbation
+        real,    intent(inout), dimension(:) :: distances
+
+        real    :: random_offset
+        integer :: n_inputs, start_point
+
+
+        ! if the requested perturbation is zero, then don't do anything
+        if (stochastic_analog_perturbation > 0) then
+
+            ! initialize a threadprivate module level variable with a collection of random values
+            ! this is done because otherwise calling random_number for LOTS of time steps for every gridcell takes a long time
+            ! preallocated array is ~10x the size required so that we can randomly subsample from it so each gridcell still gets
+            ! a different random component
+            call init_prealloc_random_array(n_inputs*10)
+
+            ! select the random subset in the pre-allocated array
+            call random_number(random_offset)
+            ! use ceiling because random_offset could be 0 and fortran arrays start at 1
+            start_point = ceiling(random_offset * (size(prealloc_random_array) - n_inputs - 1))
+
+            ! this permits a stochastic component to the selection of analogs
+            ! particularly useful for precipitation when the match might be 0 and LOTS of analogs might match
+            distances = distances + stochastic_analog_perturbation * prealloc_random_array(start_point:start_point+n_inputs)
+
+        endif
+
+
+    end subroutine
+
+    ! private
+    subroutine init_prealloc_random_array(n)
+        implicit none
+        integer, intent(in) :: n
+
+        if (allocated(prealloc_random_array)) then
+            if (size(prealloc_random_array) < n) then
+                deallocate(prealloc_random_array)
+            endif
+        endif
+
+        if (.not. allocated(prealloc_random_array)) then
+            allocate(prealloc_random_array(n))
+            call random_number(prealloc_random_array)
+        endif
+
+    end subroutine init_prealloc_random_array
 
     ! compute the mean of input[analogs]
     module function compute_analog_mean(input, analogs, mask, weights) result(mean)
