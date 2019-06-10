@@ -101,16 +101,16 @@ contains
             ! nx = 128
             ! ny = 128
 
-            print*, "=========================================="
-            print*, "Running for "
-            print*, nx, "   by",ny, " Grid Cells"
+            write(*,*) "=========================================="
+            write(*,*) "Running for "
+            write(*,*) nx, "   by",ny, " Grid Cells"
 
             total_number_of_gridcells = nx * ny
 
             call System_Clock(timeone)
             call allocate_data(output, n_obs_variables, noutput, nx, ny, n_atm_variables, tr_size, options)
             if (options%read_coefficients) call read_coefficients(output, options)
-            print*, ""
+            write(*,*) ""
 
             call System_Clock(timetwo)
             timers(7) = timetwo - timeone
@@ -335,19 +335,20 @@ contains
                         endif
 
                         ! if the input data were transformed with e.g. a cube root or log transform, then reverse that transformation for the output
-                        call System_Clock(timeone)
-                        call transform_data(options%obs%input_Xforms(v), output%variables(v)%data(:,i,j), 1, noutput, &
-                                            reverse=.True., qm_io=qq_normal,                                          &
-                                            threshold = current_threshold,                                            &
-                                            threshold_delta = output%variables(v)%logistic_threshold - current_threshold)
-                        call System_Clock(timetwo)
-                        timers(6) = timers(6) + (timetwo-timeone)
+                        if (options%pass_through .eqv. .False.) then
+                            call System_Clock(timeone)
+                            call transform_data(options%obs%input_Xforms(v), output%variables(v)%data(:,i,j), 1, noutput, &
+                                                reverse=.True., qm_io=qq_normal,                                          &
+                                                threshold = current_threshold,                                            &
+                                                threshold_delta = output%variables(v)%logistic_threshold - current_threshold)
+                            call System_Clock(timetwo)
+                            timers(6) = timers(6) + (timetwo-timeone)
+                        endif
 
                         call transform_data(options%post_correction_Xform(v), &
                                             output      %variables(v)%data(:,i,j), post_start, post_end, &
                                             training_obs%variables(v)%data(:,i,j),      1    , nobs,     &
                                             threshold=output%variables(v)%logistic_threshold)
-
                     enddo
 
                 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
@@ -394,27 +395,27 @@ contains
 
             master_timers(8) = master_timers(8) + (master_time_post_init - master_timeone) * num_threads
             master_timers(5) = master_timers(5) + (master_timetwo - master_timeone) * num_threads + master_timers(7)
-            print*, ""
-            print*, "---------------------------------------------------"
-            print*, "           Time profiling information "
-            print*, "---------------------------------------------------"
-            print*, "Total Time : ",  nint(master_timers(5) / real(COUNT_RATE)),           " s  (CPU time) "
-            print*, "Total Time : ",  nint((master_timetwo - master_timeone) / real(COUNT_RATE)), " s (wall clock)"
-            print*, "---------------------------------------------------"
-            print*, "Allocation : ",  nint((100.d0 * master_timers(7) / num_threads)/master_timers(5)),  "%    "
-            print*, "Data Init  : ",  nint((100.d0 * master_timers(8))/master_timers(5)),  "%    "
-            print*, "GeoInterp  : ",  nint((100.d0 * master_timers(4))/master_timers(5)),  "%    "
-            print*, "Transform  : ",  nint((100.d0 * master_timers(6))/master_timers(5)),  "%    "
-            print*, "Analog     : ",  nint((100.d0 * master_timers(1))/master_timers(5)),  "%    "
-            print*, "Regression : ",  nint((100.d0 * master_timers(2))/master_timers(5)),  "%    "
-            print*, "Log.Regres : ",  nint((100.d0 * master_timers(3))/master_timers(5)),  "%    "
-            print*, "Log.Analog : ",  nint((100.d0 * master_timers(9))/master_timers(5)),  "%    "
-            print*, "---------------------------------------------------"
-            print*, "Parallelization overhead"
-            print*, "Residual   : ",  100-nint((100.0 * &
+            write(*,*) ""
+            write(*,*) "---------------------------------------------------"
+            write(*,*) "           Time profiling information "
+            write(*,*) "---------------------------------------------------"
+            write(*,*) "Total Time : ",  nint(master_timers(5) / real(COUNT_RATE)),           " s  (CPU time) "
+            write(*,*) "Total Time : ",  nint((master_timetwo - master_timeone) / real(COUNT_RATE)), " s (wall clock)"
+            write(*,*) "---------------------------------------------------"
+            write(*,*) "Allocation : ",  nint((100.d0 * master_timers(7) / num_threads)/master_timers(5)),  "%    "
+            write(*,*) "Data Init  : ",  nint((100.d0 * master_timers(8))/master_timers(5)),  "%    "
+            write(*,*) "GeoInterp  : ",  nint((100.d0 * master_timers(4))/master_timers(5)),  "%    "
+            write(*,*) "Transform  : ",  nint((100.d0 * master_timers(6))/master_timers(5)),  "%    "
+            write(*,*) "Analog     : ",  nint((100.d0 * master_timers(1))/master_timers(5)),  "%    "
+            write(*,*) "Regression : ",  nint((100.d0 * master_timers(2))/master_timers(5)),  "%    "
+            write(*,*) "Log.Regres : ",  nint((100.d0 * master_timers(3))/master_timers(5)),  "%    "
+            write(*,*) "Log.Analog : ",  nint((100.d0 * master_timers(9))/master_timers(5)),  "%    "
+            write(*,*) "---------------------------------------------------"
+            write(*,*) "Parallelization overhead"
+            write(*,*) "Residual   : ",  100-nint((100.0 * &
                     (sum(master_timers(1:4))+master_timers(6)+sum(master_timers(8:9)))) &
                     / master_timers(5)),"%    "
-            print*, "---------------------------------------------------"
+            write(*,*) "---------------------------------------------------"
 
 
     end subroutine downscale
@@ -442,12 +443,6 @@ contains
             center = 0
 
             if (minval(geolut%w(:3,i,j)) < -1e-4) then
-                ! write(*,*) i, j
-                ! write(*,*) "Triangle vertices"
-                ! write(*,*) geolut%x(1,i,j), geolut%y(1,i,j)
-                ! write(*,*) geolut%x(2,i,j), geolut%y(2,i,j)
-                ! write(*,*) geolut%x(3,i,j), geolut%y(3,i,j)
-                ! write(*,*) geolut%w(:3,i,j)
                 if (present(err)) then
                     err = 1
                 else
@@ -532,6 +527,8 @@ contains
 
                 if (internal_threshold/=kFILL_VALUE) then
 
+                    ! if we are quantile mapping a dataset that has a threshold we need to only QM above
+                    ! first develop the QM for the data that exceeds that threshold
                     allocate(mask(p_xf_start:p_xf_stop))
                     mask = pred_data(p_xf_start:p_xf_stop) > internal_threshold
                     allocate( temporary( count(mask) ) )
@@ -543,11 +540,19 @@ contains
                     call develop_qm(temporary, thresholded_training,    &
                                     qm, n_segments = N_ATM_QM_SEGMENTS)
 
-                    deallocate(thresholded_training)
+                    deallocate(thresholded_training, mask, temporary)
+
+                    ! now reallocate temporary variables for the full time series of output data to apply the quantile mapping to.
+                    allocate(mask(size(pred_data)))
+                    mask = pred_data > internal_threshold
+
+                    allocate( temporary( count(mask) ) )
+                    temporary = pack(  pred_data, mask=mask )
+
                     allocate( thresholded_training( size(temporary)) )
                     call apply_qm(temporary, thresholded_training, qm)
 
-                    pred_data(p_xf_start:p_xf_stop) = unpack( thresholded_training, mask, pred_data(p_xf_start:p_xf_stop))
+                    pred_data = unpack( thresholded_training, mask, pred_data)
 
                     deallocate(thresholded_training, temporary, mask)
                 else
@@ -601,6 +606,8 @@ contains
                     stop
                 endif
 
+                ! this is pretty awkward logic to work around the combination of a previous quantile mapping and a threshold defined on the obs dataset.
+                ! Need to investigate wheather or not the newly implemented mask can be used to improve this.
                 if (present(threshold_delta)) then
                     allocate(mask(size(pred_data)))
                     mask = pred_data <= internal_threshold
@@ -615,30 +622,50 @@ contains
                 endif
             else
 
-
+                ! if we are predicting a threshold exceedence, then the QQ-normal step is a little more complicated
                 if (internal_threshold/=kFILL_VALUE) then
                     allocate(mask(p_xf_start:p_xf_stop))
                     mask = pred_data(p_xf_start:p_xf_stop) > internal_threshold
+
+                    ! we only want to develop the Quantile mapping for data that exceed the threshold, so first pack those into a single array
                     allocate( temporary( count(mask) ) )
                     temporary = pack(  pred_data(p_xf_start:p_xf_stop), mask=mask)
 
+                    ! develop and apply the Quantile Mapping function on this subset of data
                     call develop_qm(temporary, random_sample,    &
                                     qm, n_segments = N_ATM_QM_SEGMENTS)
 
+                    deallocate(temporary, mask)
+
+                    ! now repeat the process of subsetting the data for the QM application to the entire time series
+                    allocate(mask(size(pred_data)))
+                    mask = pred_data > internal_threshold
+
+                    ! we only want to develop the Quantile mapping for data that exceed the threshold, so first pack those into a single array
+                    allocate( temporary( count(mask) ) )
+                    temporary = pack(  pred_data, mask=mask)
                     allocate( thresholded_training( size(temporary)) )
+
                     call apply_qm(temporary, thresholded_training, qm)
 
+                    ! find the minimume of the QMed data and create a value that is 0.1% smaller
                     newmin = minval(thresholded_training)
                     newmin = newmin - 0.001 * abs(newmin)
 
                     if (newmin < internal_threshold) then
-                        where(.not.mask) pred_data(p_xf_start:p_xf_stop) = pred_data(p_xf_start:p_xf_stop) + (newmin - internal_threshold)
+                        ! set threshold non-exceedence data to a new minimum value below that threshold
+                        where(.not.mask) pred_data = pred_data + (newmin - internal_threshold)
+                        ! keep track of this new "threshold of sorts"
                         if (present(threshold)) threshold = (newmin - threshold)
                     endif
-                    pred_data(p_xf_start:p_xf_stop) = unpack( thresholded_training, mask, pred_data(p_xf_start:p_xf_stop))
+
+                    ! finally, put the QM subset of data back into the original data array
+                    pred_data = unpack( thresholded_training, mask, pred_data)
 
                     deallocate(thresholded_training, temporary, mask)
                 else
+                    ! this is the simple case, create a temporary variable, develop the quantile mapping, and apply it (copying into the temporary)
+                    ! then copy the QMed temp variable data back into the output array
                     allocate( temporary( size(pred_data)) )
 
                     call develop_qm(pred_data( p_xf_start:p_xf_stop), &
@@ -838,9 +865,13 @@ contains
 
         call System_Clock(timeone)
         if (options%analog_weights) then
-            call find_analogs(analogs, x, atm, n_analogs, analog_threshold, weights, skip_analog=date_to_skip)
+            call find_analogs(analogs, x, atm, n_analogs, analog_threshold, weights,                        &
+                                skip_analog=date_to_skip,                                                   &
+                                stochastic_analog_perturbation=options%stochastic_analog_perturbation)
         else
-            call find_analogs(analogs, x, atm, n_analogs, analog_threshold, skip_analog=date_to_skip)
+            call find_analogs(analogs, x, atm, n_analogs, analog_threshold,                                 &
+                                skip_analog=date_to_skip,                                                   &
+                                stochastic_analog_perturbation=options%stochastic_analog_perturbation)
         endif
 
         real_analogs = size(analogs)
@@ -928,9 +959,13 @@ contains
 
                     ! find the logistic analogs
                     if (options%analog_weights) then
-                        call find_analogs(analogs, x, atm, options%n_log_analogs, -1.0, threshold_weights, skip_analog=date_to_skip)
+                        call find_analogs(analogs, x, atm, options%n_log_analogs, -1.0, threshold_weights,              &
+                                            skip_analog=date_to_skip,                                                   &
+                                            stochastic_analog_perturbation=options%stochastic_analog_perturbation)
                     else
-                        call find_analogs(analogs, x, atm, options%n_log_analogs, -1.0, skip_analog=date_to_skip)
+                        call find_analogs(analogs, x, atm, options%n_log_analogs, -1.0,                                 &
+                                            skip_analog=date_to_skip,                                                   &
+                                            stochastic_analog_perturbation=options%stochastic_analog_perturbation)
                     endif
                     call System_Clock(timetwo)
                     timers(9) = timers(9) + (timetwo-timeone)
@@ -1021,9 +1056,13 @@ contains
                 allocate(analogs(n_analogs))
             endif
             if (options%analog_weights) then
-                call find_analogs(analogs, x, atm, n_analogs, analog_threshold, weights, skip_analog=date_to_skip)
+                call find_analogs(analogs, x, atm, n_analogs, analog_threshold, weights,                        &
+                                    skip_analog=date_to_skip,                                                   &
+                                    stochastic_analog_perturbation=options%stochastic_analog_perturbation)
             else
-                call find_analogs(analogs, x, atm, n_analogs, analog_threshold, skip_analog=date_to_skip)
+                call find_analogs(analogs, x, atm, n_analogs, analog_threshold,                                 &
+                                    skip_analog=date_to_skip,                                                   &
+                                    stochastic_analog_perturbation=options%stochastic_analog_perturbation)
             endif
         else
             allocate(analogs(size(input_analogs)))

@@ -34,37 +34,37 @@ program stat_down
     call model_init(options)
 
     ! read in the atmospheric predictor data (e.g. GCM or GEFS)
-    print*, "=========================================="
-    print*, ""
-    print*, "Reading predictor"
+    write(*,*) "=========================================="
+    write(*,*) ""
+    write(*,*) "Reading predictor"
     predictions  = read_atm(options%prediction)
 
     ! read in the training atmospheric data (e.g. reanalysis or GEFS)
-    print*, ""
-    print*, "Reading training"
+    write(*,*) ""
+    write(*,*) "Reading training"
     training_atm = read_atm(options%training)
     ! read in the training surface data (e.g. Maurer et al., Newman et al., Livneh et al., DAYMET )
-    print*, ""
-    print*, "Reading obs"
+    write(*,*) ""
+    write(*,*) "Reading obs"
     training_obs = read_obs(options%obs)
 
-    print*, ""
-    print*, "=========================================="
-    print*, "options         ", trim(options%name)
-    print*, "obs             ", trim(training_obs%name)
-    print*, "atm:training    ", trim(training_atm%name)
-    print*, "atm:predictions ", trim(predictions%name)
-    print*, "=========================================="
-    print*, ""
-    print*, "Developing geographic interpolation..."
+    write(*,*) ""
+    write(*,*) "=========================================="
+    write(*,*) "options         ", trim(options%name)
+    write(*,*) "obs             ", trim(training_obs%name)
+    write(*,*) "atm:training    ", trim(training_atm%name)
+    write(*,*) "atm:predictions ", trim(predictions%name)
+    write(*,*) "=========================================="
+    write(*,*) ""
+    write(*,*) "Developing geographic interpolation..."
 
     call geo_LUT(training_obs, training_atm, options%prediction%interpolation_method)
     call geo_LUT(training_obs, predictions, options%training%interpolation_method)
 
     if (options%debug) then
-        print*, "=========================================="
-        print*, ""
-        print*, "Writing input data"
+        write(*,*) "=========================================="
+        write(*,*) ""
+        write(*,*) "Writing input data"
         do i=1,size(training_obs%variables)
             if (trim(options%obs%preloaded) == "") then
                 options%obs%preloaded = "obs_preload_"
@@ -86,15 +86,15 @@ program stat_down
         enddo
     endif
 
-    print*, ""
-    print*, "=========================================="
-    print*, ""
-    print*, "Running Downscaling Code"
+    write(*,*) ""
+    write(*,*) "=========================================="
+    write(*,*) ""
+    write(*,*) "Running Downscaling Code"
     call downscale(training_atm, training_obs, predictions, output, options)
 
-    print*, "=========================================="
-    print*, ""
-    print*, "Writing output"
+    write(*,*) "=========================================="
+    write(*,*) ""
+    write(*,*) "Writing output"
     call write_output(output, options)
 
 end program stat_down

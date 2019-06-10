@@ -3,7 +3,7 @@ module model_constants
     implicit none
 
     ! Model source code version number
-    character(len=*),public,parameter :: kVERSION_STRING = "0.5"
+    character(len=*),public,parameter :: kVERSION_STRING = "0.6"
 
     ! ------------------------------------------------
     ! String constants

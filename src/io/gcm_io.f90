@@ -145,7 +145,7 @@ contains
         ! make a passe through all the files to first find total the dimensions of the output data
         do file_idx = 1,size(filenames)
 
-            if (debug) print*, "Get_dims : ",trim(filenames(file_idx)), " ", trim(varname)
+            if (debug) write(*,*) "Get_dims : ",trim(filenames(file_idx)), " ", trim(varname)
             call io_getdims(filenames(file_idx), varname, dims)
             ! dims(1) = the number of dimensions
             if (dims(1)<3) then

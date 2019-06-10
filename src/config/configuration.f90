@@ -33,13 +33,13 @@ contains
         call read_base_options(options)
 
 
-        if (options%debug) print*, "Reading Prediction Namelist"
+        if (options%debug) write(*,*) "Reading Prediction Namelist"
         options%prediction  = read_prediction_options(  options%prediction_file,    options%debug)
 
-        if (options%debug) print*, "Reading Training Namelist"
+        if (options%debug) write(*,*) "Reading Training Namelist"
         options%training    = read_training_options(    options%training_file,      options%debug)
 
-        if (options%debug) print*, "Reading Observation Namelist"
+        if (options%debug) write(*,*) "Reading Observation Namelist"
         options%obs         = read_obs_options(         options%observation_file,   options%debug)
 
 
@@ -67,7 +67,7 @@ contains
         logical :: sample_analog, logistic_from_analog_exceedance, weight_analogs
         logical :: read_coefficients, write_coefficients
         character(len=MAXFILELENGTH)    :: coefficients_files(MAX_NUMBER_VARS)
-        real    :: logistic_threshold, analog_threshold
+        real    :: logistic_threshold, analog_threshold, stochastic_analog_perturbation
         integer :: time_smooth
 
         ! setup the namelist
@@ -84,7 +84,7 @@ contains
                                 pass_through, pass_through_var,                     &
                                 read_coefficients, write_coefficients,              &
                                 coefficients_files, post_correction_transform,      &
-                                time_smooth
+                                time_smooth, stochastic_analog_perturbation
 
         options%version = kVERSION_STRING
         options%options_filename = get_options_file()
@@ -107,6 +107,7 @@ contains
         n_analogs        = -1
         n_log_analogs    = -1
         analog_threshold = -1
+        stochastic_analog_perturbation = 0
         pure_analog      = .False.
         analog_regression= .True.
         pure_regression  = .False.
@@ -185,6 +186,7 @@ contains
         options%n_analogs           = n_analogs
         options%n_log_analogs       = n_log_analogs
         options%analog_threshold    = analog_threshold
+        options%stochastic_analog_perturbation = stochastic_analog_perturbation
         options%pure_analog         = pure_analog
         options%analog_regression   = analog_regression
         options%pure_regression     = pure_regression
@@ -708,7 +710,7 @@ contains
         character(len=MAXFILELENGTH) :: temporary_file
         logical :: nfiles_warning_printed=.False. ! This variable will be saved between calls so that the warning is only printed once.
 
-        if (module_debug) print*, "Reading: ",trim(filename)
+        if (module_debug) write(*,*) "Reading: ",trim(filename)
         open(unit=io_newunit(file_unit), file=filename)
         i=0
         error=0
@@ -811,7 +813,7 @@ contains
         ! TODO: Add compile time options
         write(*,*) ""
         write(*,*) "  The Generalized Analog Regression Downscaling (GARD)"
-        write(*,*) "  downscaling tool, version "//trim(kVERSION_STRING)//", Copyright (C) 2017 The"
+        write(*,*) "  downscaling tool, version "//trim(kVERSION_STRING)//", Copyright (C) 2019 The"
         write(*,*) "  National Center for Atmospheric Research. GARD comes with"
         write(*,*) "  ABSOLUTELY NO WARRANTY. This is free software, you may "
         write(*,*) "  redistribute it under certain conditions; see LICENSE.txt"

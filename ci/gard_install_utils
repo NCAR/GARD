@@ -34,7 +34,7 @@ function install_hdf5 {
     echo install_hdf5
     cd $WORKDIR
     HDF_FILE="hdf5-1.10.4"
-    wget --no-check-certificate -q https://support.hdfgroup.org/ftp/HDF5/current/src/${HDF_FILE}.tar.gz
+    wget --no-check-certificate -q https://support.hdfgroup.org/ftp/HDF5/releases/hdf5-1.10/${HDF_FILE}/src/${HDF_FILE}.tar.gz
     tar -xzf ${HDF_FILE}.tar.gz
     cd ${HDF_FILE}
     ./configure --prefix=$INSTALLDIR &> config.log
