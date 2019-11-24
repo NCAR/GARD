@@ -134,10 +134,14 @@ contains
                 this%calendar = GREGORIAN
             case("standard")
                 this%calendar = GREGORIAN
+            case("365_day")
+                this%calendar = NOLEAP
             case("365-day")
                 this%calendar = NOLEAP
             case("noleap")
                 this%calendar = NOLEAP
+            case("360_day")
+                this%calendar = THREESIXTY
             case("360-day")
                 this%calendar = THREESIXTY
             case default
@@ -153,10 +157,14 @@ contains
                     this%calendar = GREGORIAN
                 case("stand")
                     this%calendar = GREGORIAN
+                case("365_d")
+                    this%calendar = NOLEAP
                 case("365-d")
                     this%calendar = NOLEAP
                 case("nolea")
                     this%calendar = NOLEAP
+                case("360_d")
+                    this%calendar = THREESIXTY
                 case("360-d")
                     this%calendar = THREESIXTY
                 case default
