@@ -274,6 +274,8 @@ contains
 
                         do v=1,n_obs_variables
                             output%variables(v)%data(:,i,j) = kFILL_VALUE
+                            output%variables(v)%errors(:,i,j) = kFILL_VALUE
+                            output%variables(v)%logistic(:,i,j) = kFILL_VALUE
                         enddo
 
                         cycle
@@ -369,6 +371,8 @@ contains
                     ! store a fill value in the output
                     do v=1,n_obs_variables
                         output%variables(v)%data(:,i,j) = kFILL_VALUE
+                        output%variables(v)%errors(:,i,j) = kFILL_VALUE
+                        output%variables(v)%logistic(:,i,j) = kFILL_VALUE
                     enddo
 
                 endif
