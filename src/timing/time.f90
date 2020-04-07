@@ -27,7 +27,10 @@ module time
     !!
     !!------------------------------------------------------------
     type, public :: Time_type
-        integer :: year_zero = 1800  ! starting year
+        integer :: year_zero = 1800  ! calendar starting year
+        integer :: month_zero = 1
+        integer :: day_zero = 1
+        integer :: hour_zero = 0
         integer :: calendar
         integer, dimension(13) :: month_start
         integer :: year, month, day, hour, minute, second
@@ -75,11 +78,11 @@ contains
     !!  Set the object calendar and base year
     !!
     !!------------------------------------------------------------
-    subroutine time_init(this, calendar_name, year_zero)
+    subroutine time_init(this, calendar_name, year_zero, month_zero, day_zero, hour_zero)
         implicit none
         class(Time_type) :: this
         character(len=*), intent(in) :: calendar_name
-        integer, intent(in), optional :: year_zero
+        integer, intent(in), optional :: year_zero, month_zero, day_zero, hour_zero
 
         integer :: i
 
@@ -88,23 +91,25 @@ contains
 
         call this%set_calendar(calendar_name)
 
-        if (this%calendar == GREGORIAN) then
-            this%year_zero = NON_VALID_YEAR
-        else
-            this%year_zero = 0
-        endif
-
         if (this%calendar == THREESIXTY) then
             do i=0,12
                 this%month_start(i+1) = i*30
             end do
         endif
-        do i=0,12
-            this%month_start(i+1) = this%month_start(i+1) + 1
-        end do
+
+        this%month_start = this%month_start + 1
 
         if ( present(year_zero) ) then
             this%year_zero = year_zero
+        endif
+        if ( present(month_zero) ) then
+            this%month_zero = month_zero
+        endif
+        if ( present(day_zero) ) then
+            this%day_zero = day_zero
+        endif
+        if ( present(hour_zero) ) then
+            this%hour_zero = hour_zero
         endif
 
     end subroutine time_init
@@ -285,7 +290,7 @@ contains
             if (this%year_zero == NON_VALID_YEAR) then
                 jday = nint(mjd+2400000.5)
             else
-                jday = nint(mjd + gregorian_julian_day(this%year_zero, 1, 1, 0, 0, 0))
+                jday = nint(mjd + gregorian_julian_day(this%year_zero, this%month_zero, this%day_zero, this%hour_zero, 0, 0))
             endif
             f = jday+j+(((4*jday+B)/146097)*3)/4+C
             e = r*f+v
@@ -301,15 +306,16 @@ contains
         !
         !------------------------------------------------------------
         else if (this%calendar==NOLEAP) then
-            year=floor(mjd/365)
-            day_fraction=mjd - year*365+1
+            year = floor((mjd + (this%month_start(this%month_zero)-1) + (this%day_zero-1) + this%hour_zero/24.0) / 365)
+            day_fraction = mjd - year*365+1 + (this%month_start(this%month_zero)-1) + (this%day_zero-1) + this%hour_zero/24.0
+            month = 1
             do f=1,12
                 if (day_fraction>this%month_start(f)) then
                     month=f
                 endif
             end do
             day = floor(day_fraction - this%month_start(month))+1
-            year=year+this%year_zero
+            year = year + this%year_zero
 
         !------------------------------------------------------------
         !
@@ -317,15 +323,16 @@ contains
         !
         !------------------------------------------------------------
         else if (this%calendar==THREESIXTY) then
-            year=floor(mjd/360)
-            day_fraction=mjd - year*360+1
+            year = floor((mjd + (this%month_zero-1) * 30 + (this%day_zero-1) + this%hour_zero/24.0) / 360)
+            day_fraction = mjd - year*360+1 + (this%month_zero-1) * 30 + (this%day_zero-1) + this%hour_zero/24.0
+            month = 1
             do f=1,12
                 if (day_fraction>this%month_start(f)) then
                     month=f
                 endif
             end do
             day = floor(day_fraction - this%month_start(month))+1
-            year=year+this%year_zero
+            year = year + this%year_zero
         end if
 
         !------------------------------------------------------------
@@ -471,21 +478,11 @@ contains
             format = input_format
         else
             ! this is the default format string to generate "YYYY/MM/DD hh:mm:ss"
-            format = '(I4,A1,I2,A1,I2,A1,I2,A1,I2,A1,I2)'
+            format = '(I4,"/",I0.2,"/",I0.2," ",I0.2,":",I0.2,":",I0.2)'
         endif
 
         ! this and the format statement above are the important bits
-        write(pretty_string, format) year,'/',month,'/',day,'_',hour,':',minute,":",second
-
-        ! fill missing digits with '0'
-        do i=1,len_trim(pretty_string)
-            select case (pretty_string(i:i))
-                case (' ')
-                    pretty_string(i:i) = '0'
-                case ('_')
-                    pretty_string(i:i) = ' '
-            end select
-        end do
+        write(pretty_string, format) year, month, day, hour, minute, second
 
         end associate
 
@@ -500,8 +497,10 @@ contains
 
         ! note if calendars are the same, can just return mjd delta...
         if ((t1%calendar == t2%calendar).and.(t1%year_zero == t2%year_zero)) then
-            greater_than = (t1%current_date_time > t2%current_date_time)
-            return
+            if ((t1%month_zero == t2%month_zero).and.(t1%day_zero == t2%day_zero).and.(t1%hour_zero == t2%hour_zero))  then
+                greater_than = (t1%current_date_time > t2%current_date_time)
+                return
+            endif
         endif
 
         if (t1%year > t2%year) then
@@ -541,8 +540,10 @@ contains
 
         ! note if calendars are the same, can just return mjd delta...
         if ((t1%calendar == t2%calendar).and.(t1%year_zero == t2%year_zero)) then
-            greater_or_eq = (t1%current_date_time >= t2%current_date_time)
-            return
+            if ((t1%month_zero == t2%month_zero).and.(t1%day_zero == t2%day_zero).and.(t1%hour_zero == t2%hour_zero))  then
+                greater_or_eq = (t1%current_date_time >= t2%current_date_time)
+                return
+            endif
         endif
 
 
@@ -584,9 +585,11 @@ contains
 
         ! note if calendars are the same, can just return mjd delta...
         if ((t1%calendar == t2%calendar).and.(t1%year_zero == t2%year_zero)) then
-            ! if the time delta is < ~one second, then return true
-            equal = (abs(t1%current_date_time - t2%current_date_time) < 1.1575e-05)
-            return
+            if ((t1%month_zero == t2%month_zero).and.(t1%day_zero == t2%day_zero).and.(t1%hour_zero == t2%hour_zero))  then
+                ! if the time delta is < ~one second, then return true
+                equal = (abs(t1%current_date_time - t2%current_date_time) < 1.1575e-05)
+                return
+            endif
         endif
 
         if ((t1%year == t2%year).and.(t1%month == t2%month).and.(t1%day == t2%day)      &

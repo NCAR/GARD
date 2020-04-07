@@ -45,6 +45,66 @@ contains
 
     end function year_from_units
 
+
+    function month_from_units(units) result(month)
+        implicit none
+        character(len=*), intent(in) :: units
+        integer :: month
+
+        integer :: since_loc, month_loc
+
+        since_loc = index(units,"since")
+
+        month_loc = index(units(since_loc:)," ") + 5
+        month_loc = month_loc + since_loc
+
+        month = get_integer(units(month_loc:month_loc+1))
+
+    end function month_from_units
+
+    function day_from_units(units) result(day)
+        implicit none
+        character(len=*), intent(in) :: units
+        integer :: day
+
+        integer :: since_loc, day_loc
+
+        since_loc = index(units,"since")
+
+        day_loc = index(units(since_loc:)," ") + 8
+        day_loc = day_loc + since_loc
+
+        day = get_integer(units(day_loc:day_loc+1))
+
+    end function day_from_units
+
+    function hour_from_units(units, error) result(hour)
+        implicit none
+        character(len=*), intent(in) :: units
+        integer, intent(out), optional :: error
+        integer :: hour
+
+        integer :: since_loc, hour_loc
+        if (present(error)) error = 0
+
+        since_loc = index(units,"since")
+
+        hour_loc = index(units(since_loc:)," ") + 11
+        hour_loc = hour_loc + since_loc
+
+        ! default return value if hours can't be read from the units attribute (e.g. they aren't present)
+        hour = 0
+
+        if( hour_loc+1 <= len(units) ) then
+            if (trim(units(hour_loc:hour_loc+1)) /= "") then
+                hour = get_integer(units(hour_loc:hour_loc+1))
+            endif
+        else
+            if (present(error)) error = 1
+        endif
+
+    end function hour_from_units
+
     function get_selected_time(options) result(selected_time)
         implicit none
         class(input_config), intent(in) :: options
@@ -77,7 +137,8 @@ contains
         double precision, optional :: timezone_offset
 
         double precision, allocatable, dimension(:) :: temp_times
-        integer :: ntimes, file_idx, cur_time, time_idx, error, start_year
+        integer :: ntimes, file_idx, cur_time, time_idx, error
+        integer :: start_year, start_month, start_day, start_hour
         character(len=MAXSTRINGLENGTH) :: calendar, units
         double precision :: calendar_gain
         integer :: selected_time
@@ -105,6 +166,9 @@ contains
 
             if (error==0) then
                 start_year = year_from_units(units)
+                start_month   = month_from_units(units)
+                start_day     = day_from_units(units)
+                start_hour    = hour_from_units(units)
                 calendar_gain = time_gain_from_units(units)
             else
                 start_year = options%calendar_start_year
@@ -121,13 +185,13 @@ contains
             if (selected_time == -1) then
                 do time_idx = 1, size(temp_times,1)
 
-                    call times(cur_time)%init(calendar, start_year)
+                    call times(cur_time)%init(calendar, start_year, start_month, start_day, start_hour)
                     call times(cur_time)%set(temp_times(time_idx))
 
                     cur_time = cur_time + 1
                 end do
             else
-                call times(cur_time)%init(calendar, start_year)
+                call times(cur_time)%init(calendar, start_year, start_month, start_day, start_hour)
                 call times(cur_time)%set(temp_times(selected_time))
 
                 cur_time = cur_time + 1
