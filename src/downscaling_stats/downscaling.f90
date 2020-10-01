@@ -1399,7 +1399,7 @@ contains
             else
                 ! unfortunately logistic has to be allocated even if it is not used because it is indexed
                 ! however, it does not need a complete time sequence because time is never indexed
-                allocate(output%variables(v)%logistic    (2, nx, ny), stat=Mem_Error)
+                allocate(output%variables(v)%logistic    (noutput, nx, ny), stat=Mem_Error)
                 if (Mem_Error /= 0) call memory_error(Mem_Error, "out%variables(v)%logistic v="//trim(str(v)), [2,nx,ny])
             endif
 
