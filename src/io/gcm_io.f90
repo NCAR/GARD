@@ -222,6 +222,10 @@ contains
                 call io_read(filenames(file_idx), varname, data_4d)
                 ! assign all timesteps to output data array
                 do i=1,dims(5)
+                    if (level > dims(4)) then
+                        write(*,*) "Given",level, " level is out of dimension",dims(4), " bounds."
+                        stop "STOPPED"
+                    endif
                     output(curstep,:,:) = data_4d(:,:,level,i)
                     curstep = curstep + 1
                 end do
